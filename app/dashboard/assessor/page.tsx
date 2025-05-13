@@ -18,7 +18,7 @@ import {
   Calendar,
 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 
 export default function AssessorDashboard() {
   const { user } = useAuth()
@@ -65,9 +65,9 @@ export default function AssessorDashboard() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Habimana Jean",
-        role: "Assessor",
-        avatar: "/placeholder.svg?height=40&width=40",
+        name: user?.name ? `${user.name} ` : "User name",
+        role: user?.role.name,
+        avatar: user?.avatar? user?.avatar:"/placeholder.svg?height=40&width=40",
       }}
       navigation={[
         { name: "Dashboard", href: "/dashboard/assessor", icon: <ClipboardCheck className="h-5 w-5" /> },
@@ -76,8 +76,9 @@ export default function AssessorDashboard() {
         { name: "Schedule", href: "/dashboard/assessor/schedule", icon: <Calendar className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/assessor/notifications", icon: <Bell className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/assessor/profile", icon: <User className="h-5 w-5" /> },
+        { name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }
       ]}
-      actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
+      //actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">

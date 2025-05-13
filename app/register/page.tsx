@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -12,14 +12,15 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 
+// Form schema with tenantId for non-insurers and insuranceCompanyName for insurers
 const formSchema = z
   .object({
-    firstName: z.string().min(2, {
+    first_name: z.string().min(2, {
       message: "First name must be at least 2 characters.",
     }),
-    lastName: z.string().min(2, {
+    last_name: z.string().min(2, {
       message: "Last name must be at least 2 characters.",
     }),
     email: z.string().email({
@@ -35,11 +36,21 @@ const formSchema = z
     role: z.enum(["driver", "garage", "assessor", "insurer"], {
       required_error: "Please select a role.",
     }),
+    tenantId: z.string().optional(), // Required for non-insurers
+    insuranceCompanyName: z.string().optional(), // Required for insurers
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
   })
+  .refine((data) => data.role !== "insurer" || (data.role === "insurer" && data.insuranceCompanyName && data.insuranceCompanyName.length >= 2), {
+    message: "Insurance company name is required and must be at least 2 characters.",
+    path: ["insuranceCompanyName"],
+  })
+  // .refine((data) => data.role === "insurer" || (data.role !== "insurer" && data.tenantId), {
+  //   message: "Please select an insurance company.",
+  //   path: ["tenantId"],
+  // })
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -47,28 +58,73 @@ export default function RegisterPage() {
   const { toast } = useToast()
   const { register } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [isInsurer, setIsInsurer] = useState(false)
+  const [tenants, setTenants] = useState<{ value: string; label: string }[]>([])
 
   const defaultRole = searchParams.get("role") || "driver"
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      first_name: "",
+      last_name: "",
       email: "",
       phone: "",
       password: "",
       confirmPassword: "",
       role: defaultRole as "driver" | "garage" | "assessor" | "insurer",
+      tenantId: "",
+      insuranceCompanyName: "",
     },
   })
+
+  // Fetch tenants from API
+  useEffect(() => {
+    async function fetchTenants() {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/tenants")
+        const data = await response.json()
+        setTenants(
+          data.map((tenant: { id: string; name: string }) => ({
+            value: tenant.id,
+            label: tenant.name,
+          }))
+        )
+      } catch (error) {
+        console.error("Failed to fetch tenants:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load insurance companies. Please try again.",
+        })
+      }
+    }
+    fetchTenants()
+  }, [toast])
+
+  // Watch role to show/hide tenantId or insuranceCompanyName field
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "role") {
+        setIsInsurer(value.role === "insurer")
+        if (value.role === "insurer") {
+          form.setValue("tenantId", "") // Clear tenantId for insurers
+        } else {
+          form.setValue("insuranceCompanyName", "") // Clear insuranceCompanyName for non-insurers
+        }
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [form])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      // In a real app, this would call an API endpoint
-      await register(values)
-
+      await register({
+        ...values,
+        tenantId: values.role !== "insurer" ? values.tenantId : undefined,
+        insuranceCompanyName: values.role === "insurer" ? values.insuranceCompanyName : undefined,
+      })
       toast({
         title: "Registration successful",
         description: "Your account has been created. You can now log in.",
@@ -99,7 +155,7 @@ export default function RegisterPage() {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="firstName"
+                  name="first_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
@@ -112,7 +168,7 @@ export default function RegisterPage() {
                 />
                 <FormField
                   control={form.control}
-                  name="lastName"
+                  name="last_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
@@ -205,7 +261,48 @@ export default function RegisterPage() {
                 )}
               />
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              {isInsurer ? (
+                <FormField
+                  control={form.control}
+                  name="insuranceCompanyName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Insurance Company Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter your insurance company name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormField
+                  control={form.control}
+                  name="tenantId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Insurance Company</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an insurance company" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {tenants.map((tenant) => (
+                            <SelectItem key={tenant.value} value={tenant.value}>
+                              {tenant.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <Button type="submit" className="w-full" disabled={isLoading || (tenants.length === 0 && !isInsurer)}>
                 {isLoading ? "Creating account..." : "Register"}
               </Button>
             </form>

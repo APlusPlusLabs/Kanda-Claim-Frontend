@@ -29,7 +29,7 @@ import {
 } from "lucide-react"
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { AssignAssessorDialog } from "@/components/assign-assessor-dialog"
 import { RequestInfoDialog } from "@/components/request-info-dialog"
 import { useToast } from "@/components/ui/use-toast"
@@ -200,8 +200,8 @@ export default function InsurerDashboard() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Sanlam Alianz",
-        role: "Insurance Company",
+        name: user?.name ? `${user.name} ` : "user name",
+        role: user?.role?.name+" @ "+ user?.tenant?.name,
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
@@ -219,8 +219,9 @@ export default function InsurerDashboard() {
         { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
+        { name: "Logout", href: "/login", icon: <LogOut className="h-5 w-5" />}
       ]}
-      actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
+   //   actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
     >
       <div className="space-y-6">
         <div className="flex justify-between items-center mb-6">

@@ -1,5 +1,5 @@
 "use client"
-
+const PAGE_TITLE = process.env.NEXT_PUBLIC_APP_NAME;
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 
 const formSchema = z.object({
   email: z.string().email({
@@ -44,12 +44,10 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      // In a real app, this would call an API endpoint
-      await login(values.email, values.password, values.role)
-
+      await login(values)
       toast({
         title: "Login successful",
-        description: "Welcome back to Kanda Claim!",
+        description: "Welcome back to Kanda Claim! ",
       })
 
       // Redirect based on role
@@ -57,7 +55,7 @@ export default function LoginPage() {
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Login failed",
+        title: "Login failed ",
         description: "Please check your credentials and try again.",
       })
     } finally {
@@ -69,7 +67,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Login to Kanda Claim</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Login to {PAGE_TITLE}</CardTitle>
           <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>

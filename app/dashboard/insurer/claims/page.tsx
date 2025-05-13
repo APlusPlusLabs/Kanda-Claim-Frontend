@@ -904,7 +904,7 @@ export default function InsurerClaimsPage() {
         ...selectedClaim.notes,
         {
           date: format(new Date(), "yyyy-MM-dd HH:mm"),
-          author: user?.firstName ? `${user.firstName} ${user.lastName}` : "Claims Agent",
+          author: user?.first_name ? `${user.first_name} ${user.last_name}` : "Claims Agent",
           content: newNote,
         },
       ],
@@ -934,7 +934,7 @@ export default function InsurerClaimsPage() {
         ...selectedClaim.notes,
         {
           date: format(new Date(), "yyyy-MM-dd HH:mm"),
-          author: user?.firstName ? `${user.firstName} ${user.lastName}` : "Claims Agent",
+          author: user?.first_name ? `${user.first_name} ${user.last_name}` : "Claims Agent",
           content: `Claim assigned to ${person} in ${department}.`,
         },
       ],
@@ -962,7 +962,7 @@ export default function InsurerClaimsPage() {
         ...selectedClaim.notes,
         {
           date: format(new Date(), "yyyy-MM-dd HH:mm"),
-          author: user?.firstName ? `${user.firstName} ${user.lastName}` : "Claims Agent",
+          author: user?.first_name ? `${user.first_name} ${user.last_name}` : "Claims Agent",
           content: `Claim status updated to ${newStatus}.`,
         },
       ],
@@ -985,7 +985,7 @@ export default function InsurerClaimsPage() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Sanlam Rwanda",
+        name: user?.first_name ? `${user.first_name} ${user.last_name}` : "Sanlam Rwanda",
         role: "Insurance Company",
         avatar: "/placeholder.svg?height=40&width=40",
       }}

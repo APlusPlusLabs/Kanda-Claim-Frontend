@@ -62,7 +62,7 @@ export default function GarageDashboard() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Kigali Auto Services",
+        name: user?.name ? `${user.name}` : "User",
         role: "Garage",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -72,9 +72,10 @@ export default function GarageDashboard() {
         { name: "Bids", href: "/dashboard/garage/bids", icon: <FileText className="h-5 w-5" /> },
         { name: "Messages", href: "/dashboard/garage/messages", icon: <MessageSquare className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/garage/notifications", icon: <Bell className="h-5 w-5" /> },
+        { name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/garage/profile", icon: <User className="h-5 w-5" /> },
       ]}
-      actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
+     // actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">

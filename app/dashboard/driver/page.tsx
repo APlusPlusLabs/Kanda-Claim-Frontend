@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Car, FileText, MessageSquare, Bell, User, LogOut, Plus, Clock, CheckCircle2 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { useLanguage } from "@/lib/language-context"
 import { EmergencyContacts } from "@/components/emergency-contacts"
 
@@ -75,9 +75,9 @@ export default function DriverDashboard() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Mugisha Nkusi",
-        role: "Driver",
-        avatar: "/placeholder.svg?height=40&width=40",
+        name: user?.name ? `${user.name} ` : "User name",
+        role: user?.role.name,
+        avatar: user?.avatar? user?.avatar:"/placeholder.svg?height=40&width=40",
       }}
       navigation={[
         {
@@ -109,17 +109,17 @@ export default function DriverDashboard() {
           href: "/dashboard/driver/profile",
           icon: <User className="h-5 w-5" />,
           translationKey: "nav.profile",
-        },
+        },  { name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" />}
       ]}
-      actions={[
-        {
-          name: t("action.new_claim"),
-          href: "/dashboard/driver/claims/new",
-          icon: <Plus className="h-5 w-5" />,
-          translationKey: "action.new_claim",
-        },
-        { name: t("nav.logout"), href: "/logout", icon: <LogOut className="h-5 w-5" />, translationKey: "nav.logout" },
-      ]}
+      // actions={[
+      //   {
+      //     name: t("action.new_claim"),
+      //     href: "/dashboard/driver/claims/new",
+      //     icon: <Plus className="h-5 w-5" />,
+      //     translationKey: "action.new_claim",
+      //   },
+      //   { name: t("nav.logout"), href: "/logout", icon: <LogOut className="h-5 w-5" />, translationKey: "nav.logout" },
+      // ]}
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -256,7 +256,7 @@ export default function DriverDashboard() {
                           {claim.vehicle} • {claim.date}
                         </p>
                       </div>
-                      <Badge className="mt-2 md:mt-0 w-fit" variant="success">
+                      <Badge className="mt-2 md:mt-0 w-fit" variant="default">
                         <CheckCircle2 className="h-3 w-3 mr-1" /> {claim.status}
                       </Badge>
                     </div>

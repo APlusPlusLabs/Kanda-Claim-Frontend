@@ -98,7 +98,7 @@ export default function InsurerProfile() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Marie Uwase",
+        name: user?.first_name ? `${user.first_name} ${user.last_name}` : "Marie Uwase",
         role: "Insurance Company",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
