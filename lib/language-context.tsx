@@ -91,6 +91,8 @@ const translations: Record<Language, TranslationKeys> = {
       view_all: "View All Notifications",
     },
     form: {
+      claim_type: "Claim Type",
+      select_claim_type: "Select a Claim type",
       policy_number: "Policy Number",
       policy_number_placeholder: "Enter your policy number",
       date: "Date",
@@ -332,6 +334,8 @@ const translations: Record<Language, TranslationKeys> = {
       view_all: "Voir Toutes les Notifications",
     },
     form: {
+      claim_type: "Les type de réclamations",
+      select_claim_type: "Selectioner le type de réclamation",
       policy_number: "Numéro de Police",
       policy_number_placeholder: "Entrez votre numéro de police",
       date: "Date",
@@ -575,11 +579,13 @@ const translations: Record<Language, TranslationKeys> = {
       view_all: "Reba Imenyesha Yose",
     },
     form: {
+      claim_type: "Ubwoko Bw'\Ubusabe",
+      select_claim_type: "Hitamo Ubwoko Bw'\Ubusabe",
       policy_number: "Nomero y'amasezerano",
       policy_number_placeholder: "Andika nomero y'amasezerano",
       date: "Itariki",
       time: "Isaha",
-      location: "Ahantu",
+      location: "Aho Impanuka yabereye",
       location_placeholder: "Andika aho impanuka yabereye",
       description: "Ibisobanuro by'impanuka",
       accident_description_placeholder: "Sobanura mu buryo burambuye uko impanuka yabaye",

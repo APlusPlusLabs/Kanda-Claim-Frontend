@@ -21,9 +21,9 @@ const formSchema = z.object({
   password: z.string().min(8, {
     message: "Password must be at least 8 characters.",
   }),
-  role: z.enum(["driver", "garage", "assessor", "insurer"], {
-    required_error: "Please select a role.",
-  }),
+  // role: z.enum(["driver", "garage", "assessor", "insurer"], {
+  //   required_error: "Please select a role.",
+  // }),
 })
 
 export default function LoginPage() {
@@ -36,8 +36,7 @@ export default function LoginPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
-      password: "",
-      role: "driver",
+      password: ""
     },
   })
 
@@ -50,13 +49,13 @@ export default function LoginPage() {
         description: "Welcome back to Kanda Claim! ",
       })
 
-      // Redirect based on role
-      router.push(`/dashboard/${values.role}`)
+      // // Redirect based on role
+      // router.push(`/dashboard/${values.role}`)
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Login failed ",
-        description: "Please check your credentials and try again.",
+        description: "Please check your credentials and try again. "+error,
       })
     } finally {
       setIsLoading(false)
@@ -99,29 +98,7 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Login as</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="driver">Driver</SelectItem>
-                        <SelectItem value="garage">Garage</SelectItem>
-                        <SelectItem value="assessor">Assessor</SelectItem>
-                        <SelectItem value="insurer">Insurance Company</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              
               <Button
                 type="submit"
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"

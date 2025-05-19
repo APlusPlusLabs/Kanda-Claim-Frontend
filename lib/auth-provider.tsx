@@ -1,5 +1,6 @@
 "use client";
 
+import router from "next/router";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL
@@ -39,6 +40,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<String | null>(null);
+  const [tenantId, setTenantId] = useState<String | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load user from session
@@ -114,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Login function
   async function login(data: { email: string; password: string }) {
+    data
     try {
       const response = await fetch(`${API_URL}login`, {
         method: "POST",
@@ -132,21 +136,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const result = await response.json();
       sessionStorage.setItem("ottqen", result.token);
-
+      const uzer = result.user
       setUser({
-        id: result.id,
-        email: result.email,
-        phone: result.phone,
-        first_name: result.first_name,
-        last_name: result.last_name,
-        name: `${result.first_name} ${result.last_name || ""}`.trim(),
-        role: result.role,
-        role_id: result.role_id,
-        tenant: result.tenant,
-        tenant_id: result.tenant_id,
+        id: uzer.id,
+        email: uzer.email,
+        phone: uzer.phone,
+        first_name: uzer.first_name,
+        last_name: uzer.last_name,
+        name: `${uzer.first_name} ${uzer.last_name || ""}`.trim(),
+        role: uzer.role,
+        role_id: uzer.role_id,
+        tenant: uzer.tenant,
+        tenant_id: uzer.tenant_id,
         avatar: "/placeholder.svg?height=40&width=40",
       });
+      setToken(JSON.stringify(result.token))
+      setTenantId(JSON.stringify(uzer.tenant_id))
       sessionStorage.setItem("sessuza", JSON.stringify(result.user));
+      sessionStorage.setItem("tenetIed", JSON.stringify(uzer.tenant_id));
+      // Redirect based on role
+      const rolename = uzer.role.name.toLowerCase()
+      const roleurl = rolename === 'admin' ? 'insurer' : rolename
+      window.location.assign(`/dashboard/${roleurl}`)
     } catch (error) {
       throw error;
     }
@@ -165,9 +176,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const token = sessionStorage.getItem("ottqen");
       const headers: HeadersInit = {
-        "Content-Type": "application/json",
+        // "Content-Type": "application/json",
+       // "Content-Type": "multipart/form-data",
       };
-
+      // Only set Content-Type for non-FormData payloads (e.g., JSON)
+      if (!(data instanceof FormData)) {
+        headers["Content-Type"] = "application/json";
+      }
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }

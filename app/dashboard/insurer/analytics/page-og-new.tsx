@@ -243,63 +243,62 @@ export default function AnalyticsPage() {
     const fetchAnalytics = async () => {
       setIsLoading(true)
       try {
-
+        
         const dfrm = "2025-01-01"
         const dto = "2025-05-17"
         // const dfrm = formatDate(dateRange.from)
         // const dto = formatDate(dateRange.to)
         // Fetch summary data
         const summaryResponse = await apiRequest(
-          `${API_URL}claims/summary?start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
+          `${API_URL}claims/summary?start_date=${dfrm}&end_date=${dto}`
         )
-
+        
         // Fetch claims by month
         const claimsByMonthResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=created_at&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
+          `${API_URL}claims/analytics?group_by=created_at&start_date=${dfrm}&end_date=${dto}`
         )
-
+        
         // Fetch claims by type
         const claimsByTypeResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=claim_type_id&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
+          `${API_URL}claims/analytics?group_by=claim_type_id&start_date=${dfrm}&end_date=${dto}`
         )
-
+        
         // Fetch claims by status
         const claimsByStatusResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=status&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
+          `${API_URL}claims/analytics?group_by=status&start_date=${dfrm}&end_date=${dto}`
         )
-
+        
         // Fetch top garages (assuming garage data is tied to assessments or claims)
         const topGaragesResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=garage&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
+          `${API_URL}claims/analytics?group_by=garage&start_date=${dfrm}&end_date=${dto}`
         )
-
+        
         // Fetch monthly comparison (current vs. previous year)
         const monthlyComparisonResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=created_at&compare_year=true&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
+          `${API_URL}claims/analytics?group_by=created_at&compare_year=true&start_date=${dfrm}&end_date=${dto}`
         )
-
+        
         // Fetch settlement time by claim type
         const settlementTimeResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=claim_type_id&metric=settlement_time&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
+          `${API_URL}claims/analytics?group_by=claim_type_id&metric=settlement_time&start_date=${dfrm}&end_date=${dto}`
         )
-
+        
         // Fetch fraud metrics (assuming a separate endpoint or static for now)
         const fraudMetricsResponse = await apiRequest(
           `${API_URL}claims/analytics?group_by=fraud_metrics&start_date=${dfrm}&end_date=${dto}`
         )
-
+        
         // Fetch customer satisfaction
         const customerSatisfactionResponse = await apiRequest(
           `${API_URL}claims/analytics?group_by=created_at&metric=customer_satisfaction&start_date=${dfrm}&end_date=${dto}`
         )
 
         // Process data
-        const claimsByMonth = claimsByMonthResponse.map((item: { created_at: string | number | Date; total_count: any; amount: any }) => ({
+        const claimsByMonth = claimsByMonthResponse.map((item: { created_at: string | number | Date; count: any; total_amount: any }) => ({
           month: new Date(item.created_at).toLocaleString("default", { month: "short" }),
-          claims: item.total_count,
-          amount: item.amount,
+          claims: item.count,
+          amount: item.total_amount,
         }))
-        console.log('claimsByMonth', claimsByMonth);
 
         const claimsByType = claimsByTypeResponse.map((item: { claim_type_name: any; count: number }, index: number) => ({
           type: item.claim_type_name || `Type ${index + 1}`,
@@ -358,7 +357,7 @@ export default function AnalyticsPage() {
             total_amount: summaryResponse.total_amount || 0,
             total_approved_amount: summaryResponse.total_approved_amount || 0,
             average_claim_value: summaryResponse.total_count ? (summaryResponse.total_amount / summaryResponse.total_count) : 0,
-            approval_rate: summaryResponse.by_status?.find((s: { status: string }) => s.status === "Approved")?.percentage || 0,
+            approval_rate: summaryResponse.by_status.find((s: { status: string }) => s.status === "Approved")?.percentage || 0,
             avg_processing_time: summaryResponse.avg_processing_time || 12,
             claims_per_agent: summaryResponse.claims_per_agent || 24,
             first_response_time: summaryResponse.first_response_time || 4.5,
@@ -398,12 +397,12 @@ export default function AnalyticsPage() {
   //   })
   // }
   // app/dashboard/insurer/analytics/page.tsx
-  const handleDateRangeChange = (range: DateRange) => {
-    setDateRange({
-      from: range.from || new Date(2025, 0, 1),
-      to: range.to || new Date(),
-    });
-  };
+const handleDateRangeChange = (range: DateRange) => {
+  setDateRange({
+    from: range.from || new Date(2025, 0, 1),
+    to: range.to || new Date(),
+  });
+};
 
   if (isLoading) {
     return <div>Loading analytics...</div>
@@ -413,7 +412,7 @@ export default function AnalyticsPage() {
     <DashboardLayout
       user={{
         name: user?.first_name ? `${user.first_name} ${user.last_name}` : "Sanlam Alianz",
-        role: user?.role.name + " @ " + user?.tenant.name,
+        role: user?.role.name+" @ "+user?.tenant.name,
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
@@ -601,10 +600,10 @@ export default function AnalyticsPage() {
                       <div className="text-right">Avg. Value</div>
                     </div>
                     {analyticsData.claimsByMonth.slice(0, 5).map((item) => (
-                      <div key={item.amount} className="grid grid-cols-4 text-sm py-1 border-b border-gray-100">
+                      <div key={item.month} className="grid grid-cols-4 text-sm py-1 border-b border-gray-100">
                         <div className="font-medium">{item.month}</div>
                         <div className="text-right">{item.claims}</div>
-                        <div className="text-right">{item.amount?.toLocaleString()}</div>
+                        <div className="text-right">{item.amount.toLocaleString()}</div>
                         <div className="text-right">{Math.round(item.amount / item.claims).toLocaleString()}</div>
                       </div>
                     ))}
@@ -705,8 +704,8 @@ export default function AnalyticsPage() {
                       <div className="text-right">Percentage</div>
                     </div>
                     {analyticsData.claimsByStatus.map((item) => (
-                      <div key={item.status+''+item.count} className="grid grid-cols-3 text-sm">
-                        <div>{item.status+''+item.count}</div>
+                      <div key={item.status} className="grid grid-cols-3 text-sm">
+                        <div>{item.status}</div>
                         <div className="text-right">{item.count}</div>
                         <div className="text-right">{item.percentage}%</div>
                       </div>
@@ -770,7 +769,7 @@ export default function AnalyticsPage() {
                       <div key={item.name} className="grid grid-cols-3 text-sm">
                         <div className="truncate">{item.name}</div>
                         <div className="text-right">{item.claims}</div>
-                        <div className="text-right">{item.amount?.toLocaleString()}</div>
+                        <div className="text-right">{item.amount.toLocaleString()}</div>
                       </div>
                     ))}
                   </div>
@@ -829,7 +828,7 @@ export default function AnalyticsPage() {
                         {analyticsData.monthlyComparison.slice(0, 6).map((item) => {
                           const change = item.lastYear ? ((item.thisYear - item.lastYear) / item.lastYear) * 100 : 0
                           return (
-                            <TableRow key={item.amount}>
+                            <TableRow key={item.month}>
                               <TableCell>{item.month}</TableCell>
                               <TableCell className="text-right">{item.thisYear}</TableCell>
                               <TableCell className="text-right">{item.lastYear}</TableCell>
@@ -1031,7 +1030,7 @@ export default function AnalyticsPage() {
                             index > 0 ? analyticsData.customerSatisfaction[index - 1].satisfaction : item.satisfaction
                           const change = prevMonth ? ((item.satisfaction - prevMonth) / prevMonth) * 100 : 0
                           return (
-                            <TableRow key={item.amount}>
+                            <TableRow key={item.month}>
                               <TableCell>{item.month}</TableCell>
                               <TableCell className="text-right">{item.satisfaction}%</TableCell>
                               <TableCell className="text-right">

@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/components/ui/use-toast";
 import { EditUserDialog } from "@/components/EditUserDialog";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/";
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 interface User {
     id: string;
@@ -232,9 +232,9 @@ export default function ViewUserPage() {
                             </p>
                         </div>
                         <div className="space-x-2">
-                            <Dialog>
+                            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                                 <DialogTrigger asChild>
-                                    <Button>
+                                    <Button onClick={() => setIsEditOpen(true)}>
                                         <Edit className="mr-2 h-4 w-4" /> Edit User
                                     </Button>
                                 </DialogTrigger>
@@ -245,7 +245,9 @@ export default function ViewUserPage() {
                                     onOpenChange={setIsEditOpen}
                                     onSuccess={handleUserUpdate}
                                     apiRequest={apiRequest}
-                                    tenant_id={user?.tenant_id || user?.tenant.id} role_id={user?.role_id || user?.role.id}                                />
+                                    tenant_id={user?.tenant_id || ''}
+                                    role_id={user?.role_id || ''}
+                                />
                             </Dialog>
                             <Button variant="outline" onClick={() => router.push("/dashboard/insurer/users")}>
                                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users

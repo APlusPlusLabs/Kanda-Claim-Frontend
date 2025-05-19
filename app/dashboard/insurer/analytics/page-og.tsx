@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, JSX } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -41,338 +41,104 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Progress } from "@/components/ui/progress"
 
-// API base URL (replace with your actual API base URL)
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/"
+// Mock data for charts
+const claimsByMonthData = [
+  { month: "Jan", claims: 45, amount: 12500000 },
+  { month: "Feb", claims: 52, amount: 14800000 },
+  { month: "Mar", claims: 48, amount: 13200000 },
+  { month: "Apr", claims: 61, amount: 16900000 },
+  { month: "May", claims: 55, amount: 15300000 },
+  { month: "Jun", claims: 67, amount: 18500000 },
+  { month: "Jul", claims: 72, amount: 19800000 },
+  { month: "Aug", claims: 58, amount: 16200000 },
+  { month: "Sep", claims: 63, amount: 17500000 },
+  { month: "Oct", claims: 59, amount: 16400000 },
+  { month: "Nov", claims: 68, amount: 18900000 },
+  { month: "Dec", claims: 73, amount: 20100000 },
+]
 
-// Colors for charts
+const claimsByTypeData = [
+  { type: "Collision", count: 320, percentage: 42 },
+  { type: "Theft", count: 95, percentage: 12 },
+  { type: "Natural Disaster", count: 45, percentage: 6 },
+  { type: "Fire", count: 65, percentage: 8 },
+  { type: "Vandalism", count: 110, percentage: 14 },
+  { type: "Other", count: 135, percentage: 18 },
+]
+
+const claimsByStatusData = [
+  { status: "Approved", count: 425, percentage: 55, color: "#10b981" },
+  { status: "Rejected", count: 95, percentage: 12, color: "#ef4444" },
+  { status: "Pending", count: 180, percentage: 23, color: "#f59e0b" },
+  { status: "In Review", count: 70, percentage: 9, color: "#3b82f6" },
+]
+
+const topGaragesData = [
+  { name: "Kigali Auto Services", claims: 87, amount: 24500000 },
+  { name: "Rwanda Motors", claims: 65, amount: 18200000 },
+  { name: "Nyamirambo Garage", claims: 52, amount: 14800000 },
+  { name: "Gasabo Auto Center", claims: 48, amount: 13500000 },
+  { name: "Kicukiro Car Repair", claims: 43, amount: 12100000 },
+]
+
+const monthlyComparisonData = [
+  { month: "Jan", thisYear: 45, lastYear: 38 },
+  { month: "Feb", thisYear: 52, lastYear: 42 },
+  { month: "Mar", thisYear: 48, lastYear: 40 },
+  { month: "Apr", thisYear: 61, lastYear: 52 },
+  { month: "May", thisYear: 55, lastYear: 48 },
+  { month: "Jun", thisYear: 67, lastYear: 55 },
+  { month: "Jul", thisYear: 72, lastYear: 60 },
+  { month: "Aug", thisYear: 58, lastYear: 53 },
+  { month: "Sep", thisYear: 63, lastYear: 58 },
+  { month: "Oct", thisYear: 59, lastYear: 55 },
+  { month: "Nov", thisYear: 68, lastYear: 60 },
+  { month: "Dec", thisYear: 73, lastYear: 65 },
+]
+
+const settlementTimeData = [
+  { name: "Collision", value: 14 },
+  { name: "Theft", value: 28 },
+  { name: "Natural Disaster", value: 21 },
+  { name: "Fire", value: 18 },
+  { name: "Vandalism", value: 12 },
+  { name: "Other", value: 16 },
+]
+
+const fraudMetricsData = [
+  { metric: "Risk Score", value: 75 },
+  { metric: "Detection Rate", value: 85 },
+  { metric: "False Positives", value: 12 },
+  { metric: "Investigation Time", value: 65 },
+  { metric: "Recovery Rate", value: 80 },
+]
+
+const customerSatisfactionData = [
+  { month: "Jan", satisfaction: 85 },
+  { month: "Feb", satisfaction: 87 },
+  { month: "Mar", satisfaction: 84 },
+  { month: "Apr", satisfaction: 86 },
+  { month: "May", satisfaction: 88 },
+  { month: "Jun", satisfaction: 90 },
+  { month: "Jul", satisfaction: 92 },
+  { month: "Aug", satisfaction: 91 },
+  { month: "Sep", satisfaction: 93 },
+  { month: "Oct", satisfaction: 92 },
+  { month: "Nov", satisfaction: 94 },
+  { month: "Dec", satisfaction: 95 },
+].map((item) => ({ ...item, month: `2025-${item.month}` }))
+
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"]
 
-
-
-interface ClaimsByMonth {
-  month: string;
-  claims: number;
-  amount: number;
-}
-
-interface ClaimsByType {
-  type: string;
-  count: number;
-  percentage: string;
-}
-
-interface ClaimsByStatus {
-  status: string;
-  count: number;
-  percentage: string;
-  color: string;
-}
-
-interface TopGarages {
-  name: string;
-  claims: number;
-  amount: number;
-}
-
-interface MonthlyComparison {
-  month: string;
-  thisYear: number;
-  lastYear: number;
-}
-
-interface SettlementTime {
-  name: string;
-  value: number;
-}
-
-interface FraudMetrics {
-  metric: string;
-  value: number;
-}
-
-interface CustomerSatisfaction {
-  month: string;
-  satisfaction: number;
-}
-
-// interface SummaryData {
-//   total_count: number;
-//   total_amount: number;
-//   total_approved_amount: number;
-//   average_claim_value: number;
-//   approval_rate: number;
-//   total_count_change?: number;
-//   total_payout_change?: number;
-//   avg_claim_value_change?: number;
-//   approval_rate_change?: number;
-//   avg_processing_time: number;
-//   claims_per_agent: number;
-//   first_response_time: number;
-//   avg_processing_time_change?: number;
-//   claims_per_agent_change?: number;
-//   first_response_time_change?: number;
-//   stages?: {
-//     initial_review: number;
-//     initial_review_prev: number;
-//     assessment: number;
-//     assessment_prev: number;
-//     approval: number;
-//     approval_prev: number;
-//     repair: number;
-//     repair_prev: number;
-//     settlement: number;
-//     settlement_prev: number;
-//   };
-// }
-interface SummaryData {
-  total_count: number;
-  total_amount: number;
-  total_approved_amount: number;
-  average_claim_value: number;
-  approval_rate: number;
-  total_count_change: number; // Add as required
-  total_payout_change: number; // Add as required
-  avg_claim_value_change: number; // Add as required
-  approval_rate_change: number; // Add as required
-  avg_processing_time: number;
-  claims_per_agent: number;
-  first_response_time: number;
-  avg_processing_time_change: number; // Add as required
-  claims_per_agent_change: number; // Add as required
-  first_response_time_change: number; // Add as required
-  stages?: {
-    initial_review: number;
-    initial_review_prev: number;
-    assessment: number;
-    assessment_prev: number;
-    approval: number;
-    approval_prev: number;
-    repair: number;
-    repair_prev: number;
-    settlement: number;
-    settlement_prev: number;
-  };
-}
-interface AnalyticsData {
-  claimsByMonth: ClaimsByMonth[];
-  claimsByType: ClaimsByType[];
-  claimsByStatus: ClaimsByStatus[];
-  topGarages: TopGarages[];
-  monthlyComparison: MonthlyComparison[];
-  settlementTime: SettlementTime[];
-  fraudMetrics: FraudMetrics[];
-  customerSatisfaction: CustomerSatisfaction[];
-  summary: SummaryData;
-}
-
-interface User {
-  firstName?: string;
-  lastName?: string;
-  tenant_id?: number;
-  role?: { name: string };
-}
-
-interface NavigationItem {
-  name: string;
-  href: string;
-  icon: JSX.Element;
-}
-
-interface DashboardLayoutProps {
-  user: {
-    name: string;
-    role: string;
-    avatar: string;
-  };
-  navigation: NavigationItem[];
-  children: React.ReactNode;
-}
-
-interface DateRange {
-  from: Date | undefined;
-  to: Date | undefined;
-}
-
-interface DatePickerWithRangeProps {
-  className?: string;
-  onChange?: (range: DateRange) => void;
-  value?: DateRange;
-}
-// Type for apiRequest hook
-type ApiRequest = (
-  api_url: string,
-  data?: any,
-  method?: "get" | "post" | "put" | "delete"
-) => Promise<any>;
 export default function AnalyticsPage() {
-  const { user, apiRequest, logout } = useAuth();
+  const { user } = useAuth()
   const [dateRange, setDateRange] = useState({
-    from: new Date(2025, 0, 1),
+    from: new Date(2023, 0, 1),
     to: new Date(),
   })
   const [period, setPeriod] = useState("year")
   const [sortField, setSortField] = useState("claims")
   const [sortDirection, setSortDirection] = useState("desc")
-  const [analyticsData, setAnalyticsData] = useState({
-    claimsByMonth: [],
-    claimsByType: [],
-    claimsByStatus: [],
-    topGarages: [],
-    monthlyComparison: [],
-    settlementTime: [],
-    fraudMetrics: [],
-    customerSatisfaction: [],
-    summary: {
-      total_count: 0,
-      total_amount: 0,
-      total_approved_amount: 0,
-      average_claim_value: 0,
-      approval_rate: 0,
-      avg_processing_time: 0,
-      claims_per_agent: 0,
-      first_response_time: 0,
-    },
-  })
-  const [isLoading, setIsLoading] = useState(true)
-
-  // Format date for API
-  const formatDate = (date: Date) => date.toISOString().split("T")[0]
-
-  // Fetch analytics data
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      setIsLoading(true)
-      try {
-
-        const dfrm = "2025-01-01"
-        const dto = "2025-05-17"
-        // const dfrm = formatDate(dateRange.from)
-        // const dto = formatDate(dateRange.to)
-        // Fetch summary data
-        const summaryResponse = await apiRequest(
-          `${API_URL}claims/summary?start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
-        )
-
-        // Fetch claims by month
-        const claimsByMonthResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=created_at&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
-        )
-
-        // Fetch claims by type
-        const claimsByTypeResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=claim_type_id&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
-        )
-
-        // Fetch claims by status
-        const claimsByStatusResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=status&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
-        )
-
-        // Fetch top garages (assuming garage data is tied to assessments or claims)
-        const topGaragesResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=garage&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
-        )
-
-        // Fetch monthly comparison (current vs. previous year)
-        const monthlyComparisonResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=created_at&compare_year=true&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
-        )
-
-        // Fetch settlement time by claim type
-        const settlementTimeResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=claim_type_id&metric=settlement_time&start_date=${dfrm}&end_date=${dto}&user_id=${user?.id}&tenant_id=${user?.tenant_id}`
-        )
-
-        // Fetch fraud metrics (assuming a separate endpoint or static for now)
-        const fraudMetricsResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=fraud_metrics&start_date=${dfrm}&end_date=${dto}`
-        )
-
-        // Fetch customer satisfaction
-        const customerSatisfactionResponse = await apiRequest(
-          `${API_URL}claims/analytics?group_by=created_at&metric=customer_satisfaction&start_date=${dfrm}&end_date=${dto}`
-        )
-
-        // Process data
-        const claimsByMonth = claimsByMonthResponse.map((item: { created_at: string | number | Date; total_count: any; amount: any }) => ({
-          month: new Date(item.created_at).toLocaleString("default", { month: "short" }),
-          claims: item.total_count,
-          amount: item.amount,
-        }))
-        console.log('claimsByMonth', claimsByMonth);
-
-        const claimsByType = claimsByTypeResponse.map((item: { claim_type_name: any; count: number }, index: number) => ({
-          type: item.claim_type_name || `Type ${index + 1}`,
-          count: item.count,
-          percentage: ((item.count / summaryResponse.total_count) * 100).toFixed(1),
-        }))
-
-        const claimsByStatus = claimsByStatusResponse.map((item: { status: any; count: number }, index: number) => ({
-          status: item.status,
-          count: item.count,
-          percentage: ((item.count / summaryResponse.total_count) * 100).toFixed(1),
-          color: COLORS[index % COLORS.length],
-        }))
-
-        const topGarages = topGaragesResponse.map((item: { garage_name: any; garage_id: any; count: any; total_amount: any }) => ({
-          name: item.garage_name || `Garage ${item.garage_id}`,
-          claims: item.count,
-          amount: item.total_amount,
-        }))
-
-        const monthlyComparison = monthlyComparisonResponse.map((item: { created_at: string | number | Date; this_year_count: any; count: any; last_year_count: any }) => ({
-          month: new Date(item.created_at).toLocaleString("default", { month: "short" }),
-          thisYear: item.this_year_count || item.count,
-          lastYear: item.last_year_count || 0,
-        }))
-
-        const settlementTime = settlementTimeResponse.map((item: { claim_type_name: any; claim_type_id: any; avg_settlement_days: any }) => ({
-          name: item.claim_type_name || `Type ${item.claim_type_id}`,
-          value: item.avg_settlement_days || 0,
-        }))
-
-        const fraudMetrics = fraudMetricsResponse.length > 0 ? fraudMetricsResponse : [
-          { metric: "Risk Score", value: 75 },
-          { metric: "Detection Rate", value: 85 },
-          { metric: "False Positives", value: 12 },
-          { metric: "Investigation Time", value: 65 },
-          { metric: "Recovery Rate", value: 80 },
-        ]
-
-        const customerSatisfaction = customerSatisfactionResponse.map((item: { created_at: string | number | Date; avg_satisfaction: any }) => ({
-          month: `2025-${new Date(item.created_at).toLocaleString("default", { month: "short" })}`,
-          satisfaction: item.avg_satisfaction || 90,
-        }))
-
-        setAnalyticsData({
-          claimsByMonth,
-          claimsByType,
-          claimsByStatus,
-          topGarages,
-          monthlyComparison,
-          settlementTime,
-          fraudMetrics,
-          customerSatisfaction,
-          summary: {
-            total_count: summaryResponse.total_count || 0,
-            total_amount: summaryResponse.total_amount || 0,
-            total_approved_amount: summaryResponse.total_approved_amount || 0,
-            average_claim_value: summaryResponse.total_count ? (summaryResponse.total_amount / summaryResponse.total_count) : 0,
-            approval_rate: summaryResponse.by_status?.find((s: { status: string }) => s.status === "Approved")?.percentage || 0,
-            avg_processing_time: summaryResponse.avg_processing_time || 12,
-            claims_per_agent: summaryResponse.claims_per_agent || 24,
-            first_response_time: summaryResponse.first_response_time || 4.5,
-          },
-        })
-      } catch (error) {
-        console.error("Error fetching analytics:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchAnalytics()
-  }, [dateRange, period])
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -384,36 +150,18 @@ export default function AnalyticsPage() {
   }
 
   // Sort garage data based on sort field and direction
-  const sortedGarageData = [...analyticsData.topGarages].sort((a, b) => {
+  const sortedGarageData = [...topGaragesData].sort((a, b) => {
     const aValue = a[sortField as keyof typeof a]
     const bValue = b[sortField as keyof typeof b]
+
     return sortDirection === "asc" ? (aValue > bValue ? 1 : -1) : aValue < bValue ? 1 : -1
   })
-
-  // Update date range from DatePicker
-  // const handleDateRangeChange = (range: { from: any; to: any }) => {
-  //   setDateRange({
-  //     from: range.from || new Date(2025, 0, 1),
-  //     to: range.to || new Date(),
-  //   })
-  // }
-  // app/dashboard/insurer/analytics/page.tsx
-  const handleDateRangeChange = (range: DateRange) => {
-    setDateRange({
-      from: range.from || new Date(2025, 0, 1),
-      to: range.to || new Date(),
-    });
-  };
-
-  if (isLoading) {
-    return <div>Loading analytics...</div>
-  }
 
   return (
     <DashboardLayout
       user={{
-        name: user?.first_name ? `${user.first_name} ${user.last_name}` : "Sanlam Alianz",
-        role: user?.role.name + " @ " + user?.tenant.name,
+        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Sanlam Alianz",
+        role: "Insurance Company",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
@@ -457,13 +205,11 @@ export default function AnalyticsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Claims</CardTitle>
-              <CardDescription className="text-2xl font-bold">{analyticsData.summary.total_count.toLocaleString()}</CardDescription>
+              <CardDescription className="text-2xl font-bold">770</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-xs text-muted-foreground">
-                <span className={analyticsData.summary.total_count >= 0 ? "text-green-500" : "text-red-500" + " font-medium"}>
-                  {analyticsData.summary.total_count >= 0 ? "↑" : "↓"} {Math.abs(analyticsData.summary.total_count || 0).toFixed(1)}%
-                </span> from previous period
+                <span className="text-green-500 font-medium">↑ 12%</span> from previous period
               </div>
             </CardContent>
           </Card>
@@ -471,13 +217,11 @@ export default function AnalyticsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Payout</CardTitle>
-              <CardDescription className="text-2xl font-bold">{analyticsData.summary.total_approved_amount.toLocaleString()} RWF</CardDescription>
+              <CardDescription className="text-2xl font-bold">200,100,000 RWF</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-xs text-muted-foreground">
-                <span className={analyticsData.summary.total_approved_amount >= 0 ? "text-green-500" : "text-red-500" + " font-medium"}>
-                  {analyticsData.summary.total_approved_amount >= 0 ? "↑" : "↓"} {Math.abs(analyticsData.summary.total_approved_amount || 0).toFixed(1)}%
-                </span> from previous period
+                <span className="text-green-500 font-medium">↑ 8%</span> from previous period
               </div>
             </CardContent>
           </Card>
@@ -485,13 +229,11 @@ export default function AnalyticsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Average Claim Value</CardTitle>
-              <CardDescription className="text-2xl font-bold">{Math.round(analyticsData.summary.average_claim_value).toLocaleString()} RWF</CardDescription>
+              <CardDescription className="text-2xl font-bold">259,870 RWF</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-xs text-muted-foreground">
-                <span className={analyticsData.summary.average_claim_value >= 0 ? "text-green-500" : "text-red-500" + " font-medium"}>
-                  {analyticsData.summary.average_claim_value >= 0 ? "↑" : "↓"} {Math.abs(analyticsData.summary.average_claim_value || 0).toFixed(1)}%
-                </span> from previous period
+                <span className="text-red-500 font-medium">↓ 3%</span> from previous period
               </div>
             </CardContent>
           </Card>
@@ -499,13 +241,11 @@ export default function AnalyticsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Approval Rate</CardTitle>
-              <CardDescription className="text-2xl font-bold">{analyticsData.summary.approval_rate.toFixed(1)}%</CardDescription>
+              <CardDescription className="text-2xl font-bold">78%</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-xs text-muted-foreground">
-                <span className={analyticsData.summary.approval_rate >= 0 ? "text-green-500" : "text-red-500" + " font-medium"}>
-                  {analyticsData.summary.approval_rate >= 0 ? "↑" : "↓"} {Math.abs(analyticsData.summary.approval_rate || 0).toFixed(1)}%
-                </span> from previous period
+                <span className="text-green-500 font-medium">↑ 5%</span> from previous period
               </div>
             </CardContent>
           </Card>
@@ -530,7 +270,7 @@ export default function AnalyticsPage() {
                 <CardContent>
                   <div className="h-80 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analyticsData.claimsByMonth} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <BarChart data={claimsByMonthData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
                         <XAxis dataKey="month" tick={{ fill: "#888888" }} axisLine={{ stroke: "#e0e0e0" }} />
                         <YAxis
@@ -600,11 +340,11 @@ export default function AnalyticsPage() {
                       <div className="text-right">Amount (RWF)</div>
                       <div className="text-right">Avg. Value</div>
                     </div>
-                    {analyticsData.claimsByMonth.slice(0, 5).map((item) => (
-                      <div key={item.amount} className="grid grid-cols-4 text-sm py-1 border-b border-gray-100">
+                    {claimsByMonthData.slice(0, 5).map((item) => (
+                      <div key={item.month} className="grid grid-cols-4 text-sm py-1 border-b border-gray-100">
                         <div className="font-medium">{item.month}</div>
                         <div className="text-right">{item.claims}</div>
-                        <div className="text-right">{item.amount?.toLocaleString()}</div>
+                        <div className="text-right">{item.amount.toLocaleString()}</div>
                         <div className="text-right">{Math.round(item.amount / item.claims).toLocaleString()}</div>
                       </div>
                     ))}
@@ -629,7 +369,7 @@ export default function AnalyticsPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <RechartsPieChart>
                         <Pie
-                          data={analyticsData.claimsByType}
+                          data={claimsByTypeData}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
@@ -639,7 +379,7 @@ export default function AnalyticsPage() {
                           nameKey="type"
                           label={({ type, percentage }) => `${type}: ${percentage}%`}
                         >
-                          {analyticsData.claimsByType.map((entry, index) => (
+                          {claimsByTypeData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
@@ -654,7 +394,7 @@ export default function AnalyticsPage() {
                       <div className="text-right">Count</div>
                       <div className="text-right">Percentage</div>
                     </div>
-                    {analyticsData.claimsByType.map((item) => (
+                    {claimsByTypeData.map((item) => (
                       <div key={item.type} className="grid grid-cols-3 text-sm">
                         <div>{item.type}</div>
                         <div className="text-right">{item.count}</div>
@@ -679,7 +419,7 @@ export default function AnalyticsPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <RechartsPieChart>
                         <Pie
-                          data={analyticsData.claimsByStatus}
+                          data={claimsByStatusData}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
@@ -689,7 +429,7 @@ export default function AnalyticsPage() {
                           nameKey="status"
                           label={({ status, percentage }) => `${status}: ${percentage}%`}
                         >
-                          {analyticsData.claimsByStatus.map((entry, index) => (
+                          {claimsByStatusData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
@@ -704,9 +444,9 @@ export default function AnalyticsPage() {
                       <div className="text-right">Count</div>
                       <div className="text-right">Percentage</div>
                     </div>
-                    {analyticsData.claimsByStatus.map((item) => (
-                      <div key={item.status+''+item.count} className="grid grid-cols-3 text-sm">
-                        <div>{item.status+''+item.count}</div>
+                    {claimsByStatusData.map((item) => (
+                      <div key={item.status} className="grid grid-cols-3 text-sm">
+                        <div>{item.status}</div>
                         <div className="text-right">{item.count}</div>
                         <div className="text-right">{item.percentage}%</div>
                       </div>
@@ -770,7 +510,7 @@ export default function AnalyticsPage() {
                       <div key={item.name} className="grid grid-cols-3 text-sm">
                         <div className="truncate">{item.name}</div>
                         <div className="text-right">{item.claims}</div>
-                        <div className="text-right">{item.amount?.toLocaleString()}</div>
+                        <div className="text-right">{item.amount.toLocaleString()}</div>
                       </div>
                     ))}
                   </div>
@@ -803,7 +543,7 @@ export default function AnalyticsPage() {
                       }}
                     >
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={analyticsData.monthlyComparison} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <BarChart data={monthlyComparisonData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
                           <YAxis />
@@ -826,10 +566,10 @@ export default function AnalyticsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {analyticsData.monthlyComparison.slice(0, 6).map((item) => {
-                          const change = item.lastYear ? ((item.thisYear - item.lastYear) / item.lastYear) * 100 : 0
+                        {monthlyComparisonData.slice(0, 6).map((item) => {
+                          const change = ((item.thisYear - item.lastYear) / item.lastYear) * 100
                           return (
-                            <TableRow key={item.amount}>
+                            <TableRow key={item.month}>
                               <TableCell>{item.month}</TableCell>
                               <TableCell className="text-right">{item.thisYear}</TableCell>
                               <TableCell className="text-right">{item.lastYear}</TableCell>
@@ -858,14 +598,14 @@ export default function AnalyticsPage() {
                 <CardContent>
                   <div className="h-80 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analyticsData.settlementTime} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <BarChart data={settlementTimeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis label={{ value: "Days", angle: -90, position: "insideLeft" }} />
                         <Tooltip />
                         <Legend />
                         <Bar dataKey="value" fill="#8884d8" name="Days to Settle">
-                          {analyticsData.settlementTime.map((entry, index) => (
+                          {settlementTimeData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Bar>
@@ -883,7 +623,7 @@ export default function AnalyticsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {analyticsData.settlementTime.map((item) => {
+                        {settlementTimeData.map((item) => {
                           const benchmark = item.name === "Theft" ? 30 : item.name === "Natural Disaster" ? 25 : 15
                           const performance = ((benchmark - item.value) / benchmark) * 100
                           return (
@@ -917,7 +657,7 @@ export default function AnalyticsPage() {
               <CardContent>
                 <div className="h-80 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={analyticsData.claimsByMonth} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <ComposedChart data={claimsByMonthData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
@@ -937,15 +677,11 @@ export default function AnalyticsPage() {
                       <YAxis
                         yAxisId="right"
                         orientation="right"
-                        tickFormatter={(value) => `${value}`}
+                        tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
                         domain={[0, "dataMax * 0.8"]}
                       />
                       <Tooltip
-                        formatter={(value, name) => {
-                          if (name === "claims") return [`${value} claims`, "Claims"]
-                          if (name === "amount") return [`${Number(value).toLocaleString()} RWF`, "Amount"]
-                          return [value, name]
-                        }}
+                        formatter={(value) => [`${Number(value).toLocaleString()} RWF`, "Amount"]}
                         labelFormatter={(label) => `Month: ${label}`}
                       />
                       <Legend />
@@ -976,28 +712,28 @@ export default function AnalyticsPage() {
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">Total Claims Amount</h4>
-                    <div className="text-2xl font-bold">{analyticsData.summary.total_amount.toLocaleString()} RWF</div>
+                    <div className="text-2xl font-bold">200,100,000 RWF</div>
                     <div className="flex items-center text-sm">
                       <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
-                      <span className="text-green-500 font-medium">+{analyticsData.summary.total_amount?.toFixed(1) || 0}%</span>
+                      <span className="text-green-500 font-medium">+8.2%</span>
                       <span className="text-muted-foreground ml-1">from last year</span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">Average Claim Value</h4>
-                    <div className="text-2xl font-bold">{Math.round(analyticsData.summary.average_claim_value).toLocaleString()} RWF</div>
+                    <div className="text-2xl font-bold">259,870 RWF</div>
                     <div className="flex items-center text-sm">
                       <TrendingDown className="h-4 w-4 mr-1 text-red-500" />
-                      <span className="text-red-500 font-medium">{analyticsData.summary.average_claim_value?.toFixed(1) || 0}%</span>
+                      <span className="text-red-500 font-medium">-3.1%</span>
                       <span className="text-muted-foreground ml-1">from last year</span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">Projected Annual Payout</h4>
-                    <div className="text-2xl font-bold">{(analyticsData.summary.total_approved_amount * 1.2).toLocaleString()} RWF</div>
+                    <div className="text-2xl font-bold">245,000,000 RWF</div>
                     <div className="flex items-center text-sm">
                       <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
-                      <span className="text-green-500 font-medium">+{analyticsData.summary.total_approved_amount?.toFixed(1) || 0}%</span>
+                      <span className="text-green-500 font-medium">+5.8%</span>
                       <span className="text-muted-foreground ml-1">from last year</span>
                     </div>
                   </div>
@@ -1007,6 +743,7 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-6">
+            {/* Completely simplified Performance Metrics tab */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -1016,6 +753,7 @@ export default function AnalyticsPage() {
                   <CardDescription>Monthly customer satisfaction scores</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {/* Simple table instead of chart */}
                   <div className="mt-4">
                     <Table>
                       <TableHeader>
@@ -1026,12 +764,12 @@ export default function AnalyticsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {analyticsData.customerSatisfaction.slice(0, 6).map((item, index) => {
+                        {customerSatisfactionData.slice(0, 6).map((item, index) => {
                           const prevMonth =
-                            index > 0 ? analyticsData.customerSatisfaction[index - 1].satisfaction : item.satisfaction
-                          const change = prevMonth ? ((item.satisfaction - prevMonth) / prevMonth) * 100 : 0
+                            index > 0 ? customerSatisfactionData[index - 1].satisfaction : item.satisfaction
+                          const change = ((item.satisfaction - prevMonth) / prevMonth) * 100
                           return (
-                            <TableRow key={item.amount}>
+                            <TableRow key={item.month}>
                               <TableCell>{item.month}</TableCell>
                               <TableCell className="text-right">{item.satisfaction}%</TableCell>
                               <TableCell className="text-right">
@@ -1049,9 +787,9 @@ export default function AnalyticsPage() {
                   <div className="mt-4 space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Current Satisfaction</span>
-                      <span className="text-sm font-medium">{analyticsData.customerSatisfaction[analyticsData.customerSatisfaction.length - 1]?.satisfaction || 0}%</span>
+                      <span className="text-sm font-medium">95%</span>
                     </div>
-                    <Progress value={analyticsData.customerSatisfaction[analyticsData.customerSatisfaction.length - 1]?.satisfaction || 0} className="h-2" />
+                    <Progress value={95} className="h-2" />
                   </div>
                 </CardContent>
               </Card>
@@ -1064,6 +802,7 @@ export default function AnalyticsPage() {
                   <CardDescription>Key fraud detection performance indicators</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {/* Simple table instead of chart */}
                   <div className="mt-4">
                     <Table>
                       <TableHeader>
@@ -1073,7 +812,7 @@ export default function AnalyticsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {analyticsData.fraudMetrics.map((item) => (
+                        {fraudMetricsData.map((item) => (
                           <TableRow key={item.metric}>
                             <TableCell>{item.metric}</TableCell>
                             <TableCell className="text-right">{item.value}%</TableCell>
@@ -1083,7 +822,7 @@ export default function AnalyticsPage() {
                     </Table>
                   </div>
                   <div className="mt-4 space-y-4">
-                    {analyticsData.fraudMetrics.slice(0, 2).map((metric) => (
+                    {fraudMetricsData.slice(0, 2).map((metric) => (
                       <div key={metric.metric} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">{metric.metric}</span>
@@ -1108,32 +847,33 @@ export default function AnalyticsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">Avg. Processing Time</h4>
-                    <div className="text-2xl font-bold">{analyticsData.summary.avg_processing_time} days</div>
+                    <div className="text-2xl font-bold">12 days</div>
                     <div className="flex items-center text-sm">
                       <TrendingDown className="h-4 w-4 mr-1 text-green-500" />
-                      <span className="text-green-500 font-medium">{analyticsData.summary.avg_processing_time_change?.toFixed(1) || 0} days</span>
+                      <span className="text-green-500 font-medium">-2.5 days</span>
                       <span className="text-muted-foreground ml-1">from last quarter</span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">Claims per Agent</h4>
-                    <div className="text-2xl font-bold">{analyticsData.summary.claims_per_agent} claims</div>
+                    <div className="text-2xl font-bold">24 claims</div>
                     <div className="flex items-center text-sm">
                       <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
-                      <span className="text-green-500 font-medium">+{analyticsData.summary.claims_per_agent_change?.toFixed(1) || 0} claims</span>
+                      <span className="text-green-500 font-medium">+3 claims</span>
                       <span className="text-muted-foreground ml-1">from last quarter</span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">First Response Time</h4>
-                    <div className="text-2xl font-bold">{analyticsData.summary.first_response_time} hours</div>
+                    <div className="text-2xl font-bold">4.5 hours</div>
                     <div className="flex items-center text-sm">
                       <TrendingDown className="h-4 w-4 mr-1 text-green-500" />
-                      <span className="text-green-500 font-medium">{analyticsData.summary.first_response_time_change?.toFixed(1) || 0} hours</span>
+                      <span className="text-green-500 font-medium">-1.2 hours</span>
                       <span className="text-muted-foreground ml-1">from last quarter</span>
                     </div>
                   </div>
                 </div>
+                {/* Simple table instead of chart */}
                 <div className="mt-4">
                   <Table>
                     <TableHeader>
@@ -1146,13 +886,13 @@ export default function AnalyticsPage() {
                     </TableHeader>
                     <TableBody>
                       {[
-                        { stage: "Initial Review", current: analyticsData.summary.stages?.initial_review || 1.2, previous: analyticsData.summary.stages?.initial_review_prev || 1.8 },
-                        { stage: "Assessment", current: analyticsData.summary.stages?.assessment || 3.5, previous: analyticsData.summary.stages?.assessment_prev || 4.2 },
-                        { stage: "Approval", current: analyticsData.summary.stages?.approval || 2.1, previous: analyticsData.summary.stages?.approval_prev || 2.8 },
-                        { stage: "Repair", current: analyticsData.summary.stages?.repair || 4.2, previous: analyticsData.summary.stages?.repair_prev || 5.1 },
-                        { stage: "Settlement", current: analyticsData.summary.stages?.settlement || 1.0, previous: analyticsData.summary.stages?.settlement_prev || 1.6 },
+                        { stage: "Initial Review", current: 1.2, previous: 1.8 },
+                        { stage: "Assessment", current: 3.5, previous: 4.2 },
+                        { stage: "Approval", current: 2.1, previous: 2.8 },
+                        { stage: "Repair", current: 4.2, previous: 5.1 },
+                        { stage: "Settlement", current: 1.0, previous: 1.6 },
                       ].map((item) => {
-                        const change = item.previous ? ((item.previous - item.current) / item.previous) * 100 : 0
+                        const change = ((item.previous - item.current) / item.previous) * 100
                         return (
                           <TableRow key={item.stage}>
                             <TableCell>{item.stage}</TableCell>

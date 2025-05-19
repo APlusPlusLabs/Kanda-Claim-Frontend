@@ -1,483 +1,644 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, useFieldArray } from "react-hook-form";
+import * as z from "zod";
+import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  CalendarIcon,
+  Upload,
+  X,
+  ImageIcon,
+  FileText,
+  File as FileIcon,
+  AlertCircle,
+  CheckCircle2,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/use-toast";
+import DashboardLayout from "@/components/dashboard-layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/lib/auth-provider";
+import { useLanguage } from "@/lib/language-context";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { GarageRecommendations } from "@/components/garage-recommendations";
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { format } from "date-fns"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Checkbox } from "@/components/ui/checkbox"
-import { CalendarIcon, Upload, X, ImageIcon, FileText, File, AlertCircle, CheckCircle2 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useToast } from "@/components/ui/use-toast"
-import DashboardLayout from "@/components/dashboard-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useAuth } from "@/lib/auth-hooks"
-import { useLanguage } from "@/lib/language-context"
-import { AspectRatio } from "@/components/ui/aspect-ratio"
-import { GarageRecommendations } from "@/components/garage-recommendations"
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
 const ACCEPTED_DOC_TYPES = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-]
+];
 
 // Custom file validation for Zod
 const fileSchema = z
   .instanceof(File)
-  .refine((file) => file.size <= MAX_FILE_SIZE, `File size should be less than 5MB`)
-  .optional()
-
-const imageSchema = z
-  .instanceof(File)
-  .refine((file) => file.size <= MAX_FILE_SIZE, `File size should be less than 5MB`)
-  .refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), `Only .jpg, .jpeg, .png and .webp formats are supported`)
-  .optional()
+  .refine((file) => file.size <= MAX_FILE_SIZE, `File size should be less than 10MB`)
+  .refine(
+    (file) => [...ACCEPTED_IMAGE_TYPES, ...ACCEPTED_DOC_TYPES].includes(file.type),
+    `Only .jpg, .jpeg, .png, .pdf, .doc, .docx formats are supported`,
+  )
+  .optional();
 
 const formSchema = z.object({
   // Step 1 - Basic Info
-  policyNumber: z.string().min(5, {
-    message: "Policy number is required/Nomero y'amasezerano igomba kuzuzwa",
-  }),
-  accidentDate: z.date({
-    required_error: "Accident date is required/Itariki igomba kuzuzwa",
-  }),
-  accidentTime: z.string().min(1, {
-    message: "Accident time is required/Amasaha agomba kuzuzwa",
-  }),
-  accidentLocation: z.string().min(2, {
-    message: "Location is required/Ahantu hagomba kuzuzwa",
-  }),
-  accidentDescription: z.string().min(10, {
-    message: "Please provide a detailed description/Tanga ibisobanuro birambuye",
-  }),
+  claim_type_id: z.string().uuid({ message: "Please select a claim type" }),
+  policyNumber: z.string().min(5, { message: "Policy number is required" }),
+  accidentDate: z.date({ required_error: "Accident date is required" }),
+  accidentTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: "Invalid time format (HH:MM)" }),
+  accidentLocation: z.string().min(2, { message: "Location is required" }),
+  accidentDescription: z.string().min(10, { message: "Please provide a detailed description" }),
 
   // Step 2 - Driver & Vehicle Information
-  hasLicense: z.boolean().optional(),
-  driverLicenseNumber: z.string().optional(),
-  driverLicenseCategory: z.string().optional(),
-  driverLicenseIssuedBy: z.string().optional(),
-  driverLicenseIssuedDate: z.date().optional(),
-  driverSurname: z.string().optional(),
-  driverName: z.string().optional(),
-  driverPhone: z.string().optional(),
-  vehiclePlateNumber: z.string().optional(),
-  vehicleMake: z.string().optional(),
-  vehicleModel: z.string().optional(),
-  vehicleYear: z.string().optional(),
+  driver_details: z.array(
+    z.object({
+      hasLicense: z.boolean().optional(),
+      licenseNumber: z.string().optional(),
+      licenseCategory: z.string().optional(),
+      licenseIssuedDate: z.date().optional(),
+      surname: z.string().min(2, { message: "Surname is required" }),
+      name: z.string().min(2, { message: "Name is required" }),
+      phone: z.string().min(6, { message: "Valid phone number is required" }),
+    }),
+  ).min(1, { message: "At least one driver detail is required" }),
+
+  vehicles: z.array(
+    z.object({
+      vehiclePlateNumber: z.string().min(2, { message: "Plate number is required" }),
+      vehicleMake: z.string().min(2, { message: "Make is required" }),
+      vehicleModel: z.string().min(2, { message: "Model is required" }),
+      vehicleYear: z
+        .string()
+        .regex(/^\d{4}$/, { message: "Year must be a 4-digit number" })
+        .refine((val) => {
+          const year = parseInt(val);
+          return year >= 1900 && year <= new Date().getFullYear();
+        }, { message: "Year must be between 1900 and the current year" }),
+    }),
+  ).min(1, { message: "At least one vehicle is required" }),
 
   // Step 3 - Police Information
-  policeVisited: z.boolean().optional(),
-  policeStation: z.string().optional(),
-  policeOfficerName: z.string().optional(),
-  policeOfficerPhone: z.string().optional(),
-  policeReportNumber: z.string().optional(),
+  police_assignments: z.array(
+    z.object({
+      policeVisited: z.boolean().optional(),
+      policeStation: z.string().optional(),
+      policeOfficerName: z.string().optional(),
+      policeOfficerPhone: z.string().optional(),
+      policeReportNumber: z.string().optional(),
+    }),
+  ).optional(),
 
   // Step 4 - Other Vehicles
-  otherVehiclesInvolved: z.boolean().optional(),
-  numberOfOtherVehicles: z.number().optional(),
-  // otherVehiclePlate: z.string().optional(),
-  // otherVehicleMake: z.string().optional(),
-  // otherVehicleType: z.string().optional(),
-  // otherVehicleOwnerName: z.string().optional(),
-  // otherVehicleOwnerSurname: z.string().optional(),
-  // otherVehicleOwnerAddress: z.string().optional(),
-  // otherVehicleInsurer: z.string().optional(),
-  // otherVehiclePolicyNumber: z.string().optional(),
+  other_vehicles: z.array(
+    z.object({
+      plate_number: z.string().min(2, { message: "Plate number is required" }),
+      make: z.string().min(2, { message: "Make is required" }),
+      type: z.string().min(2, { message: "Type is required" }),
+      owner_first_name: z.string().min(2, { message: "Owner first name is required" }),
+      owner_last_name: z.string().min(2, { message: "Owner last name is required" }),
+      owner_address: z.string().min(2, { message: "Owner address is required" }),
+      insurer_name: z.string().min(2, { message: "Insurer name is required" }),
+      policy_number: z.string().min(2, { message: "Policy number is required" }),
+    }),
+  ).optional(),
 
   // Step 5 - Injuries and Material Damage
-  anyInjuries: z.boolean().optional(),
-  numberOfInjured: z.number().optional(),
-  // injuredPersonName: z.string().optional(),
-  // injuredPersonSurname: z.string().optional(),
-  // injuredPersonAge: z.string().optional(),
-  // injuredPersonAddress: z.string().optional(),
-  // injuredPersonPhone: z.string().optional(),
-  // injuredPersonProfession: z.string().optional(),
-  // injuryDescription: z.string().optional(),
-  isDead: z.boolean().optional(),
-  materialDamage: z.boolean().optional(),
-  numberOfDamages: z.number().optional(),
-  damageType: z.string().optional(),
-  damageOwnerName: z.string().optional(),
-  damageLocation: z.string().optional(),
-  damageDescription: z.string().optional(),
+  injuries: z.array(
+    z.object({
+      first_name: z.string().min(2, { message: "First name is required" }),
+      last_name: z.string().min(2, { message: "Last name is required" }),
+      age: z.number().min(0, { message: "Age must be a positive number" }),
+      phone: z.string().min(6, { message: "Valid phone number is required" }),
+      profession: z.string().min(2, { message: "Profession is required" }),
+      injury_description: z.string().min(10, { message: "Injury description is required" }),
+      is_deceased: z.boolean().optional(),
+    }),
+  ).optional(),
+
+  damages: z.array(
+    z.object({
+      type: z.string().min(2, { message: "Damage type is required" }),
+      owner_name: z.string().min(2, { message: "Owner name is required" }),
+      description: z.string().min(10, { message: "Damage description is required" }),
+    }),
+  ).optional(),
 
   // Step 6 - Garage Information
-  inGarage: z.boolean().optional(),
-  garageName: z.string().optional(),
-  garageAddress: z.string().optional(),
-  garagePhone: z.string().optional(),
-  repairEstimate: z.string().optional(),
+  garages: z.array(
+    z.object({
+      name: z.string().min(2, { message: "Garage name is required" }),
+      address: z.string().min(2, { message: "Garage address is required" }),
+      phone: z.string().min(6, { message: "Valid phone number is required" }).optional(),
+      repair_estimate: z.number().min(0, { message: "Repair estimate must be a positive number" }).optional(),
+    }),
+  ).optional(),
 
   // Step 7 - Documents and Photos
-  driverLicensePhoto: imageSchema,
-  vehicleRegistrationPhoto: imageSchema,
-  accidentScenePhotos: z.array(imageSchema).optional(),
-  vehicleDamagePhotos: z.array(imageSchema).optional(),
-  policeReportDoc: fileSchema,
-  witnessStatements: z.array(fileSchema).optional(),
-  otherDocuments: z.array(fileSchema).optional(),
-  additionalNotes: z.string().optional(),
-})
+  documents: z.array(
+    z.object({
+      type: z.enum([
+        "driver_license",
+        "vehicle_registration",
+        "accident_scene",
+        "vehicle_damage",
+        "police_report",
+        "witness_statement",
+        "other",
+      ]),
+      file: fileSchema,
+    }),
+  ).optional(),
 
-// Define validation schemas for each step
+  additionalNotes: z.string().optional(),
+});
+
+// validation schemas for all steps
 const stepValidationSchemas = [
   // Step 1
   z.object({
+    claim_type_id: z.string().uuid(),
     policyNumber: z.string().min(5),
     accidentDate: z.date(),
-    accidentTime: z.string().min(1),
+    accidentTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
     accidentLocation: z.string().min(2),
     accidentDescription: z.string().min(10),
   }),
   // Step 2
   z.object({
-    driverSurname: z.string().min(2, { message: "Driver surname is required" }),
-    driverName: z.string().min(2, { message: "Driver name is required" }),
-    driverPhone: z.string().min(6, { message: "Valid phone number is required" }),
-    vehiclePlateNumber: z.string().min(2, { message: "Vehicle plate number is required" }),
-    vehicleMake: z.string().min(2, { message: "Vehicle make is required" }),
-    vehicleModel: z.string().min(2, { message: "Vehicle model is required" }),
-    vehicleYear: z.string().min(4, { message: "Valid year is required" }),
+    driver_details: z.array(z.object({
+      surname: z.string().min(2),
+      name: z.string().min(2),
+      phone: z.string().min(6),
+    })).min(1),
+    vehicles: z.array(
+      z.object({
+        vehiclePlateNumber: z.string().min(2),
+        vehicleMake: z.string().min(2),
+        vehicleModel: z.string().min(2),
+        vehicleYear: z.string().regex(/^\d{4}$/),
+      }),
+    ).min(1),
   }),
-  // Step 3 - Police info is optional
+  // Step 3
   z.object({
-    policeVisited: z.boolean(),
+    police_assignments: z.array(z.object({ policeVisited: z.boolean() })).optional(),
   }),
   // Step 4
   z.object({
-    otherVehiclesInvolved: z.boolean(),
+    other_vehicles: z.array(z.object({
+      plate_number: z.string().min(2),
+      make: z.string().min(2),
+      type: z.string().min(2),
+      owner_first_name: z.string().min(2),
+      owner_last_name: z.string().min(2),
+      owner_address: z.string().min(2),
+      insurer_name: z.string().min(2),
+      policy_number: z.string().min(2),
+    })).optional(),
   }),
   // Step 5
   z.object({
-    anyInjuries: z.boolean(),
-    materialDamage: z.boolean(),
+    injuries: z.array(z.object({
+      first_name: z.string().min(2),
+      last_name: z.string().min(2),
+      age: z.number().min(0),
+      phone: z.string().min(6),
+      profession: z.string().min(2),
+      injury_description: z.string().min(10),
+      is_deceased: z.boolean().optional(),
+    })).optional(),
+    damages: z.array(z.object({
+      type: z.string().min(2),
+      owner_name: z.string().min(2),
+      description: z.string().min(10),
+    })).optional(),
   }),
   // Step 6
   z.object({
-    inGarage: z.boolean(),
+    garages: z.array(z.object({
+      name: z.string().min(2),
+      address: z.string().min(2),
+    })).optional(),
   }),
-  // Step 7 - Documents are optional
-  z.object({}),
-]
+  // Step 7
+  z.object({
+    documents: z.array(z.object({
+      type: z.enum([
+        "driver_license",
+        "vehicle_registration",
+        "accident_scene",
+        "vehicle_damage",
+        "police_report",
+        "witness_statement",
+        "other",
+      ]),
+      file: fileSchema,
+    })).optional(),
+  }),
+];
 
 export default function NewClaimPage() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const { user } = useAuth()
-  const { t } = useLanguage()
-  const [step, setStep] = useState(1)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [completedSteps, setCompletedSteps] = useState<number[]>([])
-  const [stepErrors, setStepErrors] = useState<number[]>([])
+  const router = useRouter();
+  const { toast } = useToast();
+  const { user, apiRequest } = useAuth();
+  const { t } = useLanguage();
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [stepErrors, setStepErrors] = useState<number[]>([]);
   const [previews, setPreviews] = useState({
     driverLicensePhoto: "",
     vehicleRegistrationPhoto: "",
     accidentScenePhotos: [] as string[],
     vehicleDamagePhotos: [] as string[],
-  })
+    policeReportDoc: "",
+    witnessStatements: [] as string[],
+    otherDocuments: [] as string[],
+  });
+  const [claimTypes, setClaimTypes] = useState<{ id: string; name: string }[]>([]);
+  const [wantsGarageRecommendations, setWantsGarageRecommendations] = useState<boolean | null>(null);
+  const [showGarageRecommendations, setShowGarageRecommendations] = useState(false);
 
-  const [injuredPersons, setInjuredPersons] = useState<any[]>([{ id: 1 }])
-  const [otherVehicles, setOtherVehicles] = useState<any[]>([{ id: 1 }])
-  const [wantsGarageRecommendations, setWantsGarageRecommendations] = useState<boolean | null>(null)
-  const [showGarageRecommendations, setShowGarageRecommendations] = useState(false)
-
-  // Function to format translation strings with variables
-  const formatString = (str: string, params: Record<string, any>) => {
-    return Object.entries(params).reduce((result, [key, value]) => {
-      return result.replace(new RegExp(`{{${key}}}`, "g"), value.toString())
-    }, str)
-  }
-
-  // Update the form initialization with proper default values for all fields
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      // Step 1 - Basic Info
-      policyNumber: "",
-      accidentDate: undefined, // This will be handled specially in the date picker
-      accidentTime: "",
-      accidentLocation: "",
-      accidentDescription: "",
-
-      // Step 2 - Driver & Vehicle Information
-      hasLicense: true,
-      driverLicenseNumber: "",
-      driverLicenseCategory: "",
-      driverLicenseIssuedBy: "",
-      driverLicenseIssuedDate: undefined, // This will be handled specially in the date picker
-      driverSurname: "",
-      driverName: "",
-      driverPhone: "",
-      vehiclePlateNumber: "",
-      vehicleMake: "",
-      vehicleModel: "",
-      vehicleYear: "",
-
-      // Step 3 - Police Information
-      policeVisited: false,
-      policeStation: "",
-      policeOfficerName: "",
-      policeOfficerPhone: "",
-      policeReportNumber: "",
-
-      // Step 4 - Other Vehicles
-      otherVehiclesInvolved: false,
-      numberOfOtherVehicles: 1,
-
-      // Step 5 - Injuries and Material Damage
-      anyInjuries: false,
-      numberOfInjured: 1,
-      isDead: false,
-      materialDamage: false,
-      numberOfDamages: 1,
-      damageType: "",
-      damageOwnerName: "",
-      damageLocation: "",
-      damageDescription: "",
-
-      // Step 6 - Garage Information
-      inGarage: false,
-      garageName: "",
-      garageAddress: "",
-      garagePhone: "",
-      repairEstimate: "",
-
-      // Step 7 - Documents and Photos
-      driverLicensePhoto: undefined,
-      vehicleRegistrationPhoto: undefined,
-      accidentScenePhotos: [],
-      vehicleDamagePhotos: [],
-      policeReportDoc: undefined,
-      witnessStatements: [],
-      otherDocuments: [],
-      additionalNotes: "",
-    },
-  })
-
-  // Function to validate the current step
-  const validateStep = async (stepNumber: number) => {
-    try {
-      const currentSchema = stepValidationSchemas[stepNumber - 1]
-      const values = form.getValues()
-
-      // Extract only the fields needed for this step's validation
-      const stepFields: any = {}
-      Object.keys(currentSchema.shape).forEach((key) => {
-        stepFields[key] = values[key as keyof typeof values]
-      })
-
-      await currentSchema.parseAsync(stepFields)
-
-      // If validation passes, mark step as completed
-      if (!completedSteps.includes(stepNumber)) {
-        setCompletedSteps((prev) => [...prev, stepNumber])
-      }
-
-      // Remove from errors if it was there
-      if (stepErrors.includes(stepNumber)) {
-        setStepErrors((prev) => prev.filter((s) => s !== stepNumber))
-      }
-
-      return true
-    } catch (error) {
-      // If validation fails, mark step as having errors
-      if (!stepErrors.includes(stepNumber)) {
-        setStepErrors((prev) => [...prev, stepNumber])
-      }
-
-      // Show toast for validation error
-      toast({
-        variant: "destructive",
-        title: `Kanda Claim - ${t("claims.validation_error")}`,
-        description: t("claims.please_complete_required"),
-      })
-
-      return false
-    }
-  }
-
-  // Handle Save and Next
-  const handleSaveAndNext = async () => {
-    const isValid = await validateStep(step)
-    if (isValid && step < 7) {
-      setStep(step + 1)
-    }
-  }
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // Validate all steps before final submission
-    try {
-      let allValid = true
-
-      // Validate current step first
-      const currentStepValid = await validateStep(step)
-      if (!currentStepValid) {
-        allValid = false
-      }
-
-      // Check if all previous steps are completed
-      for (let i = 1; i <= 7; i++) {
-        if (!completedSteps.includes(i)) {
-          // Try to validate this step
-          const stepValid = await validateStep(i)
-          if (!stepValid) {
-            allValid = false
-          }
-        }
-      }
-
-      if (!allValid) {
-        toast({
-          variant: "destructive",
-          title: `Kanda Claim - ${t("claims.incomplete_steps")}`,
-          description: t("claims.complete_all_steps"),
-        })
-        return
-      }
-
-      // Final submission
-      setIsSubmitting(true)
+  // Fetch claim types
+  useEffect(() => {
+    const fetchData = async () => {
       try {
-        // Submit form logic...
-        console.log("Claim data:", values)
-        await new Promise((resolve) => setTimeout(resolve, 1500))
+        const token = sessionStorage.getItem("ottqen");
+        const [claimTypesRes] = await Promise.all([
+          await apiRequest(`${API_URL}claim-types`, "GET")
 
-        toast({
-          title: `Kanda Claim - ${t("claims.submission_success")}`,
-          description: t("claims.submission_pending"),
-        })
-
-        router.push("/dashboard/driver")
+        ]);
+        setClaimTypes(claimTypesRes);
       } catch (error) {
         toast({
           variant: "destructive",
-          title: `Kanda Claim - ${t("claims.submission_failed")}`,
-          description: t("claims.submission_error"),
-        })
-      } finally {
-        setIsSubmitting(false)
+          title: "Error",
+          description: "Failed to fetch claim types",
+        });
       }
-    } catch (error) {
-      // Validation error - form will show field errors
-      console.error("Validation error:", error)
+    };
+    fetchData();
+  }, [user, toast]);
 
-      // Show toast for validation error
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      claim_type_id: "",
+      // code: `CLAIM-${Date.now()}`,
+      policyNumber: "",
+      accidentDate: undefined,
+      accidentTime: "",
+      accidentLocation: "",
+      accidentDescription: "",
+      driver_details: [{
+        hasLicense: true,
+        licenseNumber: "",
+        licenseCategory: "",
+        licenseIssuedDate: undefined,
+        surname: "",
+        name: "",
+        phone: "",
+      }],
+      vehicles: [
+        {
+          vehiclePlateNumber: "",
+          vehicleMake: "",
+          vehicleModel: "",
+          vehicleYear: "",
+        },
+      ],
+      police_assignments: [],
+      other_vehicles: [],
+      injuries: [],
+      damages: [],
+      garages: [],
+      documents: [],
+      additionalNotes: "",
+    },
+  });
+
+  // Field arrays for dynamic inputs
+  const { fields: driverFields, append: appendDriver, remove: removeDriver } = useFieldArray({
+    control: form.control,
+    name: "driver_details",
+  });
+  const { fields: vehicleFields, append: appendVehicle, remove: removeVehicle } = useFieldArray({
+    control: form.control,
+    name: "vehicles",
+  });
+  const { fields: policeFields, append: appendPolice, remove: removePolice } = useFieldArray({
+    control: form.control,
+    name: "police_assignments",
+  });
+  const { fields: otherVehicleFields, append: appendOtherVehicle, remove: removeOtherVehicle } = useFieldArray({
+    control: form.control,
+    name: "other_vehicles",
+  });
+  const { fields: injuryFields, append: appendInjury, remove: removeInjury } = useFieldArray({
+    control: form.control,
+    name: "injuries",
+  });
+  const { fields: damageFields, append: appendDamage, remove: removeDamage } = useFieldArray({
+    control: form.control,
+    name: "damages",
+  });
+  const { fields: garageFields, append: appendGarage, remove: removeGarage } = useFieldArray({
+    control: form.control,
+    name: "garages",
+  });
+  const { fields: documentFields, append: appendDocument, remove: removeDocument } = useFieldArray({
+    control: form.control,
+    name: "documents",
+  });
+
+  const formatString = (str: string, params: Record<string, any>) => {
+    return Object.entries(params).reduce((result, [key, value]) => {
+      return result.replace(new RegExp(`{{${key}}}`, "g"), value.toString());
+    }, str);
+  };
+
+  const validateStep = async (stepNumber: number) => {
+    try {
+      const currentSchema = stepValidationSchemas[stepNumber - 1];
+      const values = form.getValues();
+      const stepFields: any = {};
+      Object.keys(currentSchema.shape).forEach((key) => {
+        stepFields[key] = values[key as keyof typeof values];
+      });
+      await currentSchema.parseAsync(stepFields);
+      if (!completedSteps.includes(stepNumber)) {
+        setCompletedSteps((prev) => [...prev, stepNumber]);
+      }
+      if (stepErrors.includes(stepNumber)) {
+        setStepErrors((prev) => prev.filter((s) => s !== stepNumber));
+      }
+      return true;
+    } catch (error) {
+      if (!stepErrors.includes(stepNumber)) {
+        setStepErrors((prev) => [...prev, stepNumber]);
+      }
       toast({
         variant: "destructive",
         title: `Kanda Claim - ${t("claims.validation_error")}`,
         description: t("claims.please_complete_required"),
-      })
+      });
+      return false;
     }
-  }
+  };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
-    const files = event.target.files
-    if (!files || files.length === 0) return
-
-    if (fieldName === "driverLicensePhoto" || fieldName === "vehicleRegistrationPhoto") {
-      form.setValue(fieldName as any, files[0])
-
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(files[0])
-      setPreviews((prev) => ({
-        ...prev,
-        [fieldName]: previewUrl,
-      }))
-    } else if (fieldName === "accidentScenePhotos" || fieldName === "vehicleDamagePhotos") {
-      const newFiles = Array.from(files)
-      const currentFiles = form.getValues(fieldName as any) || []
-      form.setValue(fieldName as any, [...currentFiles, ...newFiles] as any)
-
-      // Create preview URLs
-      const newPreviews = newFiles.map((file) => URL.createObjectURL(file))
-      setPreviews((prev) => ({
-        ...prev,
-        [fieldName]: [...(prev[fieldName as keyof typeof prev] as string[]), ...newPreviews],
-      }))
-    } else {
-      const newFiles = Array.from(files)
-      const currentFiles = form.getValues(fieldName as any) || []
-      form.setValue(fieldName as any, [...currentFiles, ...newFiles] as any)
+  const handleSaveAndNext = async () => {
+    const isValid = await validateStep(step);
+    if (isValid && step < 7) {
+      setStep(step + 1);
     }
-  }
+  };
 
-  const removeFile = (fieldName: string, index?: number) => {
-    if (index !== undefined) {
-      // For arrays (multiple files)
-      const currentFiles = form.getValues(fieldName as any) || []
-      const newFiles = [...currentFiles]
-      newFiles.splice(index, 1)
-      form.setValue(fieldName as any, newFiles as any)
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    let allValid = true;
+    const currentStepValid = await validateStep(step);
+    if (!currentStepValid) allValid = false;
 
-      // Remove from previews if it's a photo
-      if (fieldName === "accidentScenePhotos" || fieldName === "vehicleDamagePhotos") {
-        const currentPreviews = [...(previews[fieldName as keyof typeof previews] as string[])]
-
-        // Revoke the Object URL to avoid memory leaks
-        URL.revokeObjectURL(currentPreviews[index])
-
-        currentPreviews.splice(index, 1)
-        setPreviews((prev) => ({
-          ...prev,
-          [fieldName]: currentPreviews,
-        }))
+    for (let i = 1; i <= 7; i++) {
+      if (!completedSteps.includes(i)) {
+        const stepValid = await validateStep(i);
+        if (!stepValid) allValid = false;
       }
-    } else {
-      // For single files
-      form.setValue(fieldName as any, undefined)
+    }
 
-      // Revoke preview URL if exists
-      if (fieldName === "driverLicensePhoto" || fieldName === "vehicleRegistrationPhoto") {
-        if (previews[fieldName as keyof typeof previews]) {
-          URL.revokeObjectURL(previews[fieldName as keyof typeof previews] as string)
+    if (!allValid) {
+      toast({
+        variant: "destructive",
+        title: `Kanda Claim - ${t("claims.incomplete_steps")}`,
+        description: t("claims.complete_all_steps"),
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      console.log("Form Values:", values); // Debug form values
+      const token = sessionStorage.getItem("ottqen");
+      // Append claim fields
+      formData.append("claim_type_id", values.claim_type_id);
+      // formData.append("code", values.code);
+      formData.append("currency", "RWF");
+      formData.append("status", "Draft");
+      formData.append("priority", "medium");
+      formData.append("policy_number", values.policyNumber);
+      formData.append("accident_date", values.accidentDate.toISOString().split("T")[0]);
+      formData.append("accident_time", values.accidentTime);
+      formData.append("location", values.accidentLocation);
+      formData.append("description", values.accidentDescription);
+      formData.append("note", values.additionalNotes || "");
+
+      // Append driver details
+      values.driver_details.forEach((driver, index) => {
+        formData.append(`driver_details[${index}][user_id]`, user.id); // Adjust based on auth
+        formData.append(`driver_details[${index}][has_license]`, driver.hasLicense ? "true" : "false");
+        if (driver.hasLicense) {
+          formData.append(`driver_details[${index}][license_number]`, driver.licenseNumber || "");
+          formData.append(`driver_details[${index}][license_category]`, driver.licenseCategory || "");
+          formData.append(
+            `driver_details[${index}][license_issued_date]`,
+            driver.licenseIssuedDate?.toISOString().split("T")[0] || "",
+          );
         }
-        setPreviews((prev) => ({
-          ...prev,
-          [fieldName]: "",
-        }))
-      }
-    }
-  }
+      });
 
-  // Get step status icon
+      // Append vehicles
+      values.vehicles.forEach((vehicle, index) => {
+        formData.append(`vehicles[${index}][plate_number]`, vehicle.vehiclePlateNumber);
+        formData.append(`vehicles[${index}][make]`, vehicle.vehicleMake);
+        formData.append(`vehicles[${index}][model]`, vehicle.vehicleModel);
+        formData.append(`vehicles[${index}][year]`, vehicle.vehicleYear);
+      });
+      // Append police assignments
+      values.police_assignments?.forEach((police, index) => {
+        formData.append(`police_assignments[${index}][police_visited]`, police.policeVisited ? "true" : "false");
+        formData.append(`police_assignments[${index}][police_station]`, police.policeStation || "");
+        formData.append(`police_assignments[${index}][police_report_number]`, police.policeReportNumber || "");
+        formData.append(`police_assignments[${index}][police_officer_name]`, police.policeOfficerName || "");
+        formData.append(`police_assignments[${index}][police_officer_phone]`, police.policeOfficerPhone || "");
+      });
+
+      // Append other vehicles
+      values.other_vehicles?.forEach((vehicle, index) => {
+        formData.append(`other_vehicles[${index}][plate_number]`, vehicle.plate_number);
+        formData.append(`other_vehicles[${index}][make]`, vehicle.make);
+        formData.append(`other_vehicles[${index}][type]`, vehicle.type);
+        formData.append(`other_vehicles[${index}][owner_first_name]`, vehicle.owner_first_name);
+        formData.append(`other_vehicles[${index}][owner_last_name]`, vehicle.owner_last_name);
+        formData.append(`other_vehicles[${index}][owner_address]`, vehicle.owner_address);
+        formData.append(`other_vehicles[${index}][insurer_name]`, vehicle.insurer_name);
+        formData.append(`other_vehicles[${index}][policy_number]`, vehicle.policy_number);
+      });
+
+      // Append injuries
+      values.injuries?.forEach((injury, index) => {
+        formData.append(`injuries[${index}][first_name]`, injury.first_name);
+        formData.append(`injuries[${index}][last_name]`, injury.last_name);
+        formData.append(`injuries[${index}][age]`, injury.age.toString());
+        formData.append(`injuries[${index}][phone]`, injury.phone);
+        formData.append(`injuries[${index}][profession]`, injury.profession);
+        formData.append(`injuries[${index}][injury_description]`, injury.injury_description);
+        formData.append(`injuries[${index}][is_deceased]`, injury.is_deceased ? "true" : "false");
+      });
+
+      // Append damages
+      values.damages?.forEach((damage, index) => {
+        formData.append(`damages[${index}][type]`, damage.type);
+        formData.append(`damages[${index}][owner_name]`, damage.owner_name);
+        formData.append(`damages[${index}][description]`, damage.description);
+      });
+
+      // Append garages
+      values.garages?.forEach((garage, index) => {
+        formData.append(`garages[${index}][name]`, garage.name);
+        formData.append(`garages[${index}][address]`, garage.address);
+        formData.append(`garages[${index}][phone]`, garage.phone || "");
+        formData.append(`garages[${index}][repair_estimate]`, garage.repair_estimate?.toString() || "");
+      });
+
+      // Append documents
+      values.documents?.forEach((doc, index) => {
+        if (doc.file) {
+          console.log(`Document ${index}:`, { type: doc.type, file: doc.file.name });
+          formData.append(`documents[${index}][type]`, doc.type);
+          formData.append(`documents[${index}][file]`, doc.file);
+        }
+      });
+
+      var jjsson = []
+      console.log("FormData entries:");
+      for (const [key, value] of formData.entries()) {
+        console.log(`${key}:`, value instanceof File ? value.name : value);
+        jjsson.push(`${key}:`, value)
+      }
+      console.log('my form dATA', jjsson);
+
+      // Send API request
+      const response = await apiRequest(`${API_URL}claims/all`, "POST", formData)
+
+      toast({
+        title: `Kanda Claim - ${t("claims.submission_success")}`,
+        description: t("claims.submission_pending"),
+      });
+
+      router.push("/dashboard/driver");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: `Kanda Claim - ${t("claims.submission_failed")}`,
+        description: error.response?.data?.message || t("claims.submission_error"),
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      appendDocument({ type, file });
+      const previewUrl = URL.createObjectURL(file);
+      setPreviews((prev) => {
+        if (type === "driver_license") return { ...prev, driverLicensePhoto: previewUrl };
+        if (type === "vehicle_registration") return { ...prev, vehicleRegistrationPhoto: previewUrl };
+        if (type === "accident_scene") return { ...prev, accidentScenePhotos: [...prev.accidentScenePhotos, previewUrl] };
+        if (type === "vehicle_damage") return { ...prev, vehicleDamagePhotos: [...prev.vehicleDamagePhotos, previewUrl] };
+        if (type === "police_report") return { ...prev, policeReportDoc: previewUrl };
+        if (type === "witness_statement") return { ...prev, witnessStatements: [...prev.witnessStatements, previewUrl] };
+        if (type === "other") return { ...prev, otherDocuments: [...prev.otherDocuments, previewUrl] };
+        return prev;
+      });
+    });
+  };
+
+  const removeFile = (index: number, type: string) => {
+    const doc = documentFields[index];
+    if (doc) {
+      URL.revokeObjectURL(previews[type as keyof typeof previews] as string);
+      removeDocument(index);
+      setPreviews((prev) => {
+        if (type === "driver_license") return { ...prev, driverLicensePhoto: "" };
+        if (type === "vehicle_registration") return { ...prev, vehicleRegistrationPhoto: "" };
+        if (type === "accident_scene") {
+          const newPreviews = [...prev.accidentScenePhotos];
+          newPreviews.splice(index, 1);
+          return { ...prev, accidentScenePhotos: newPreviews };
+        }
+        if (type === "vehicle_damage") {
+          const newPreviews = [...prev.vehicleDamagePhotos];
+          newPreviews.splice(index, 1);
+          return { ...prev, vehicleDamagePhotos: newPreviews };
+        }
+        if (type === "police_report") return { ...prev, policeReportDoc: "" };
+        if (type === "witness_statement") {
+          const newPreviews = [...prev.witnessStatements];
+          newPreviews.splice(index, 1);
+          return { ...prev, witnessStatements: newPreviews };
+        }
+        if (type === "other") {
+          const newPreviews = [...prev.otherDocuments];
+          newPreviews.splice(index, 1);
+          return { ...prev, otherDocuments: newPreviews };
+        }
+        return prev;
+      });
+    }
+  };
+
   const getStepStatusIcon = (stepNumber: number) => {
     if (stepErrors.includes(stepNumber)) {
-      return <AlertCircle className="h-4 w-4 text-destructive" />
+      return <AlertCircle className="h-4 w-4 text-destructive" />;
     } else if (completedSteps.includes(stepNumber)) {
-      return <CheckCircle2 className="h-4 w-4 text-primary" />
+      return <CheckCircle2 className="h-4 w-4 text-primary" />;
     }
-    return null
-  }
+    return null;
+  };
 
   const handleGarageSelection = (garage: any) => {
-    form.setValue("garageName", garage.name)
-    form.setValue("garageAddress", garage.address)
-    form.setValue("garagePhone", garage.phone)
-    form.setValue("inGarage", true)
-    setShowGarageRecommendations(false)
-  }
+    appendGarage({
+      name: garage.name,
+      address: garage.address,
+      phone: garage.phone || "",
+      repair_estimate: 0,
+    });
+    setShowGarageRecommendations(false);
+  };
 
-  // Update the render method to handle undefined values properly
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Mugisha Nkusi",
+        name: user.name,
         role: "Driver",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -547,20 +708,46 @@ export default function NewClaimPage() {
                   <CardDescription>{t("claims.accident_details")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="policyNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.policy_number")}*</FormLabel>
-                        <FormControl>
-                          <Input placeholder={t("form.policy_number_placeholder")} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="claim_type_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("form.claim_type")}*</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={t("form.select_claim_type")} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {claimTypes.map((type) => (
+                                <SelectItem key={type.id} value={type.id}>
+                                  {type.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
+                    <FormField
+                      control={form.control}
+                      name="policyNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("form.policy_number")}*</FormLabel>
+                          <FormControl>
+                            <Input placeholder={t("form.policy_number_placeholder")} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -597,7 +784,6 @@ export default function NewClaimPage() {
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={form.control}
                       name="accidentTime"
@@ -612,7 +798,6 @@ export default function NewClaimPage() {
                       )}
                     />
                   </div>
-
                   <FormField
                     control={form.control}
                     name="accidentLocation"
@@ -626,7 +811,6 @@ export default function NewClaimPage() {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="accidentDescription"
@@ -637,11 +821,7 @@ export default function NewClaimPage() {
                           <Textarea
                             placeholder={t("form.accident_description_placeholder")}
                             className="min-h-[120px]"
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            onBlur={field.onBlur}
-                            name={field.name}
-                            ref={field.ref}
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -659,203 +839,263 @@ export default function NewClaimPage() {
                   <CardDescription>{t("claims.driver_details")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="hasLicense"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl>
-                          <Checkbox checked={!field.value} onCheckedChange={(checked) => field.onChange(!checked)} />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>{t("form.driver_no_license")}</FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-
-                  {form.watch("hasLicense") && (
-                    <div className="space-y-4">
+                  {driverFields.map((field, index) => (
+                    <div key={field.id} className="border p-4 rounded-md space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-medium">{formatString(t("form.driver_details"), { number: index + 1 })}</h3>
+                        {index > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeDriver(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                       <FormField
                         control={form.control}
-                        name="driverLicenseNumber"
+                        name={`driver_details.${index}.hasLicense`}
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                            <FormControl>
+                              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>{t("form.has_license")}</FormLabel>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                      {form.watch(`driver_details.${index}.hasLicense`) && (
+                        <div className="space-y-4">
+                          <FormField
+                            control={form.control}
+                            name={`driver_details.${index}.licenseNumber`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.license_number")}*</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.license_number_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name={`driver_details.${index}.licenseCategory`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>{t("form.license_category")}*</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder={t("form.select_category")} />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="A">A</SelectItem>
+                                      <SelectItem value="B">B</SelectItem>
+                                      <SelectItem value="C">C</SelectItem>
+                                      <SelectItem value="D">D</SelectItem>
+                                      <SelectItem value="E">E</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`driver_details.${index}.licenseIssuedDate`}
+                              render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                  <FormLabel>{t("form.issue_date")}*</FormLabel>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <FormControl>
+                                        <Button
+                                          variant={"outline"}
+                                          className={cn(
+                                            "w-full pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground",
+                                          )}
+                                        >
+                                          {field.value ? format(field.value, "PPP") : <span>{t("form.pick_date")}</span>}
+                                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                      </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={(date) => field.onChange(date)}
+                                        disabled={(date) => date > new Date()}
+                                        initialFocus
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`driver_details.${index}.surname`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.driver_surname")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.driver_surname_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`driver_details.${index}.name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.driver_name")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.driver_name_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name={`driver_details.${index}.phone`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t("form.license_number")}*</FormLabel>
+                            <FormLabel>{t("form.driver_phone")}*</FormLabel>
                             <FormControl>
-                              <Input placeholder={t("form.license_number_placeholder")} {...field} />
+                              <Input type="tel" placeholder="+250 788 123 456" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendDriver({
+                        hasLicense: true,
+                        licenseNumber: "",
+                        licenseCategory: "",
+                        licenseIssuedDate: undefined,
+                        surname: "",
+                        name: "",
+                        phone: "",
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("action.add_driver")}
+                  </Button>
 
+                  {vehicleFields.map((field, index) => (
+                    <div key={field.id} className="border p-4 rounded-md space-y-4 mt-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-medium">{formatString(t("form.vehicle_details"), { number: index + 1 })}</h3>
+                        {index > 0 && (
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeVehicle(index)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
-                          name="driverLicenseCategory"
+                          name={`vehicles.${index}.vehiclePlateNumber`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{t("form.license_category")}*</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={t("form.select_category")} />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="A">A</SelectItem>
-                                  <SelectItem value="B">B</SelectItem>
-                                  <SelectItem value="C">C</SelectItem>
-                                  <SelectItem value="D">D</SelectItem>
-                                  <SelectItem value="E">E</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <FormLabel>{t("form.vehicle_plate_number")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.vehicle_plate_number_placeholder")} {...field} />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-
                         <FormField
                           control={form.control}
-                          name="driverLicenseIssuedDate"
+                          name={`vehicles.${index}.vehicleMake`}
                           render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>{t("form.issue_date")}*</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={cn(
-                                        "w-full pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground",
-                                      )}
-                                    >
-                                      {field.value ? format(field.value, "PPP") : <span>{t("form.pick_date")}</span>}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={(date) => field.onChange(date)}
-                                    disabled={(date) => date > new Date()}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
+                            <FormItem>
+                              <FormLabel>{t("form.vehicle_make")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.vehicle_make_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`vehicles.${index}.vehicleModel`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.vehicle_model")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.vehicle_model_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`vehicles.${index}.vehicleYear`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.vehicle_year")}*</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  placeholder={t("form.vehicle_year_placeholder")}
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value)}
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
                       </div>
                     </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="driverSurname"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("form.driver_surname")}*</FormLabel>
-                          <FormControl>
-                            <Input placeholder={t("form.driver_surname_placeholder")} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="driverName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("form.driver_name")}*</FormLabel>
-                          <FormControl>
-                            <Input placeholder={t("form.driver_name_placeholder")} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="driverPhone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.driver_phone")}*</FormLabel>
-                        <FormControl>
-                          <Input type="tel" placeholder="+250 788 123 456" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="vehiclePlateNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("form.vehicle_plate")}*</FormLabel>
-                          <FormControl>
-                            <Input placeholder={t("form.vehicle_plate_placeholder")} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="vehicleMake"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("form.vehicle_make")}*</FormLabel>
-                          <FormControl>
-                            <Input placeholder={t("form.vehicle_make_placeholder")} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="vehicleModel"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.vehicle_model")}*</FormLabel>
-                        <FormControl>
-                          <Input placeholder={t("form.vehicle_model_placeholder")} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="vehicleYear"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.vehicle_year")}*</FormLabel>
-                        <FormControl>
-                          <Input placeholder={t("form.vehicle_year_placeholder")} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendVehicle({
+                        vehiclePlateNumber: "",
+                        vehicleMake: "",
+                        vehicleModel: "",
+                        vehicleYear: "",
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("action.add_vehicle")}
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -870,95 +1110,121 @@ export default function NewClaimPage() {
                   <Alert>
                     <AlertDescription>{t("claims.police_report_optional")}</AlertDescription>
                   </Alert>
-
-                  <FormField
-                    control={form.control}
-                    name="policeVisited"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>{t("form.police_visited")}?</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={(value) => field.onChange(value === "true")}
-                            defaultValue={field.value ? "true" : "false"}
-                            className="flex flex-row space-x-4"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="true" id="police-yes" />
-                              <label htmlFor="police-yes">{t("action.yes")}</label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="false" id="police-no" />
-                              <label htmlFor="police-no">{t("action.no")}</label>
-                            </div>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {form.watch("policeVisited") && (
-                    <div className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="policeStation"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.police_station")}</FormLabel>
-                            <FormControl>
-                              <Input placeholder={t("form.police_station_placeholder")} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="policeReportNumber"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.police_report_number")}</FormLabel>
-                            <FormControl>
-                              <Input placeholder={t("form.police_report_number_placeholder")} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="policeOfficerName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t("form.officer_name")}</FormLabel>
-                              <FormControl>
-                                <Input placeholder={t("form.officer_name_placeholder")} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="policeOfficerPhone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t("form.officer_phone")}</FormLabel>
-                              <FormControl>
-                                <Input type="tel" placeholder="+250 788 123 456" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                  {policeFields.map((field, index) => (
+                    <div key={field.id} className="border p-4 rounded-md space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-medium">{formatString(t("form.police_details"), { number: index + 1 })}</h3>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removePolice(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
+                      <FormField
+                        control={form.control}
+                        name={`police_assignments.${index}.policeVisited`}
+                        render={({ field }) => (
+                          <FormItem className="space-y-3">
+                            <FormLabel>{t("form.police_visited")}?</FormLabel>
+                            <FormControl>
+                              <RadioGroup
+                                onValueChange={(value) => field.onChange(value === "true")}
+                                defaultValue={field.value ? "true" : "false"}
+                                className="flex flex-row space-x-4"
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="true" id={`police-yes-${index}`} />
+                                  <label htmlFor={`police-yes-${index}`}>{t("action.yes")}</label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="false" id={`police-no-${index}`} />
+                                  <label htmlFor={`police-no-${index}`}>{t("action.no")}</label>
+                                </div>
+                              </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {form.watch(`police_assignments.${index}.policeVisited`) && (
+                        <div className="space-y-4">
+                          <FormField
+                            control={form.control}
+                            name={`police_assignments.${index}.policeStation`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.police_station")}</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.police_station_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`police_assignments.${index}.policeReportNumber`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.police_report_number")}</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.police_report_number_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name={`police_assignments.${index}.policeOfficerName`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>{t("form.officer_name")}</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder={t("form.officer_name_placeholder")} {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`police_assignments.${index}.policeOfficerPhone`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>{t("form.officer_phone")}</FormLabel>
+                                  <FormControl>
+                                    <Input type="tel" placeholder="+250 788 123 456" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendPolice({
+                        policeVisited: false,
+                        policeStation: "",
+                        policeOfficerName: "",
+                        policeOfficerPhone: "",
+                        policeReportNumber: "",
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("action.add_police_assignment")}
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -970,185 +1236,150 @@ export default function NewClaimPage() {
                   <CardDescription>{t("claims.other_vehicles_details")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="otherVehiclesInvolved"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>{t("form.other_vehicles_involved")}?*</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={(value) => field.onChange(value === "true")}
-                            defaultValue={field.value ? "true" : "false"}
-                            className="flex flex-row space-x-4"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="true" id="vehicles-yes" />
-                              <label htmlFor="vehicles-yes">{t("action.yes")}</label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="false" id="vehicles-no" />
-                              <label htmlFor="vehicles-no">{t("action.no")}</label>
-                            </div>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {form.watch("otherVehiclesInvolved") && (
-                    <div className="space-y-4">
+                  {otherVehicleFields.map((field, index) => (
+                    <div key={field.id} className="border p-4 rounded-md space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-medium">{formatString(t("form.vehicle_details"), { number: index + 1 })}</h3>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeOtherVehicle(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`other_vehicles.${index}.plate_number`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.plate_number")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.plate_number_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`other_vehicles.${index}.make`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.make")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.make_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`other_vehicles.${index}.type`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.type")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.type_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <FormField
+                          control={form.control}
+                          name={`other_vehicles.${index}.owner_first_name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.owner_name")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.owner_name_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`other_vehicles.${index}.owner_last_name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.owner_surname")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.owner_surname_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       <FormField
                         control={form.control}
-                        name="numberOfOtherVehicles"
+                        name={`other_vehicles.${index}.owner_address`}
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.number_of_vehicles")}*</FormLabel>
+                          <FormItem className="mt-4">
+                            <FormLabel>{t("form.owner_address")}*</FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                min="1"
-                                {...field}
-                                onChange={(e) => {
-                                  const value = Number.parseInt(e.target.value) || 1
-                                  field.onChange(value)
-                                  // Generate the appropriate number of vehicle forms
-                                  setOtherVehicles(Array.from({ length: value }, (_, i) => ({ id: i + 1 })))
-                                }}
-                              />
+                              <Input placeholder={t("form.owner_address_placeholder")} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
-                      {otherVehicles.map((vehicle, index) => (
-                        <div key={vehicle.id} className="mt-6 border p-4 rounded-md">
-                          <h3 className="font-medium mb-4">
-                            {formatString(t("form.vehicle_details"), { number: index + 1 })}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`otherVehiclePlate${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.plate_number")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.plate_number_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`otherVehicleMake${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.make")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.make_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`otherVehicleType${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.type")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.type_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <FormField
-                              control={form.control}
-                              name={`otherVehicleOwnerName${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.owner_name")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.owner_name_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`otherVehicleOwnerSurname${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.owner_surname")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.owner_surname_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-
-                          <FormField
-                            control={form.control}
-                            name={`otherVehicleOwnerAddress${index}`}
-                            render={({ field }) => (
-                              <FormItem className="mt-4">
-                                <FormLabel>{t("form.owner_address")}*</FormLabel>
-                                <FormControl>
-                                  <Input placeholder={t("form.owner_address_placeholder")} {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <FormField
-                              control={form.control}
-                              name={`otherVehicleInsurer${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.insurer")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.insurer_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`otherVehiclePolicyNumber${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.policy_number")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.policy_number_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <FormField
+                          control={form.control}
+                          name={`other_vehicles.${index}.insurer_name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.insurer")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.insurer_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`other_vehicles.${index}.policy_number`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.policy_number")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.policy_number_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </div>
-                  )}
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendOtherVehicle({
+                        plate_number: "",
+                        make: "",
+                        type: "",
+                        owner_first_name: "",
+                        owner_last_name: "",
+                        owner_address: "",
+                        insurer_name: "",
+                        policy_number: "",
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("action.add_vehicle")}
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -1160,231 +1391,162 @@ export default function NewClaimPage() {
                   <CardDescription>{t("claims.injuries_details")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="anyInjuries"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>{t("form.any_injuries")}?*</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={(value) => field.onChange(value === "true")}
-                            defaultValue={field.value ? "true" : "false"}
-                            className="flex flex-row space-x-4"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="true" id="injuries-yes" />
-                              <label htmlFor="injuries-yes">{t("action.yes")}</label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="false" id="injuries-no" />
-                              <label htmlFor="injuries-no">{t("action.no")}</label>
-                            </div>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {form.watch("anyInjuries") && (
-                    <div className="space-y-4">
+                  {injuryFields.map((field, index) => (
+                    <div key={field.id} className="border p-4 rounded-md space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-medium">{formatString(t("form.injured_person_details"), { number: index + 1 })}</h3>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeInjury(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`injuries.${index}.first_name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.name")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.name_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`injuries.${index}.last_name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.surname")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.surname_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <FormField
+                          control={form.control}
+                          name={`injuries.${index}.age`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.age")}*</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  placeholder={t("form.age_placeholder")}
+                                  {...field}
+                                  onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`injuries.${index}.phone`} // Fix: Use correct template literal syntax
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.phone")}*</FormLabel>
+                              <FormControl>
+                                <Input type="tel" placeholder="+250 788 123 456" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`injuries.${index}.profession`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.profession")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.profession_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       <FormField
                         control={form.control}
-                        name="numberOfInjured"
+                        name={`injuries.${index}.injury_description`}
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.number_of_injured")}*</FormLabel>
+                          <FormItem className="mt-4">
+                            <FormLabel>{t("form.injury_description")}*</FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                min="1"
+                              <Textarea
+                                placeholder={t("form.injury_description_placeholder")}
+                                className="min-h-[120px]"
                                 {...field}
-                                onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
                               />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
-                      {injuredPersons.map((person, index) => (
-                        <div key={person.id} className="mt-6 border p-4 rounded-md">
-                          <h3 className="font-medium mb-4">
-                            {formatString(t("form.injured_person_details"), { number: index + 1 })}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`injuredPersonName${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.name")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.name_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`injuredPersonSurname${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.surname")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.surname_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                            <FormField
-                              control={form.control}
-                              name={`injuredPersonAge${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.age")}*</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      placeholder={t("form.age_placeholder")}
-                                      {...field}
-                                      onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`injuredPersonPhone${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.phone")}*</FormLabel>
-                                  <FormControl>
-                                    <Input type="tel" placeholder="+250 788 123 456" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`injuredPersonProfession${index}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.profession")}*</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.profession_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-
-                          <FormField
-                            control={form.control}
-                            name={`injuryDescription${index}`}
-                            render={({ field }) => (
-                              <FormItem className="mt-4">
-                                <FormLabel>{t("form.injury_description")}*</FormLabel>
-                                <FormControl>
-                                  <Textarea
-                                    placeholder={t("form.injury_description_placeholder")}
-                                    className="min-h-[120px]"
-                                    value={field.value || ""}
-                                    onChange={field.onChange}
-                                    onBlur={field.onBlur}
-                                    name={field.name}
-                                    ref={field.ref}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name={`isDead${index}`}
-                            render={({ field }) => (
-                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-4">
-                                <FormControl>
-                                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                </FormControl>
-                                <div className="space-y-1 leading-none">
-                                  <FormLabel>{t("form.check_if_deceased")}</FormLabel>
-                                </div>
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      ))}
+                      <FormField
+                        control={form.control}
+                        name={`injuries.${index}.is_deceased`}
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-4">
+                            <FormControl>
+                              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>{t("form.check_if_deceased")}</FormLabel>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                  )}
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendInjury({
+                        first_name: "",
+                        last_name: "",
+                        age: 0,
+                        phone: "",
+                        profession: "",
+                        injury_description: "",
+                        is_deceased: false,
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("action.add_injury")}
+                  </Button>
 
-                  <FormField
-                    control={form.control}
-                    name="materialDamage"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>{t("form.material_damage")}?*</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={(value) => field.onChange(value === "true")}
-                            defaultValue={field.value ? "true" : "false"}
-                            className="flex flex-row space-x-4"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="true" id="damage-yes" />
-                              <label htmlFor="damage-yes">{t("action.yes")}</label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="false" id="damage-no" />
-                              <label htmlFor="damage-no">{t("action.no")}</label>
-                            </div>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {form.watch("materialDamage") && (
-                    <div className="space-y-4">
+                  {damageFields.map((field, index) => (
+                    <div key={field.id} className="border p-4 rounded-md space-y-4 mt-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-medium">{formatString(t("form.damage_details"), { number: index + 1 })}</h3>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeDamage(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <FormField
                         control={form.control}
-                        name="numberOfDamages"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.number_of_damages")}*</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min="1"
-                                {...field}
-                                onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="damageType"
+                        name={`damages.${index}.type`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("form.damage_type")}*</FormLabel>
@@ -1395,10 +1557,9 @@ export default function NewClaimPage() {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
-                        name="damageOwnerName"
+                        name={`damages.${index}.owner_name`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("form.damage_owner")}*</FormLabel>
@@ -1409,10 +1570,9 @@ export default function NewClaimPage() {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
-                        name="damageDescription"
+                        name={`damages.${index}.description`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("form.damage_description")}*</FormLabel>
@@ -1420,11 +1580,7 @@ export default function NewClaimPage() {
                               <Textarea
                                 placeholder={t("form.damage_description_placeholder")}
                                 className="min-h-[120px]"
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                                onBlur={field.onBlur}
-                                name={field.name}
-                                ref={field.ref}
+                                {...field}
                               />
                             </FormControl>
                             <FormMessage />
@@ -1432,7 +1588,21 @@ export default function NewClaimPage() {
                         )}
                       />
                     </div>
-                  )}
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendDamage({
+                        type: "",
+                        owner_name: "",
+                        description: "",
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("action.add_damage")}
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -1444,45 +1614,79 @@ export default function NewClaimPage() {
                   <CardDescription>{t("claims.garage_details")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="inGarage"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>{t("form.in_garage")}?*</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={(value) => {
-                              const isInGarage = value === "true"
-                              field.onChange(isInGarage)
-
-                              // Reset garage recommendation state when changing this answer
-                              if (isInGarage) {
-                                setWantsGarageRecommendations(null)
-                                setShowGarageRecommendations(false)
-                              } else {
-                                setWantsGarageRecommendations(null)
-                              }
-                            }}
-                            defaultValue={field.value ? "true" : "false"}
-                            className="flex flex-row space-x-4"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="true" id="garage-yes" />
-                              <label htmlFor="garage-yes">{t("action.yes")}</label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="false" id="garage-no" />
-                              <label htmlFor="garage-no">{t("action.no")}</label>
-                            </div>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {form.watch("inGarage") === false && wantsGarageRecommendations === null && (
+                  {garageFields.map((field, index) => (
+                    <div key={field.id} className="border p-4 rounded-md space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-medium">{formatString(t("form.garage_details"), { number: index + 1 })}</h3>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeGarage(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name={`garages.${index}.name`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.garage_name")}*</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("form.garage_name_placeholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`garages.${index}.address`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.garage_address")}*</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("form.garage_address_placeholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`garages.${index}.phone`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.garage_phone")}</FormLabel>
+                            <FormControl>
+                              <Input type="tel" placeholder="+250 788 123 456" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`garages.${index}.repair_estimate`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.repair_estimate")}</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="50000"
+                                {...field}
+                                onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  ))}
+                  {garageFields.length === 0 && wantsGarageRecommendations === null && (
                     <Card className="border-dashed">
                       <CardContent className="pt-6">
                         <h3 className="text-lg font-medium mb-2">{t("garage.need_recommendations")}</h3>
@@ -1491,20 +1695,30 @@ export default function NewClaimPage() {
                           <Button
                             variant="default"
                             onClick={() => {
-                              setWantsGarageRecommendations(true)
-                              setShowGarageRecommendations(true)
+                              setWantsGarageRecommendations(true);
+                              setShowGarageRecommendations(true);
                             }}
                           >
                             {t("action.yes")}
                           </Button>
-                          <Button variant="outline" onClick={() => setWantsGarageRecommendations(false)}>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setWantsGarageRecommendations(false);
+                              appendGarage({
+                                name: "",
+                                address: "",
+                                phone: "",
+                                repair_estimate: 0,
+                              });
+                            }}
+                          >
                             {t("action.no")}
                           </Button>
                         </div>
                       </CardContent>
                     </Card>
                   )}
-
                   {showGarageRecommendations && (
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
@@ -1521,78 +1735,22 @@ export default function NewClaimPage() {
                       <GarageRecommendations onSelectGarage={handleGarageSelection} />
                     </div>
                   )}
-
-                  {(form.watch("inGarage") || wantsGarageRecommendations === false) && (
-                    <div className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="garageName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.garage_name")}*</FormLabel>
-                            <FormControl>
-                              <Input placeholder={t("form.garage_name_placeholder")} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="garageAddress"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.garage_address")}*</FormLabel>
-                            <FormControl>
-                              <Input placeholder={t("form.garage_address_placeholder")} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="garagePhone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.garage_phone")}</FormLabel>
-                            <FormControl>
-                              <Input type="tel" placeholder="+250 788 123 456" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="repairEstimate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.repair_estimate")}</FormLabel>
-                            <FormControl>
-                              <Input type="number" placeholder="50000" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
-
                   {wantsGarageRecommendations === false && !showGarageRecommendations && (
                     <div className="flex justify-end">
                       <Button
-                        variant="link"
-                        onClick={() => {
-                          setWantsGarageRecommendations(true)
-                          setShowGarageRecommendations(true)
-                        }}
-                        className="px-0"
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          appendGarage({
+                            name: "",
+                            address: "",
+                            phone: "",
+                            repair_estimate: 0,
+                          })
+                        }
                       >
-                        {t("garage.show_recommendations")}
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("action.add_garage")}
                       </Button>
                     </div>
                   )}
@@ -1607,367 +1765,90 @@ export default function NewClaimPage() {
                   <CardDescription>{t("claims.documents_details")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="driverLicensePhoto"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.driver_license")}</FormLabel>
-                        <div className="mt-2 flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              id="driverLicensePhoto"
-                              className="sr-only"
-                              onChange={(e) => handleFileChange(e, "driverLicensePhoto")}
-                            />
-                            <label
-                              htmlFor="driverLicensePhoto"
-                              className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
-                            >
-                              <Upload className="h-4 w-4" />
-                              {t("action.upload")}
-                            </label>
-                            {previews.driverLicensePhoto && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => removeFile("driverLicensePhoto")}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                          {previews.driverLicensePhoto && (
-                            <div className="relative rounded-md overflow-hidden border border-border">
-                              <AspectRatio ratio={16 / 10}>
-                                <img
-                                  src={previews.driverLicensePhoto || "/placeholder.svg"}
-                                  alt="Driver's License"
-                                  className="object-cover w-full h-full"
-                                />
-                              </AspectRatio>
-                            </div>
-                          )}
-                        </div>
-                        <FormDescription className="mt-1">{t("form.driver_license_description")}</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="vehicleRegistrationPhoto"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.vehicle_registration")}</FormLabel>
-                        <div className="mt-2 flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              id="vehicleRegistrationPhoto"
-                              className="sr-only"
-                              onChange={(e) => handleFileChange(e, "vehicleRegistrationPhoto")}
-                            />
-                            <label
-                              htmlFor="vehicleRegistrationPhoto"
-                              className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
-                            >
-                              <Upload className="h-4 w-4" />
-                              {t("action.upload")}
-                            </label>
-                            {previews.vehicleRegistrationPhoto && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => removeFile("vehicleRegistrationPhoto")}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                          {previews.vehicleRegistrationPhoto && (
-                            <div className="relative rounded-md overflow-hidden border border-border">
-                              <AspectRatio ratio={16 / 10}>
-                                <img
-                                  src={previews.vehicleRegistrationPhoto || "/placeholder.svg"}
-                                  alt="Vehicle Registration"
-                                  className="object-cover w-full h-full"
-                                />
-                              </AspectRatio>
-                            </div>
-                          )}
-                        </div>
-                        <FormDescription className="mt-1">{t("form.vehicle_registration_description")}</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="accidentScenePhotos"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.accident_scene_photos")}</FormLabel>
-                        <div className="mt-2 flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              id="accidentScenePhotos"
-                              className="sr-only"
-                              multiple
-                              onChange={(e) => handleFileChange(e, "accidentScenePhotos")}
-                            />
-                            <label
-                              htmlFor="accidentScenePhotos"
-                              className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
-                            >
-                              <ImageIcon className="h-4 w-4" />
-                              {t("action.add_photos")}
-                            </label>
-                          </div>
-                          {previews.accidentScenePhotos.length > 0 && (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
-                              {previews.accidentScenePhotos.map((preview, index) => (
-                                <div
-                                  key={index}
-                                  className="relative rounded-md overflow-hidden border border-border group"
-                                >
-                                  <AspectRatio ratio={1} className="bg-muted">
-                                    <img
-                                      src={preview || "/placeholder.svg"}
-                                      alt={`Accident Scene ${index + 1}`}
-                                      className="object-cover w-full h-full"
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="destructive"
-                                      size="icon"
-                                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      onClick={() => removeFile("accidentScenePhotos", index)}
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  </AspectRatio>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <FormDescription className="mt-1">
-                          {t("form.accident_scene_photos_description")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="vehicleDamagePhotos"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.vehicle_damage_photos")}</FormLabel>
-                        <div className="mt-2 flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              id="vehicleDamagePhotos"
-                              className="sr-only"
-                              multiple
-                              onChange={(e) => handleFileChange(e, "vehicleDamagePhotos")}
-                            />
-                            <label
-                              htmlFor="vehicleDamagePhotos"
-                              className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
-                            >
-                              <ImageIcon className="h-4 w-4" />
-                              {t("action.add_photos")}
-                            </label>
-                          </div>
-                          {previews.vehicleDamagePhotos.length > 0 && (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
-                              {previews.vehicleDamagePhotos.map((preview, index) => (
-                                <div
-                                  key={index}
-                                  className="relative rounded-md overflow-hidden border border-border group"
-                                >
-                                  <AspectRatio ratio={1} className="bg-muted">
-                                    <img
-                                      src={preview || "/placeholder.svg"}
-                                      alt={`Vehicle Damage ${index + 1}`}
-                                      className="object-cover w-full h-full"
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="destructive"
-                                      size="icon"
-                                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      onClick={() => removeFile("vehicleDamagePhotos", index)}
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  </AspectRatio>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <FormDescription className="mt-1">
-                          {t("form.vehicle_damage_photos_description")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="policeReportDoc"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.police_report")} (optional)</FormLabel>
-                        <div className="mt-2 flex items-center gap-2">
+                  {[
+                    { type: "driver_license", label: t("form.driver_license"), accept: "image/*" },
+                    { type: "vehicle_registration", label: t("form.vehicle_registration"), accept: "image/*" },
+                    { type: "accident_scene", label: t("form.accident_scene_photos"), accept: "image/*", multiple: true },
+                    { type: "vehicle_damage", label: t("form.vehicle_damage_photos"), accept: "image/*", multiple: true },
+                    { type: "police_report", label: t("form.police_report"), accept: ".pdf,.doc,.docx" },
+                    { type: "witness_statement", label: t("form.witness_statements"), accept: ".pdf,.doc,.docx", multiple: true },
+                    { type: "other", label: t("form.additional_documents"), accept: ".jpg,.png,.pdf,.doc,.docx", multiple: true },
+                  ].map(({ type, label, accept, multiple }) => (
+                    <FormItem key={type}>
+                      <FormLabel>{label} {type.includes("optional") ? "(optional)" : ""}</FormLabel>
+                      <div className="mt-2 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
                           <Input
                             type="file"
-                            accept=".pdf,.doc,.docx"
-                            id="policeReportDoc"
-                            onChange={(e) => handleFileChange(e, "policeReportDoc")}
+                            accept={accept}
+                            id={type}
+                            className={multiple ? "sr-only" : ""}
+                            multiple={multiple}
+                            onChange={(e) => handleFileChange(e, type)}
                           />
-                          {form.watch("policeReportDoc") && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => removeFile("policeReportDoc")}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <label
+                            htmlFor={type}
+                            className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                          >
+                            {multiple ? <ImageIcon className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                            {multiple ? t("action.add_photos") : t("action.upload")}
+                          </label>
                         </div>
-                        <FormDescription className="mt-1">{t("form.police_report_description")}</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="witnessStatements"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.witness_statements")} (optional)</FormLabel>
-                        <div className="mt-2 flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="file"
-                              accept=".pdf,.doc,.docx"
-                              id="witnessStatements"
-                              multiple
-                              onChange={(e) => handleFileChange(e, "witnessStatements")}
-                            />
-                            {form.watch("witnessStatements")?.length > 0 && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => form.setValue("witnessStatements", [])}
-                              >
-                                {t("action.clear_all")}
-                              </Button>
+                        {previews[type as keyof typeof previews] && (
+                          <div className="mt-2">
+                            {Array.isArray(previews[type as keyof typeof previews]) ? (
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {(previews[type as keyof typeof previews] as string[]).map((preview, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="relative rounded-md overflow-hidden border border-border group"
+                                  >
+                                    <AspectRatio ratio={1} className="bg-muted">
+                                      <img
+                                        src={preview || "/placeholder.svg"}
+                                        alt={`${type} ${idx + 1}`}
+                                        className="object-cover w-full h-full"
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => removeFile(documentFields.findIndex((d) => d.type === type && d.file?.name === preview.split("/").pop()), type)}
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </AspectRatio>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="relative rounded-md overflow-hidden border border-border">
+                                <AspectRatio ratio={16 / 10}>
+                                  <img
+                                    src={previews[type as keyof typeof previews] as string || "/placeholder.svg"}
+                                    alt={label}
+                                    className="object-cover w-full h-full"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    className="absolute top-1 right-1 h-6 w-6"
+                                    onClick={() => removeFile(documentFields.findIndex((d) => d.type === type), type)}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </AspectRatio>
+                              </div>
                             )}
                           </div>
-                          {form.watch("witnessStatements")?.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-sm font-medium mb-2">{t("form.uploaded_files")}:</p>
-                              <ul className="space-y-1">
-                                {form.watch("witnessStatements")?.map((file: File, index: number) => (
-                                  <li key={index} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center">
-                                      <FileText className="h-4 w-4 mr-2" />
-                                      {file.name}
-                                    </div>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removeFile("witnessStatements", index)}
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                        <FormDescription className="mt-1">{t("form.witness_statements_description")}</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="otherDocuments"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.additional_documents")} (optional)</FormLabel>
-                        <div className="mt-2 flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="file"
-                              id="otherDocuments"
-                              multiple
-                              onChange={(e) => handleFileChange(e, "otherDocuments")}
-                            />
-                            {form.watch("otherDocuments")?.length > 0 && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => form.setValue("otherDocuments", [])}
-                              >
-                                {t("action.clear_all")}
-                              </Button>
-                            )}
-                          </div>
-                          {form.watch("otherDocuments")?.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-sm font-medium mb-2">{t("form.uploaded_files")}:</p>
-                              <ul className="space-y-1">
-                                {form.watch("otherDocuments")?.map((file: File, index: number) => (
-                                  <li key={index} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center">
-                                      <File className="h-4 w-4 mr-2" />
-                                      {file.name}
-                                    </div>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removeFile("otherDocuments", index)}
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                        <FormDescription className="mt-1">{t("form.additional_documents_description")}</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
+                        )}
+                      </div>
+                      <FormDescription className="mt-1">{t(`form.${type}_description`)}</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  ))}
                   <FormField
                     control={form.control}
                     name="additionalNotes"
@@ -1978,11 +1859,7 @@ export default function NewClaimPage() {
                           <Textarea
                             placeholder={t("form.additional_notes_placeholder")}
                             className="min-h-[120px]"
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            onBlur={field.onBlur}
-                            name={field.name}
-                            ref={field.ref}
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -1999,7 +1876,6 @@ export default function NewClaimPage() {
                   {t("action.previous")}
                 </Button>
               )}
-
               {step < 7 ? (
                 <Button type="button" onClick={handleSaveAndNext}>
                   {t("action.save_and_next")}
@@ -2014,5 +1890,5 @@ export default function NewClaimPage() {
         </Form>
       </div>
     </DashboardLayout>
-  )
+  );
 }
