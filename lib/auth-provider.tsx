@@ -4,6 +4,7 @@ import router from "next/router";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL
+const WEB_URL = process.env.NEXT_PUBLIC_APP_WEB_URL
 
 interface User {
   id: string;
@@ -34,6 +35,8 @@ interface AuthContextType {
   login: (data: { email: string; password: string }) => Promise<void>;
   logout: () => void;
   apiRequest: (url: string, method?: string, data?: any) => Promise<any>;
+  webRequest: (url: string, method?: string, data?: any) => Promise<any>;
+  apiPOST: (data: any, url: string) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -170,14 +173,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     window.location.href = "/login";
   }
+  //api POST
+  async function apiPOST(data: any, urlpath: string) {
+    const tenant_id = sessionStorage.getItem('tenetIed') || null
+    try {
+      // const response = await fetch(`https://cors-anywhere.herokuapp.com/${API_URL}${urlpath}`, {
+      const response = await fetch(`${API_URL}${urlpath}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...data,
+          tenant_id: data.tenant_id ? data.tenant_id : tenant_id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorResponse = await response.json();
+        console.log("API POST data", data);
+        console.log("API POST errorResponse", errorResponse);
+        throw new Error(
+          errorResponse.errors?.[0]?.message || "API POSR failed"
+        );
+      }
+
+      await response.json();
+    } catch (error) {
+      throw error;
+    }
+  }
 
   // API Request, this will be used to connect to any endpoint in our backend system
+
   async function apiRequest(url: string, method: string = "GET", data: any = null) {
+    try {
+      const headers: HeadersInit = {}
+      const options: RequestInit = {
+        method,
+        headers: {} as Record<string, string>,
+        // Add credentials to handle cookies and auth headers properly
+        credentials: 'include',
+        // Enable CORS mode explicitly
+        mode: 'cors'
+      };
+
+      if (data) {
+        if (data instanceof FormData) {
+          options.body = data;
+        } else {
+          headers["Content-Type"] = "application/json";
+          options.body = JSON.stringify(data);
+        }
+      }
+      options.headers = headers
+      const response = await fetch(url, options);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      // Check if the response is JSON
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        return await response.json();
+      }
+
+      return await response.text();
+    } catch (error: any) {
+      console.error("API request error:", error);
+      throw error;
+    }
+  };
+  // Web Request, this will be used to connect to any endpoint in our backend system
+  async function webRequest(url: string, method: string = "GET", data: any = null) {
     try {
       const token = sessionStorage.getItem("ottqen");
       const headers: HeadersInit = {
         // "Content-Type": "application/json",
-       // "Content-Type": "multipart/form-data",
+        // "Content-Type": "multipart/form-data",
       };
       // Only set Content-Type for non-FormData payloads (e.g., JSON)
       if (!(data instanceof FormData)) {
@@ -186,7 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }
-
+      headers["X-CSRF-TOKEN"] = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
       const config: RequestInit = {
         method,
         headers,
@@ -218,7 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, register, login, logout, apiRequest }}>
+    <AuthContext.Provider value={{ user, register, login, logout, apiRequest, webRequest, apiPOST }}>
       {children}
     </AuthContext.Provider>
   );

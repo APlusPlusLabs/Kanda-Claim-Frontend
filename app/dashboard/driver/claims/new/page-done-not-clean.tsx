@@ -46,6 +46,7 @@ import { useLanguage } from "@/lib/language-context";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { GarageRecommendations } from "@/components/garage-recommendations";
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
+const WEB_URL = process.env.NEXT_PUBLIC_APP_WEB_URL;
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
@@ -421,6 +422,157 @@ export default function NewClaimPage() {
     }
   };
 
+  const handleSaveAndNext = async () => {
+    const isValid = await validateStep(step);
+    if (isValid && step < 7) {
+      setStep(step + 1);
+    }
+  };
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    let allValid = true;
+    const currentStepValid = await validateStep(step);
+    if (!currentStepValid) allValid = false;
+
+    for (let i = 1; i <= 7; i++) {
+      if (!completedSteps.includes(i)) {
+        const stepValid = await validateStep(i);
+        if (!stepValid) allValid = false;
+      }
+    }
+
+    if (!allValid) {
+      toast({
+        variant: "destructive",
+        title: `Kanda Claim - ${t("claims.incomplete_steps")}`,
+        description: t("claims.complete_all_steps"),
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      console.log("Form Values:", values); // Debug form values
+      const token = sessionStorage.getItem("ottqen");
+      // Append claim fields
+      formData.append("claim_type_id", values.claim_type_id);
+      formData.append("amount", values.amount);
+      formData.append("currency", "RWF");
+      formData.append("status", "Draft");
+      formData.append("priority", values.priority);
+      formData.append("policy_number", values.policyNumber);
+      formData.append("accident_date", values.accidentDate.toISOString().split("T")[0]);
+      formData.append("accident_time", values.accidentTime);
+      formData.append("location", values.accidentLocation);
+      formData.append("description", values.accidentDescription);
+      formData.append("note", values.additionalNotes || "");
+
+      // Append driver details
+      values.driver_details.forEach((driver, index) => {
+        formData.append(`driver_details[${index}][user_id]`, user.id); // Adjust based on auth
+        formData.append(`driver_details[${index}][has_license]`, driver.hasLicense ? true : false);
+        if (driver.hasLicense) {
+          formData.append(`driver_details[${index}][license_number]`, driver.licenseNumber || "");
+          formData.append(`driver_details[${index}][license_category]`, driver.licenseCategory || "");
+          formData.append(
+            `driver_details[${index}][license_issued_date]`,
+            driver.licenseIssuedDate?.toISOString().split("T")[0] || "",
+          );
+        }
+      });
+
+      // Append vehicles
+      values.vehicles.forEach((vehicle, index) => {
+        formData.append(`vehicles[${index}][plate_number]`, vehicle.vehiclePlateNumber);
+        formData.append(`vehicles[${index}][make]`, vehicle.vehicleMake);
+        formData.append(`vehicles[${index}][model]`, vehicle.vehicleModel);
+        formData.append(`vehicles[${index}][vin]`, vehicle.vin);
+        formData.append(`vehicles[${index}][year]`, vehicle.vehicleYear);
+      });
+      // Append police assignments
+      values.police_assignments?.forEach((police, index) => {
+        formData.append(`police_assignments[${index}][police_visited]`, police.policeVisited ? true : false);
+        formData.append(`police_assignments[${index}][police_station]`, police.policeStation || "");
+        formData.append(`police_assignments[${index}][police_report_number]`, police.policeReportNumber || "");
+        formData.append(`police_assignments[${index}][police_officer_name]`, police.policeOfficerName || "");
+        formData.append(`police_assignments[${index}][police_officer_phone]`, police.policeOfficerPhone || "");
+      });
+
+      // Append other vehicles
+      values.other_vehicles?.forEach((vehicle, index) => {
+        formData.append(`other_vehicles[${index}][plate_number]`, vehicle.plate_number);
+        formData.append(`other_vehicles[${index}][make]`, vehicle.make);
+        formData.append(`other_vehicles[${index}][type]`, vehicle.type);
+        formData.append(`other_vehicles[${index}][owner_first_name]`, vehicle.owner_first_name);
+        formData.append(`other_vehicles[${index}][owner_last_name]`, vehicle.owner_last_name);
+        formData.append(`other_vehicles[${index}][owner_address]`, vehicle.owner_address);
+        formData.append(`other_vehicles[${index}][insurer_name]`, vehicle.insurer_name);
+        formData.append(`other_vehicles[${index}][policy_number]`, vehicle.policy_number);
+      });
+
+      // Append injuries
+      values.injuries?.forEach((injury, index) => {
+        formData.append(`injuries[${index}][first_name]`, injury.first_name);
+        formData.append(`injuries[${index}][last_name]`, injury.last_name);
+        formData.append(`injuries[${index}][age]`, injury.age.toString());
+        formData.append(`injuries[${index}][phone]`, injury.phone);
+        formData.append(`injuries[${index}][profession]`, injury.profession);
+        formData.append(`injuries[${index}][injury_description]`, injury.injury_description);
+        formData.append(`injuries[${index}][is_deceased]`, injury.is_deceased ? true : false);
+      });
+
+      // Append damages
+      values.damages?.forEach((damage, index) => {
+        formData.append(`damages[${index}][type]`, damage.type);
+        formData.append(`damages[${index}][owner_name]`, damage.owner_name);
+        formData.append(`damages[${index}][description]`, damage.description);
+      });
+
+      // Append garages
+      values.garages?.forEach((garage, index) => {
+        formData.append(`garages[${index}][name]`, garage.name);
+        formData.append(`garages[${index}][address]`, garage.address);
+        formData.append(`garages[${index}][phone]`, garage.phone || "");
+        formData.append(`garages[${index}][repair_estimate]`, garage.repair_estimate?.toString() || "");
+      });
+
+      // Append documents
+      values.documents?.forEach((doc, index) => {
+        if (doc.file) {
+          console.log(`Document ${index}:`, { type: doc.type, file: doc.file.name });
+          formData.append(`documents[${index}][type]`, doc.type);
+          formData.append(`documents[${index}][file]`, doc.file);
+        }
+      });
+
+
+
+      var jjsson = []
+      console.log("FormData entries:");
+      for (const [key, value] of formData.entries()) {
+        console.log(`${key}:`, value instanceof File ? value.name : value);
+        jjsson.push(`${key}:`, value)
+      }
+      console.log('my form dATA', jjsson);
+      const responses = await apiRequest(`${API_URL}claims/all`, "POST", formData)
+      toast({
+        title: `Kanda Claim - ${t("claims.submission_success")}`,
+        description: t("claims.submission_pending"),
+      });
+
+      router.push("/dashboard/driver");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: `Kanda Claim - ${t("claims.submission_failed")}`,
+        description: error.response?.data?.message || t("claims.submission_error"),
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -493,9 +645,24 @@ export default function NewClaimPage() {
     });
     setShowGarageRecommendations(false);
   };
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-      router.push("/dashboard/driver");
-  };
+  //   const validateStep = async (stepNumber: number) => {
+  //     const fields = {
+  //         1: ["claim_type_id", "policyNumber", "accidentDate", "accidentTime", "accidentLocation", "accidentDescription"],
+  //         2: ["driver_details"],
+  //         3: ["vehicles"],
+  //         4: ["police_assignments"],
+  //         5: ["other_vehicles"],
+  //         6: ["injuries", "damages", "garages"],
+  //         7: ["documents"],
+  //     }[stepNumber];
+
+  //     try {
+  //         await form.trigger(fields);
+  //         return !Object.keys(form.formState.errors).some((key) => fields.includes(key));
+  //     } catch (error) {
+  //         return false;
+  //     }
+  // };
   const saveStep = async () => {
     console.log('form data now', form.getValues());
 
@@ -514,6 +681,7 @@ export default function NewClaimPage() {
       const values = form.getValues();
       let response;
 
+
       if (step === 1) {
         const data = {
           claim_type_id: values.claim_type_id,
@@ -530,10 +698,11 @@ export default function NewClaimPage() {
           user_id: user?.id,
         };
         response = await apiRequest(`${API_URL}claims`, "POST", data);
+        //response = await apiPOST(data, 'claims');
         setClaimId(response.id);
       } else if (step === 2) {
         if (values.driver_details && values.driver_details.length > 0) {
-          const driver = values.driver_details[0]; 
+          const driver = values.driver_details[0]; // Get only the first driver
           const driverData = {
             user_id: user?.id,
             has_license: driver.hasLicense ? true : false,
@@ -545,8 +714,9 @@ export default function NewClaimPage() {
           await apiRequest(`${API_URL}claims/${claimId}/driver-details`, "POST", driverData);
         }
 
+        // Add vehicle if available (just the first vehicle)
         if (values.vehicles && values.vehicles.length > 0) {
-          const vehicle = values.vehicles[0];
+          const vehicle = values.vehicles[0]; // Get only the first vehicle
           const vehicleData = {
             plate_number: vehicle.vehiclePlateNumber,
             make: vehicle.vehicleMake,
@@ -560,6 +730,7 @@ export default function NewClaimPage() {
           await apiRequest(`${API_URL}vehicles`, "POST", vehicleData);
         }
       } else if (step === 3) {
+        // const data = { police_assignments: values.police_assignments };
         const data = {
           police_assignments: values.police_assignments?.map(police => ({
             police_visited: police.policeVisited ? true : false,
@@ -586,6 +757,7 @@ export default function NewClaimPage() {
         data.other_vehicles?.map(async car => { response = await apiRequest(`${API_URL}claims/${claimId}/other-vehicles`, "POST", car); })
 
       } else if (step === 5) {
+        // const data = { injuries: values.injuries, damages: values.damages, garages: values.garages };
         const dataInjuries = {
           injuries: values.injuries?.map(injury => ({
             first_name: injury.first_name,
@@ -600,6 +772,7 @@ export default function NewClaimPage() {
         dataInjuries.injuries?.map(async injury => { response = await apiRequest(`${API_URL}claims/${claimId}/injuries`, "POST", injury); })
 
         const dataDamages = {
+          // Damages
           damages: values.damages?.map(damage => ({
             type: damage.type,
             owner_name: damage.owner_name,
@@ -609,6 +782,7 @@ export default function NewClaimPage() {
         dataDamages.damages?.map(async damage =>{ await apiRequest(`${API_URL}claims/${claimId}/damages`, "POST", damage);}) 
       } else if (step === 6) {
         const dataGarages = {
+          // Garages
           garages: values.garages?.map(garage => ({
             name: garage.name,
             address: garage.address,

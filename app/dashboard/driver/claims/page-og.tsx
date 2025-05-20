@@ -30,136 +30,157 @@ import { useAuth } from "@/lib/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
-
-type Vehicle = {
-  id: string;
-  tenant_id: string;
-  user_id: string;
-  license_plate: string;
-  make: string;
-  model: string;
-  year: string;
-  vin: string;
-}
-type Claim = {
-  id: string;
-  tenant_id: string;
-  user_id: string;
-  claim_type_id: string;
-  code: string;
-  amount: string;
-  approved_amount: string;
-  currency: string;
-  status: string;
-  priority: string;
-  policy_number: string;
-  accident_date: string;
-  accident_time: string;
-  location: string;
-  description: string;
-  rejection_reason?: string;
-  note?: string;
-  driver_details?: any;
-  vehicle?: any;
-  police_assignment?: [];
-  injuries?: [];
-  damanges?: [];
-  garages?: [];
-  documents?: [];
-}
+// Update the mock claims data to be within a reasonable timeframe (not going beyond April 2025)
+const mockClaims = [
+  {
+    id: "CL-2025-001",
+    vehicle: "Toyota RAV4",
+    plateNumber: "RAA 123A",
+    date: "2025-03-15",
+    status: "In Progress",
+    progress: 45,
+    insurer: "Sanlam Alianz",
+    amount: 450000,
+    description: "Front bumper damage due to collision with another vehicle at Kimironko junction.",
+    documents: [
+      { name: "Accident_Scene.jpg", type: "image" },
+      { name: "Police_Report.pdf", type: "pdf" },
+      { name: "Damage_Photos.jpg", type: "image" },
+    ],
+    timeline: [
+      { date: "2025-03-15", event: "Claim submitted", status: "complete" },
+      { date: "2025-03-16", event: "Claim received by Sanlam Alianz", status: "complete" },
+      { date: "2025-03-18", event: "Assessment scheduled", status: "complete" },
+      { date: "2025-03-20", event: "Assessment completed", status: "complete" },
+      { date: "2025-03-22", event: "Repair approval", status: "in-progress" },
+      { date: "2025-03-25", event: "Repairs begin", status: "pending" },
+      { date: "2025-03-30", event: "Repairs complete", status: "pending" },
+      { date: "2025-04-05", event: "Claim closed", status: "pending" },
+    ],
+  },
+  {
+    id: "CL-2025-002",
+    vehicle: "Suzuki Swift",
+    plateNumber: "RAB 456B",
+    date: "2025-02-28",
+    status: "Assessment",
+    progress: 25,
+    insurer: "Sanlam Alianz",
+    amount: 280000,
+    description: "Side mirror and door damage from parking incident at Kigali Heights.",
+    documents: [
+      { name: "Damage_Photos.jpg", type: "image" },
+      { name: "Driver_License.pdf", type: "pdf" },
+    ],
+    timeline: [
+      { date: "2025-02-28", event: "Claim submitted", status: "complete" },
+      { date: "2025-03-01", event: "Claim received by Sanlam Alianz", status: "complete" },
+      { date: "2025-03-05", event: "Assessment scheduled", status: "in-progress" },
+      { date: "2025-03-10", event: "Assessment completed", status: "pending" },
+      { date: "2025-03-15", event: "Repair approval", status: "pending" },
+    ],
+  },
+  {
+    id: "CL-2025-003",
+    vehicle: "Honda Civic",
+    plateNumber: "RAC 789C",
+    date: "2025-01-05",
+    status: "Completed",
+    progress: 100,
+    insurer: "Sanlam Alianz",
+    amount: 320000,
+    description: "Rear bumper damage from being hit while parked at Nyabugogo bus station.",
+    documents: [
+      { name: "Accident_Scene.jpg", type: "image" },
+      { name: "Repair_Invoice.pdf", type: "pdf" },
+      { name: "Final_Assessment.pdf", type: "pdf" },
+    ],
+    timeline: [
+      { date: "2025-01-05", event: "Claim submitted", status: "complete" },
+      { date: "2025-01-06", event: "Claim received by Sanlam Alianz", status: "complete" },
+      { date: "2025-01-08", event: "Assessment scheduled", status: "complete" },
+      { date: "2025-01-10", event: "Assessment completed", status: "complete" },
+      { date: "2025-01-12", event: "Repair approval", status: "complete" },
+      { date: "2025-01-15", event: "Repairs begin", status: "complete" },
+      { date: "2025-01-25", event: "Repairs complete", status: "complete" },
+      { date: "2025-01-30", event: "Claim closed", status: "complete" },
+    ],
+  },
+  {
+    id: "CL-2024-004",
+    vehicle: "Toyota Corolla",
+    plateNumber: "RAD 101D",
+    date: "2024-12-12",
+    status: "Rejected",
+    progress: 0,
+    insurer: "Sanlam Alianz",
+    amount: 0,
+    description: "Windshield crack from road debris on Kigali-Musanze highway.",
+    documents: [
+      { name: "Damage_Photos.jpg", type: "image" },
+      { name: "Rejection_Letter.pdf", type: "pdf" },
+    ],
+    timeline: [
+      { date: "2024-12-12", event: "Claim submitted", status: "complete" },
+      { date: "2024-12-13", event: "Claim received by Sanlam Alianz", status: "complete" },
+      { date: "2024-12-15", event: "Claim review", status: "complete" },
+      { date: "2024-12-20", event: "Claim rejected - Not covered under policy", status: "rejected" },
+    ],
+  },
+]
 
 export default function DriverClaimsPage() {
-  const router = useRouter();
-  const { toast } = useToast();
-  const { user, apiRequest } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedClaim, setSelectedClaim] = useState<Claim>();
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [claims, setClaims] = useState<Claim[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter()
+  const { toast } = useToast()
+  const { user, apiRequest } = useAuth()
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [selectedClaim, setSelectedClaim] = useState<any>(null)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
-  // Fetch real claims data from API
+  const [claims, setClaims] = useState<any[]>([]);
+  
+  // Fetch claim types
   useEffect(() => {
-    const fetchClaims = async () => {
+    const fetchData = async () => {
       try {
-        setLoading(true);
-        const response = await apiRequest(`${API_URL}claims`, "GET");
-        setClaims(response.data || []);
+        const token = sessionStorage.getItem("ottqen");
+        const [claimes] = await Promise.all([
+          await apiRequest(`${API_URL}claims`, "GET")
+
+        ]);
+        setClaims(claimes);
       } catch (error) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to fetch claims data",
+          description: "Failed to fetch claim types",
         });
-        console.error("Error fetching claims:", error);
-      } finally {
-        setLoading(false);
       }
     };
-
-    if (user) {
-      fetchClaims();
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "U have to sign in to user driver panel",
-      });
-      window.location.assign('/login')
-    }
-  }, [user, apiRequest, toast]);
-
+    fetchData();
+  }, [user, toast]);
   // Filter claims based on search query and status filter
-  const filteredClaims = claims.filter((claim) => {
-    const vehicle = claim.vehicle ? claim.vehicle : {};
-
-    const matchesSearch = searchQuery === "" || (
+  const filteredClaims = mockClaims.filter((claim) => {
+    const matchesSearch =
       claim.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      claim.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      claim.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle?.plate_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle?.make?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle?.model?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+      claim.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      claim.plateNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      claim.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-    // Status matching based on your DB schema status options
-    // Using  'Draft', 'Submitted', 'Under Review', 'Approved', 'Rejected', 'Closed'
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "active" &&
-        ["Draft", "Submitted", "Under Review", "Approved"].includes(claim.status)) ||
-      (statusFilter === "completed" && claim.status === "Closed") ||
-      (statusFilter === "rejected" && claim.status === "Rejected");
+      (statusFilter === "active" && claim.status !== "Completed" && claim.status !== "Rejected") ||
+      (statusFilter === "completed" && claim.status === "Completed") ||
+      (statusFilter === "rejected" && claim.status === "Rejected")
 
-    return matchesSearch && matchesStatus;
-  });
+    return matchesSearch && matchesStatus
+  })
 
-  // Categorize filtered claims by status
-  const activeClaims = filteredClaims.filter((claim) =>
-    ["Draft", "Submitted", "Under Review", "Approved"].includes(claim.status)
-  );
+  const activeClaims = filteredClaims.filter((claim) => claim.status !== "Completed" && claim.status !== "Rejected")
+  const completedClaims = filteredClaims.filter((claim) => claim.status === "Completed")
+  const rejectedClaims = filteredClaims.filter((claim) => claim.status === "Rejected")
 
-  const completedClaims = filteredClaims.filter((claim) =>
-    claim.status === "Closed"
-  );
-
-  const rejectedClaims = filteredClaims.filter((claim) =>
-    claim.status === "Rejected"
-  );
-
-  // Helper function to get vehicle display info
-  const getVehicleInfo = (claim: { vehicle: Vehicle }) => {
-    if (!claim.vehicle) {
-      return { make: "N/A", plate: "N/A" };
-    }
-
-    const vehicle = claim.vehicle;
-    return {
-      make: `${vehicle.make || ""} ${vehicle.model || ""}`.trim() || "N/A",
-      plate: vehicle.license_plate || "N/A"
-    };
-  };
   const openClaimDetails = (claim: any) => {
     setSelectedClaim(claim)
     setIsDetailsOpen(true)
@@ -207,7 +228,7 @@ export default function DriverClaimsPage() {
   return (
     <DashboardLayout
       user={{
-        name: user.name,
+        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Mugisha Nkusi",
         role: "Driver",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -307,7 +328,7 @@ export default function DriverClaimsPage() {
                         <div>
                           <h3 className="text-lg font-semibold">Claim #{claim.id}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {claim.vehicle.model} ({claim.vehicle.plate}) • {claim.accident_date}
+                            {claim.vehicle} ({claim.plateNumber}) • {claim.date}
                           </p>
                         </div>
                         <div className="mt-2 md:mt-0">{getStatusBadge(claim.status)}</div>
@@ -319,15 +340,15 @@ export default function DriverClaimsPage() {
                         <div className="space-y-2 mb-4">
                           <div className="flex justify-between text-sm">
                             <span>Progress</span>
-                            <span>{claim.progress||60}%</span>
+                            <span>{claim.progress}%</span>
                           </div>
-                          <Progress value={claim.progress||60} className="h-2" />
+                          <Progress value={claim.progress} className="h-2" />
                         </div>
                       )}
 
                       <div className="flex flex-col md:flex-row md:items-center justify-between">
                         <div className="text-sm">
-                          <span className="text-muted-foreground">Insurer:</span> {claim.insurer||"soras"}
+                          <span className="text-muted-foreground">Insurer:</span> {claim.insurer}
                         </div>
                         <div className="text-sm mt-2 md:mt-0">
                           <span className="text-muted-foreground">
@@ -380,7 +401,7 @@ export default function DriverClaimsPage() {
                       <div>
                         <h3 className="text-lg font-semibold">Claim #{claim.id}</h3>
                         <p className="text-sm text-muted-foreground">
-                        {claim.vehicle.model} ({claim.vehicle.plate}) • {claim.accident_date}
+                          {claim.vehicle} ({claim.plateNumber}) • {claim.date}
                         </p>
                       </div>
                       <div className="mt-2 md:mt-0">{getStatusBadge(claim.status)}</div>
@@ -391,14 +412,14 @@ export default function DriverClaimsPage() {
                     <div className="space-y-2 mb-4">
                       <div className="flex justify-between text-sm">
                         <span>Progress</span>
-                        <span>{claim.progress|| 50}%</span>
+                        <span>{claim.progress}%</span>
                       </div>
-                      <Progress value={claim.progress || 65} className="h-2" />
+                      <Progress value={claim.progress} className="h-2" />
                     </div>
 
                     <div className="flex flex-col md:flex-row md:items-center justify-between">
                       <div className="text-sm">
-                        <span className="text-muted-foreground">Insurer:</span> {claim.insurer||"radiant"}
+                        <span className="text-muted-foreground">Insurer:</span> {claim.insurer}
                       </div>
                       <div className="text-sm mt-2 md:mt-0">
                         <span className="text-muted-foreground">Estimated Amount:</span> {claim.amount.toLocaleString()}{" "}
@@ -446,7 +467,7 @@ export default function DriverClaimsPage() {
                       <div>
                         <h3 className="text-lg font-semibold">Claim #{claim.id}</h3>
                         <p className="text-sm text-muted-foreground">
-                        {claim.vehicle.model} ({claim.vehicle.plate}) • {claim.accident_date}
+                          {claim.vehicle} ({claim.plateNumber}) • {claim.date}
                         </p>
                       </div>
                       <Badge className="mt-2 md:mt-0 w-fit bg-green-500">
@@ -458,7 +479,7 @@ export default function DriverClaimsPage() {
 
                     <div className="flex flex-col md:flex-row md:items-center justify-between">
                       <div className="text-sm">
-                        <span className="text-muted-foreground">Insurer:</span> {claim.insurer || "rama"}
+                        <span className="text-muted-foreground">Insurer:</span> {claim.insurer}
                       </div>
                       <div className="text-sm mt-2 md:mt-0">
                         <span className="text-muted-foreground">Final Amount:</span> {claim.amount.toLocaleString()} RWF
@@ -495,7 +516,7 @@ export default function DriverClaimsPage() {
                       <div>
                         <h3 className="text-lg font-semibold">Claim #{claim.id}</h3>
                         <p className="text-sm text-muted-foreground">
-                        {claim.vehicle.model} ({claim.vehicle.plate}) • {claim.accident_date}
+                          {claim.vehicle} ({claim.plateNumber}) • {claim.date}
                         </p>
                       </div>
                       <Badge className="mt-2 md:mt-0 w-fit" variant="destructive">
@@ -507,7 +528,7 @@ export default function DriverClaimsPage() {
 
                     <div className="flex flex-col md:flex-row md:items-center justify-between">
                       <div className="text-sm">
-                        <span className="text-muted-foreground">Insurer:</span> {claim.insurer || "sinzi"}
+                        <span className="text-muted-foreground">Insurer:</span> {claim.insurer}
                       </div>
                     </div>
 
@@ -544,7 +565,7 @@ export default function DriverClaimsPage() {
                     {getStatusBadge(selectedClaim.status)}
                   </DialogTitle>
                   <DialogDescription>
-                    {selectedClaim.vehicle.model} ({selectedClaim.vehicle.plate}) • Submitted on {selectedClaim.accident_date}
+                    {selectedClaim.vehicle} ({selectedClaim.plateNumber}) • Submitted on {selectedClaim.date}
                   </DialogDescription>
                 </DialogHeader>
 
