@@ -91,7 +91,7 @@ const formSchema = z.object({
 
   vehicles: z.array(
     z.object({
-      vehiclePlateNumber: z.string().min(2, { message: "Plate number is required" }),
+      vehicleLicensePlate: z.string().min(2, { message: "Plate number is required" }),
       vehicleMake: z.string().min(2, { message: "Make is required" }),
       vehicleModel: z.string().min(2, { message: "Model is required" }),
       vin: z.string().min(17, { message: "VIN (Vehicle Identification Number) is required & 17 characters" }),
@@ -119,7 +119,7 @@ const formSchema = z.object({
   // Step 4 - Other Vehicles
   other_vehicles: z.array(
     z.object({
-      plate_number: z.string().min(2, { message: "Plate number is required" }),
+      license_plate: z.string().min(2, { message: "Plate number is required" }),
       make: z.string().min(2, { message: "Make is required" }),
       type: z.string().min(2, { message: "Type is required" }),
       owner_first_name: z.string().min(2, { message: "Owner first name is required" }),
@@ -202,7 +202,7 @@ const stepValidationSchemas = [
     })).min(1),
     vehicles: z.array(
       z.object({
-        vehiclePlateNumber: z.string().min(2),
+        vehicleLicensePlate: z.string().min(2),
         vehicleMake: z.string().min(2),
         vehicleModel: z.string().min(2),
         vin: z.string().min(17),
@@ -217,7 +217,7 @@ const stepValidationSchemas = [
   // Step 4
   z.object({
     other_vehicles: z.array(z.object({
-      plate_number: z.string().min(2),
+      license_plate: z.string().min(2),
       make: z.string().min(2),
       type: z.string().min(2),
       owner_first_name: z.string().min(2),
@@ -278,7 +278,7 @@ export default function NewClaimPage() {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [stepErrors, setStepErrors] = useState<number[]>([]);
   const [claimId, setClaimId] = useState<string | null>(null);
-
+  const [isSaving, setIsSaving] = useState(false);
   const [previews, setPreviews] = useState({
     driverLicensePhoto: "",
     vehicleRegistrationPhoto: "",
@@ -296,7 +296,6 @@ export default function NewClaimPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = sessionStorage.getItem("ottqen");
         const [claimTypesRes] = await Promise.all([
           await apiRequest(`${API_URL}claim-types`, "GET")
 
@@ -310,7 +309,16 @@ export default function NewClaimPage() {
         });
       }
     };
-    fetchData();
+    if (user) {
+      fetchData();
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Only LogedIn Driver can user this panel",
+      });
+      router.push('/login')
+    }
   }, [user, toast]);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -335,7 +343,7 @@ export default function NewClaimPage() {
       }],
       vehicles: [
         {
-          vehiclePlateNumber: "",
+          vehicleLicensePlate: "",
           vehicleMake: "",
           vehicleModel: "",
           vehicleYear: "",
@@ -493,27 +501,193 @@ export default function NewClaimPage() {
     });
     setShowGarageRecommendations(false);
   };
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-      router.push("/dashboard/driver");
-  };
-  const saveStep = async () => {
-    console.log('form data now', form.getValues());
 
-    const currentStepValid = await validateStep(step);
-    if (!currentStepValid) {
+  // const saveStep = async () => {
+  //   if (isSaving) return;
+  //   if (step > 1 && !claimId) {
+  //     toast({
+  //       variant: "destructive",
+  //       title: "Claim Basic Info Missing",
+  //       description: "Please complete Step 1 to create a claim.",
+  //     });
+  //     setStep(1);
+  //     return;
+  //   }
+  //   setIsSaving(true);
+  //   try {
+  //     const currentStepValid = await validateStep(step);
+  //     if (!currentStepValid) {
+  //       toast({
+  //         variant: "destructive",
+  //         title: `Step ${step} Invalid`,
+  //         description: "Please complete all required fields.",
+  //       });
+  //       return;
+  //     }
+  //     const values = form.getValues();
+  //     let response;
+
+  //     if (step === 1) {
+  //       const data = {
+  //         claim_type_id: values.claim_type_id,
+  //         policy_number: values.policyNumber,
+  //         amount: Number(values.amount),
+  //         priority: values.priority,
+  //         accident_date: values.accidentDate.toISOString().split("T")[0],
+  //         accident_time: values.accidentTime,
+  //         location: values.accidentLocation,
+  //         description: values.accidentDescription,
+  //         note: values.additionalNotes || "",
+  //         tenant_id: user?.tenant_id,
+  //         role_id: user?.role_id,
+  //         user_id: user?.id,
+  //       };
+  //       response = await apiRequest(`${API_URL}claims`, "POST", data);
+  //       setClaimId(response.id);
+  //     } else if (step === 2) {
+  //       if (values.driver_details && values.driver_details.length > 0) {
+  //         const driver = values.driver_details[0];
+  //         const driverData = {
+  //           user_id: user?.id,
+  //           has_license: driver.hasLicense ? true : false,
+  //           license_number: driver.hasLicense ? (driver.licenseNumber || "") : "",
+  //           license_category: driver.hasLicense ? (driver.licenseCategory || "") : "",
+  //           license_issued_date: driver.hasLicense ? (driver.licenseIssuedDate?.toISOString().split("T")[0] || "") : ""
+  //         };
+
+  //         await apiRequest(`${API_URL}claims/${claimId}/driver-details`, "POST", driverData);
+  //       }
+
+  //       if (values.vehicles && values.vehicles.length > 0) {
+  //         const vehicle = values.vehicles[0];
+  //         const vehicleData = {
+  //           license_plate: vehicle.vehicleLicensePlate,
+  //           make: vehicle.vehicleMake,
+  //           model: vehicle.vehicleModel,
+  //           year: vehicle.vehicleYear,
+  //           vin: vehicle.vin,
+  //           user_id: user?.id,
+  //           tenant_id: user?.tenant_id,
+  //           claim_id: claimId,
+  //         };
+
+  //         await apiRequest(`${API_URL}vehicles`, "POST", vehicleData);
+  //       }
+  //     } else if (step === 3) {
+  //       const data = {
+  //         police_assignments: values.police_assignments?.map(police => ({
+  //           police_visited: police.policeVisited ? true : false,
+  //           police_station: police.policeStation || "",
+  //           police_report_number: police.policeReportNumber || "",
+  //           police_officer_name: police.policeOfficerName || "",
+  //           police_officer_phone: police.policeOfficerPhone || ""
+  //         }))
+  //       }
+  //       response = await apiRequest(`${API_URL}claims/${claimId}/police-assignments`, "POST", data);
+  //     } else if (step === 4) {
+  //       const data = {
+  //         other_vehicles: values.other_vehicles?.map(vehicle => ({
+  //           license_plate: vehicle.license_plate,
+  //           make: vehicle.make,
+  //           type: vehicle.type,
+  //           owner_first_name: vehicle.owner_first_name,
+  //           owner_last_name: vehicle.owner_last_name,
+  //           owner_address: vehicle.owner_address,
+  //           insurer_name: vehicle.insurer_name,
+  //           policy_number: vehicle.policy_number
+  //         }))
+  //       }
+  //       data.other_vehicles?.map(async car => { response = await apiRequest(`${API_URL}claims/${claimId}/other-vehicles`, "POST", car); })
+
+  //     } else if (step === 5) {
+  //       const dataInjuries = {
+  //         injuries: values.injuries?.map(injury => ({
+  //           first_name: injury.first_name,
+  //           last_name: injury.last_name,
+  //           age: injury.age.toString(),
+  //           phone: injury.phone,
+  //           profession: injury.profession,
+  //           injury_description: injury.injury_description,
+  //           is_deceased: injury.is_deceased ? true : false
+  //         }))
+  //       }
+  //       dataInjuries.injuries?.map(async injury => { response = await apiRequest(`${API_URL}claims/${claimId}/injuries`, "POST", injury); })
+
+  //       const dataDamages = {
+  //         damages: values.damages?.map(damage => ({
+  //           type: damage.type,
+  //           owner_name: damage.owner_name,
+  //           description: damage.description
+  //         }))
+  //       }
+  //       dataDamages.damages?.map(async damage => { await apiRequest(`${API_URL}claims/${claimId}/damages`, "POST", damage); })
+  //     } else if (step === 6) {
+  //       const dataGarages = {
+  //         garages: values.garages?.map(garage => ({
+  //           name: garage.name,
+  //           address: garage.address,
+  //           phone: garage.phone || "",
+  //           repair_estimate: garage.repair_estimate?.toString() || ""
+  //         }))
+  //       };
+  //       dataGarages.garages?.map(async garage => { await apiRequest(`${API_URL}claims/${claimId}/garages`, "POST", garage); })
+  //     } else if (step === 7) {
+  //       const formData = new FormData();
+  //       values.documents?.forEach((doc, index) => {
+  //         if (doc.file) {
+  //           formData.append(`documents[${index}][type]`, doc.type);
+  //           formData.append(`documents[${index}][file]`, doc.file);
+  //         }
+  //       });
+  //       response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
+  //     }
+
+  //     setCompletedSteps((prev) => [...prev, step]);
+  //     toast({
+  //       title: `Step ${step} Saved`,
+  //       description: `Step ${step} has been successfully saved.`,
+  //     });
+
+  //     if (step < 7) {
+  //       setStep(step + 1);
+  //     } else {
+  //       router.push("/dashboard/driver");
+  //     }
+  //   } catch (error: any) {
+  //     toast({
+  //       variant: "destructive",
+  //       title: `Step ${step} Failed: ` + error,
+  //       description: error.response?.data?.message || "An error occurred.",
+  //     });
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
+  const saveStep = async () => {
+    if (isSaving) return;
+    if (step > 1 && !claimId) {
       toast({
         variant: "destructive",
-        title: `Step ${step} Invalid`,
-        description: "Please complete all required fields.",
+        title: "Claim Basic Info Missing",
+        description: "Please complete Step 1 to create a claim.",
       });
+      setStep(1);
       return;
     }
-
-    setIsSubmitting(true);
+    setIsSaving(true);
     try {
+      const currentStepValid = await validateStep(step);
+      if (!currentStepValid) {
+        toast({
+          variant: "destructive",
+          title: `Step ${step} Invalid`,
+          description: "Please complete all required fields.",
+        });
+        return;
+      }
       const values = form.getValues();
       let response;
-
+  
       if (step === 1) {
         const data = {
           claim_type_id: values.claim_type_id,
@@ -530,123 +704,152 @@ export default function NewClaimPage() {
           user_id: user?.id,
         };
         response = await apiRequest(`${API_URL}claims`, "POST", data);
+        if (!response.id) throw new Error("Claim ID not returned from API");
         setClaimId(response.id);
       } else if (step === 2) {
         if (values.driver_details && values.driver_details.length > 0) {
-          const driver = values.driver_details[0]; 
+          const driver = values.driver_details[0];
           const driverData = {
             user_id: user?.id,
             has_license: driver.hasLicense ? true : false,
             license_number: driver.hasLicense ? (driver.licenseNumber || "") : "",
             license_category: driver.hasLicense ? (driver.licenseCategory || "") : "",
-            license_issued_date: driver.hasLicense ? (driver.licenseIssuedDate?.toISOString().split("T")[0] || "") : ""
+            license_issued_date: driver.hasLicense ? (driver.licenseIssuedDate?.toISOString().split("T")[0] || "") : "",
           };
-
           await apiRequest(`${API_URL}claims/${claimId}/driver-details`, "POST", driverData);
         }
-
+  
         if (values.vehicles && values.vehicles.length > 0) {
           const vehicle = values.vehicles[0];
           const vehicleData = {
-            plate_number: vehicle.vehiclePlateNumber,
+            license_plate: vehicle.vehicleLicensePlate,
             make: vehicle.vehicleMake,
             model: vehicle.vehicleModel,
             year: vehicle.vehicleYear,
             vin: vehicle.vin,
             user_id: user?.id,
             tenant_id: user?.tenant_id,
+            claim_id: claimId,
           };
-
           await apiRequest(`${API_URL}vehicles`, "POST", vehicleData);
         }
       } else if (step === 3) {
         const data = {
-          police_assignments: values.police_assignments?.map(police => ({
+          police_assignments: values.police_assignments?.map((police) => ({
             police_visited: police.policeVisited ? true : false,
             police_station: police.policeStation || "",
             police_report_number: police.policeReportNumber || "",
             police_officer_name: police.policeOfficerName || "",
-            police_officer_phone: police.policeOfficerPhone || ""
-          }))
-        }
+            police_officer_phone: police.policeOfficerPhone || "",
+          })),
+        };
         response = await apiRequest(`${API_URL}claims/${claimId}/police-assignments`, "POST", data);
       } else if (step === 4) {
         const data = {
-          other_vehicles: values.other_vehicles?.map(vehicle => ({
-            plate_number: vehicle.plate_number,
+          other_vehicles: values.other_vehicles?.map((vehicle) => ({
+            license_plate: vehicle.license_plate,
             make: vehicle.make,
             type: vehicle.type,
             owner_first_name: vehicle.owner_first_name,
             owner_last_name: vehicle.owner_last_name,
             owner_address: vehicle.owner_address,
             insurer_name: vehicle.insurer_name,
-            policy_number: vehicle.policy_number
-          }))
+            policy_number: vehicle.policy_number,
+          })),
+        };
+        if (data.other_vehicles?.length) {
+          for (const car of data.other_vehicles) {
+            await apiRequest(`${API_URL}claims/${claimId}/other-vehicles`, "POST", car);
+          }
         }
-        data.other_vehicles?.map(async car => { response = await apiRequest(`${API_URL}claims/${claimId}/other-vehicles`, "POST", car); })
-
       } else if (step === 5) {
         const dataInjuries = {
-          injuries: values.injuries?.map(injury => ({
+          injuries: values.injuries?.map((injury) => ({
             first_name: injury.first_name,
             last_name: injury.last_name,
             age: injury.age.toString(),
             phone: injury.phone,
             profession: injury.profession,
             injury_description: injury.injury_description,
-            is_deceased: injury.is_deceased ? true : false
-          }))
+            is_deceased: injury.is_deceased ? true : false,
+          })),
+        };
+        if (dataInjuries.injuries?.length) {
+          for (const injury of dataInjuries.injuries) {
+            await apiRequest(`${API_URL}claims/${claimId}/injuries`, "POST", injury);
+          }
         }
-        dataInjuries.injuries?.map(async injury => { response = await apiRequest(`${API_URL}claims/${claimId}/injuries`, "POST", injury); })
-
+  
         const dataDamages = {
-          damages: values.damages?.map(damage => ({
+          damages: values.damages?.map((damage) => ({
             type: damage.type,
             owner_name: damage.owner_name,
-            description: damage.description
-          }))
+            description: damage.description,
+          })),
+        };
+        if (dataDamages.damages?.length) {
+          for (const damage of dataDamages.damages) {
+            await apiRequest(`${API_URL}claims/${claimId}/damages`, "POST", damage);
+          }
         }
-        dataDamages.damages?.map(async damage =>{ await apiRequest(`${API_URL}claims/${claimId}/damages`, "POST", damage);}) 
       } else if (step === 6) {
         const dataGarages = {
-          garages: values.garages?.map(garage => ({
+          garages: values.garages?.map((garage) => ({
             name: garage.name,
             address: garage.address,
             phone: garage.phone || "",
-            repair_estimate: garage.repair_estimate?.toString() || ""
-          }))
+            repair_estimate: garage.repair_estimate?.toString() || "",
+          })),
         };
-        dataGarages.garages?.map(async garage => { await apiRequest(`${API_URL}claims/${claimId}/garages`, "POST", garage);}) 
+        if (dataGarages.garages?.length) {
+          for (const garage of dataGarages.garages) {
+            await apiRequest(`${API_URL}claims/${claimId}/garages`, "POST", garage);
+          }
+        }
       } else if (step === 7) {
-        const formData = new FormData();
-        values.documents?.forEach((doc, index) => {
+        values.documents?.forEach(async (doc, index) => {
           if (doc.file) {
+            const formData = new FormData();
             formData.append(`documents[${index}][type]`, doc.type);
             formData.append(`documents[${index}][file]`, doc.file);
+            formData.append(`documents[${index}][claim_id]`, claimId!); // Attach claimId
+            response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
           }
         });
-        response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
+        // Prompt for optional documents
+        if (!values.documents?.length) {
+          const confirmSubmit = window.confirm(t("claims.confirm_no_documents")); // Add translation: "No documents uploaded. Submit anyway?"
+          if (!confirmSubmit) return;
+        }
+        // if (formData.getAll("documents[0][file]").length) {
+        //   response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
+        // }
       }
-
+  
       setCompletedSteps((prev) => [...prev, step]);
       toast({
         title: `Step ${step} Saved`,
         description: `Step ${step} has been successfully saved.`,
       });
-
+  
       if (step < 7) {
-        setStep(step + 1);
-      } else {
+        setStep(step + 1); // Advance to next step (e.g., Step 7 after Step 6)
+      } else if (step === 7) {
+        toast({
+          title: "Claim Submitted",
+          description: "Your claim, including documents, has been successfully submitted.",
+        });
         router.push("/dashboard/driver");
       }
     } catch (error: any) {
+      console.error(`Error in Step ${step}:`, error);
       toast({
         variant: "destructive",
-        title: `Step ${step} Failed: ` + error,
+        title: `Step ${step} Failed`,
         description: error.response?.data?.message || "An error occurred.",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   };
   return (
@@ -714,7 +917,7 @@ export default function NewClaimPage() {
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form className="space-y-8">
             {step === 1 && (
               <Card>
                 <CardHeader>
@@ -1073,12 +1276,12 @@ export default function NewClaimPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
-                          name={`vehicles.${index}.vehiclePlateNumber`}
+                          name={`vehicles.${index}.vehicleLicensePlate`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{t("form.vehicle_plate_number")}*</FormLabel>
+                              <FormLabel>{t("form.vehicle_license_plate")}*</FormLabel>
                               <FormControl>
-                                <Input placeholder={t("form.vehicle_plate_number_placeholder")} {...field} />
+                                <Input placeholder={t("form.vehicle_license_plate_placeholder")} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -1152,7 +1355,7 @@ export default function NewClaimPage() {
                     variant="outline"
                     onClick={() =>
                       appendVehicle({
-                        vehiclePlateNumber: "",
+                        vehicleLicensePlate: "",
                         vehicleMake: "",
                         vehicleModel: "",
                         vehicleYear: "",
@@ -1197,7 +1400,7 @@ export default function NewClaimPage() {
                           <FormItem className="space-y-3">
                             <FormLabel>{t("form.police_visited")}?</FormLabel>
                             <FormControl>
-                              <RadioGroup
+                            <RadioGroup
                                 onValueChange={(value) => field.onChange(value === "true")}
                                 defaultValue={field.value ? true : false}
                                 className="flex flex-row space-x-4"
@@ -1321,12 +1524,12 @@ export default function NewClaimPage() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <FormField
                           control={form.control}
-                          name={`other_vehicles.${index}.plate_number`}
+                          name={`other_vehicles.${index}.license_plate`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{t("form.plate_number")}*</FormLabel>
+                              <FormLabel>{t("form.license_plate")}*</FormLabel>
                               <FormControl>
-                                <Input placeholder={t("form.plate_number_placeholder")} {...field} />
+                                <Input placeholder={t("form.license_plate_placeholder")} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -1435,7 +1638,7 @@ export default function NewClaimPage() {
                     variant="outline"
                     onClick={() =>
                       appendOtherVehicle({
-                        plate_number: "",
+                        license_plate: "",
                         make: "",
                         type: "",
                         owner_first_name: "",
@@ -1946,12 +2149,12 @@ export default function NewClaimPage() {
                 </Button>
               )}
               {step < 7 ? (
-                <Button type="button" onClick={saveStep} className="mx-6">
-                  {t("action.save_and_next")}
+                <Button type="button" onClick={saveStep} disabled={isSubmitting} className="mx-6">
+                  {step < 7 ? t("action.save_and_next") : isSubmitting ? t("action.submitting") : t("action.submit_claim")}
                 </Button>
               ) : (
-                <Button type="submit" disabled={isSubmitting} className="mx-6">
-                  {isSubmitting ? t("action.submitting") : t("action.submit_claim")}
+                <Button type="button" onClick={saveStep} disabled={isSubmitting} className="mx-6">
+                  {step < 7 ? t("action.save_and_next") : isSubmitting ? t("action.submitting") : t("action.submit_claim")}
                 </Button>
               )}
             </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { use, useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,86 +20,190 @@ import {
   MessageSquareText,
 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { X } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { format } from "date-fns"
+// import { ErrorBoundary } from 'react-error-boundary';
 
-export default function ClaimDetailsPage({ params }) {
+// const ErrorFallback = ({ error }) => (
+//   <div>
+//     <h2>Something went wrong</h2>
+//     <p>{error.message}</p>
+//   </div>
+// );
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
+type Vehicle = {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  license_plate: string;
+  make: string;
+  model: string;
+  year: string;
+  vin: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+
+interface Document {
+  id: string;
+  file_name: string;
+  mime_type: string;
+  file_path: string;
+  created_at: string;
+}
+
+interface Activity {
+  id: string;
+  event: string;
+  status: string;
+  created_at: string;
+}
+interface Message {
+  id: string;
+  sender: string;
+  content: string;
+  date: string;
+}
+
+interface Claim {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  claim_type_id: string;
+  code: string;
+  amount: number;
+  approved_amount: string;
+  currency: string;
+  status: string;
+  priority: string;
+  policy_number: string;
+  accident_date: string;
+  accident_time: string;
+  location: string;
+  description: string;
+  rejection_reason?: string;
+  note?: string;
+  driver_details?: any;
+  vehicles: Vehicle[];
+  police_assignment?: any[];
+  injuries?: any[];
+  damages?: any[];
+  garages?: any[];
+  documents: Document[];
+  messages: Message[];
+  assessments: any[];
+  activities: Activity[];
+  insurer: { name: string };
+  progress: number;
+  created_at?: string;
+  updated_at?: string;
+}
+const defaultClaim: Claim = {
+  id: "",
+  tenant_id: "",
+  user_id: "",
+  claim_type_id: "",
+  code: "",
+  amount: 0,
+  approved_amount: "0",
+  currency: "RWF",
+  status: "",
+  priority: "",
+  policy_number: "",
+  accident_date: "",
+  accident_time: "",
+  location: "",
+  description: "",
+  vehicles: [],
+  documents: [],
+  messages: [],
+  activities: [],
+  insurer: { name: "" },
+  progress: 0,
+  assessments: []
+};
+interface Props {
+  params: Promise<{ id: string }>; 
+}
+export default function ClaimDetailsPage({ params }: Props) {
   const router = useRouter()
-  const { user } = useAuth()
-  const { id } = params
+  const { id } = use(params);
 
+  const { toast } = useToast();
+  const { user, apiRequest } = useAuth();
+  const [claim, setClaim] = useState<Claim>(defaultClaim);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("details")
-  const [selectedImage, setSelectedImage] = useState(null)
-
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   // In a real app, you would fetch this data from an API based on the ID
-  const [claim] = useState({
-    id: "CL-2025-001",
-    vehicle: "Toyota RAV4",
-    plateNumber: "RAA 123A",
-    date: "2025-03-15",
-    status: "In Progress",
-    progress: 45,
-    insurer: "Sanlam Alianz",
-    amount: 450000,
-    description: "Front bumper damage due to collision with another vehicle at Kimironko junction.",
-    documents: [
-      { name: "Accident_Scene_1.jpg", type: "image", uploadedAt: "2025-03-15" },
-      { name: "Accident_Scene_2.jpg", type: "image", uploadedAt: "2025-03-15" },
-      { name: "Police_Report.pdf", type: "pdf", uploadedAt: "2025-03-16" },
-      { name: "Damage_Photos_1.jpg", type: "image", uploadedAt: "2025-03-15" },
-      { name: "Damage_Photos_2.jpg", type: "image", uploadedAt: "2025-03-15" },
-    ],
-    timeline: [
-      { date: "2025-03-15", event: "Claim submitted", status: "complete" },
-      { date: "2025-03-16", event: "Claim received by Sanlam Alianz", status: "complete" },
-      { date: "2025-03-18", event: "Assessment scheduled", status: "complete" },
-      { date: "2025-03-20", event: "Assessment completed", status: "complete" },
-      { date: "2025-03-22", event: "Repair approval", status: "in-progress" },
-      { date: "2025-03-25", event: "Repairs begin", status: "pending" },
-      { date: "2025-03-30", event: "Repairs complete", status: "pending" },
-      { date: "2025-04-05", event: "Claim closed", status: "pending" },
-    ],
-    messages: [
-      {
-        date: "2025-03-16 09:35",
-        sender: "Marie Uwase (Claims Agent)",
-        content: "Your claim has been received. We will review it and get back to you soon.",
-      },
-      {
-        date: "2025-03-18 14:20",
-        sender: "Marie Uwase (Claims Agent)",
-        content:
-          "We have scheduled an assessment for your vehicle on March 20, 2025 at 10:00 AM at Kigali Auto Services.",
-      },
-      {
-        date: "2025-03-20 15:45",
-        sender: "Habimana Jean (Assessor)",
-        content:
-          "I have completed the assessment of your vehicle. The report has been submitted to the claims department for review.",
-      },
-    ],
-    contactInfo: {
-      claimsAgent: {
-        name: "Marie Uwase",
-        phone: "+250 788 234 567",
-        email: "marie.uwase@sanlamalianz.rw",
-      },
-      assessor: {
-        name: "Habimana Jean",
-        phone: "+250 788 345 678",
-        email: "habimana.jean@sanlamalianz.rw",
-      },
-      garage: {
-        name: "Kigali Auto Services",
-        address: "KK 123 St, Kigali",
-        phone: "+250 788 987 654",
-      },
-    },
-  })
+  const fetchClaim = useCallback(async () => {
 
-  const getStatusBadge = (status) => {
+    try {
+      setLoading(true);
+      const response = await apiRequest(`${API_URL}claims/${id}`, "GET");
+      setClaim(response.data || null);
+    } catch (error: any) {
+      if (Array.isArray(error.errors)) {
+        error.errors.forEach((er: string) => {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: er,
+          });
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch claim data",
+        });
+      }
+      console.error("Error fetching claim:", error);
+      setClaim(defaultClaim);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiRequest, id, toast]);
+
+  useEffect(() => {
+    if (user) {
+      fetchClaim();
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You have to sign in to use the driver panel",
+      });
+      router.push("/login");
+    }
+  }, [user, fetchClaim, router, toast]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="animate-pulse bg-muted h-10 w-1/4 rounded"></div>
+        <div className="animate-pulse bg-muted h-64 w-full rounded"></div>
+      </div>
+    );
+  }
+
+  if (!claim) {
+    return (
+      <div className="text-center py-8">
+        <h3 className="text-lg font-semibold mb-2">Error</h3>
+        <p className="text-muted-foreground">Failed to load claim data.</p>
+        <Button onClick={() => router.push("/dashboard/driver/claims")} className="mt-4">
+          Back to Claims
+        </Button>
+      </div>
+    );
+  }
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "In Progress":
         return <Badge className="bg-blue-500">In Progress</Badge>
@@ -114,7 +218,7 @@ export default function ClaimDetailsPage({ params }) {
     }
   }
 
-  const getTimelineStatusIcon = (status) => {
+  const getTimelineStatusIcon = (status: string) => {
     switch (status) {
       case "complete":
         return <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -127,7 +231,7 @@ export default function ClaimDetailsPage({ params }) {
     }
   }
 
-  const getDocumentIcon = (type) => {
+  const getDocumentIcon = (type: any) => {
     switch (type) {
       case "image":
         return <FileImage className="h-5 w-5 text-blue-500" />
@@ -139,9 +243,10 @@ export default function ClaimDetailsPage({ params }) {
   }
 
   return (
+    // <ErrorBoundary FallbackComponent={ErrorFallback}>
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Mugisha Nkusi",
+        name: user.name,
         role: "Driver",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -156,7 +261,7 @@ export default function ClaimDetailsPage({ params }) {
             <Button variant="outline" size="icon" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-3xl font-bold">Claim #{claim.id}</h1>
+            <h1 className="text-3xl font-bold">Claim #{claim.code}</h1>
             {getStatusBadge(claim.status)}
           </div>
           <div className="flex space-x-2">
@@ -164,7 +269,7 @@ export default function ClaimDetailsPage({ params }) {
               <MessageSquareText className="mr-2 h-4 w-4" /> Contact Insurer
             </Button>
             {claim.status !== "Completed" && claim.status !== "Rejected" && (
-              <Button>
+              <Button onClick={()=> router.push(`/dashboard/driver/claims/edit/${claim.id}`)}>
                 <FileText className="mr-2 h-4 w-4" /> Update Claim
               </Button>
             )}
@@ -176,19 +281,20 @@ export default function ClaimDetailsPage({ params }) {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
               <div>
                 <h2 className="text-xl font-semibold">
-                  {claim.vehicle} ({claim.plateNumber})
+                  {claim?.vehicles?.[0]?.model} {claim?.vehicles?.[0]?.make} - {claim?.vehicles?.[0]?.year} ({claim?.vehicles?.[0]?.license_plate})
                 </h2>
-                <p className="text-sm text-muted-foreground">Submitted on {claim.date}</p>
+                <p className="text-sm text-muted-foreground">Incident Happened on {claim.accident_date.substring(0, 10) + ' at ' + claim.accident_time}</p>
+                <p className="text-sm text-muted-foreground">Submitted on {claim.created_at?.substring(0, 10)}</p>
               </div>
               <div className="mt-2 md:mt-0 flex flex-col items-end">
                 <div className="text-sm">
-                  <span className="text-muted-foreground">Insurer:</span> {claim.insurer}
+                  <span className="text-muted-foreground">Insurer:</span> {claim.insurer.name}
                 </div>
                 <div className="text-sm mt-1">
                   <span className="text-muted-foreground">
                     {claim.status === "Completed" ? "Final Amount:" : "Estimated Amount:"}
                   </span>{" "}
-                  {claim.amount.toLocaleString()} RWF
+                  {claim.amount.toLocaleString()} {claim?.currency}
                 </div>
               </div>
             </div>
@@ -208,9 +314,9 @@ export default function ClaimDetailsPage({ params }) {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4">
                 <TabsTrigger value="details">Claim Details</TabsTrigger>
-                <TabsTrigger value="documents">Documents ({claim.documents.length})</TabsTrigger>
+                <TabsTrigger value="documents">Documents ({claim.documents?.length})</TabsTrigger>
                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                <TabsTrigger value="messages">Messages ({claim.messages.length})</TabsTrigger>
+                <TabsTrigger value="messages">Messages ({claim.messages?.length})</TabsTrigger>
                 <TabsTrigger value="contact">Contact Info</TabsTrigger>
               </TabsList>
 
@@ -221,8 +327,8 @@ export default function ClaimDetailsPage({ params }) {
                       <h3 className="text-sm font-medium">Claim Information</h3>
                       <div className="bg-muted p-3 rounded-md space-y-2">
                         <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="text-muted-foreground">Claim ID:</div>
-                          <div>{claim.id}</div>
+                          <div className="text-muted-foreground">Claim Code/ID:</div>
+                          <div>{claim.code}</div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="text-muted-foreground">Status:</div>
@@ -230,15 +336,15 @@ export default function ClaimDetailsPage({ params }) {
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="text-muted-foreground">Submission Date:</div>
-                          <div>{claim.date}</div>
+                          <div>{claim.created_at?.substring(0,10)}</div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="text-muted-foreground">Insurer:</div>
-                          <div>{claim.insurer}</div>
+                          <div>{claim.insurer.name}</div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="text-muted-foreground">Estimated Amount:</div>
-                          <div>{claim.amount.toLocaleString()} RWF</div>
+                          <div>{claim.amount.toLocaleString()} {claim.currency}</div>
                         </div>
                       </div>
                     </div>
@@ -248,11 +354,15 @@ export default function ClaimDetailsPage({ params }) {
                       <div className="bg-muted p-3 rounded-md space-y-2">
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="text-muted-foreground">Vehicle:</div>
-                          <div>{claim.vehicle}</div>
+                          <div>{claim?.vehicles[0]?.make + ' ' + claim?.vehicles[0]?.model}</div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="text-muted-foreground">Vehicle Year:</div>
+                          <div>{claim?.vehicles[0]?.year}</div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="text-muted-foreground">Plate Number:</div>
-                          <div>{claim.plateNumber}</div>
+                          <div>{claim?.vehicles[0]?.license_plate}</div>
                         </div>
                       </div>
                     </div>
@@ -266,73 +376,96 @@ export default function ClaimDetailsPage({ params }) {
                   </div>
                 </div>
               </TabsContent>
-
               <TabsContent value="documents">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {claim.documents.map((doc, index) => (
-                      <Card key={index} className="overflow-hidden">
-                        <CardContent className="p-0">
-                          {doc.type === "image" ? (
-                            <div
-                              className="cursor-pointer"
-                              onClick={() =>
-                                setSelectedImage(
-                                  `/placeholder.svg?height=300&width=400&text=${encodeURIComponent(doc.name)}`,
-                                )
-                              }
-                            >
-                              <AspectRatio ratio={4 / 3} className="bg-muted">
-                                <img
-                                  src={`/placeholder.svg?height=300&width=400&text=${encodeURIComponent(doc.name)}`}
-                                  alt={doc.name}
-                                  className="object-cover w-full h-full"
-                                />
-                              </AspectRatio>
-                            </div>
-                          ) : (
-                            <div className="h-[200px] flex items-center justify-center bg-muted">
-                              <FilePdf className="h-16 w-16 text-red-500" />
-                            </div>
-                          )}
-                          <div className="p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center">
-                                {getDocumentIcon(doc.type)}
-                                <span className="ml-2 text-sm font-medium truncate max-w-[150px]">{doc.name}</span>
+                {claim.documents?.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {claim.documents.map((doc) => (
+                        <Card key={doc.id} className="overflow-hidden">
+                          <CardContent className="p-0">
+                            {doc.mime_type === "image" ? (
+                              <div
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  const imageUrl = doc.file_path || `/placeholder.svg?height=300&width=400&text=${encodeURIComponent(doc.file_name)}`;
+                                  console.log("Setting image URL:", imageUrl);
+                                  setSelectedImage(imageUrl);
+                                }}
+                              >
+                                <AspectRatio ratio={4 / 3} className="bg-muted">
+                                  <img
+                                    src={doc.file_path}
+                                    alt={`Document: ${doc.file_name}`}
+                                    className="object-cover w-full h-full"
+                                  />
+                                </AspectRatio>
                               </div>
-                              <Button variant="ghost" size="icon">
-                                <Download className="h-4 w-4" />
-                              </Button>
+                            ) : (
+                              <div className="h-[200px] flex items-center justify-center bg-muted">
+                                <FilePdf className="h-16 w-16 text-red-500" />
+                              </div>
+                            )}
+                            <div className="p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                  {getDocumentIcon(doc.mime_type)}
+                                  <span className="ml-2 text-sm font-medium truncate max-w-[150px]">{doc.file_name}</span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => window.open(doc.file_path, "_blank")}
+                                  aria-label={`Download ${doc.file_name}`}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Uploaded: {format(new Date(doc.created_at), "yyyy-MM-dd")}
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">Uploaded: {doc.uploadedAt}</div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                    <Button variant="outline" className="w-full">
+                      <FileText className="mr-2 h-4 w-4" /> Upload Additional Documents
+                    </Button>
                   </div>
-                  <Button variant="outline" className="w-full">
-                    <FileText className="mr-2 h-4 w-4" /> Upload Additional Documents
-                  </Button>
-                </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Documents</h3>
+                    <p className="text-muted-foreground">No documents have been uploaded for this claim.</p>
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="timeline">
-                <div className="space-y-4">
-                  {claim.timeline.map((item, index) => (
-                    <div key={index} className="flex">
-                      <div className="mr-3">{getTimelineStatusIcon(item.status)}</div>
-                      <div className="flex-1">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-sm font-medium">{item.event}</p>
-                          <p className="text-xs text-muted-foreground">{item.date}</p>
+                {claim.activities?.length > 0 ? (
+                  <div className="space-y-4">
+                    {claim.activities.map((item) => (
+                      <div key={item.id} className="flex">
+                        <div className="mr-3">{getTimelineStatusIcon(item.status)}</div>
+                        <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm font-medium">{item.event}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(item.created_at), "yyyy-MM-dd")}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Timeline Events</h3>
+                    <p className="text-muted-foreground">No activities have been recorded for this claim.</p>
+                  </div>
+                )}
               </TabsContent>
-
               <TabsContent value="messages">
                 <div className="space-y-4">
                   {claim.messages.length > 0 ? (
@@ -363,41 +496,42 @@ export default function ClaimDetailsPage({ params }) {
               <TabsContent value="contact">
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Claims Agent</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="text-sm">
-                            <span className="font-medium">Name:</span> {claim.contactInfo.claimsAgent.name}
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium">Phone:</span> {claim.contactInfo.claimsAgent.phone}
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium">Email:</span> {claim.contactInfo.claimsAgent.email}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    {/* <Card>
+                              <CardHeader>
+                                <CardTitle className="text-lg">Claims Agent</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-2">
+                                  <div className="text-sm">
+                                    <span className="font-medium">Name:</span> {claimsAgent.name}
+                                  </div>
+                                  <div className="text-sm">
+                                    <span className="font-medium">Phone:</span> {claimsAgent.phone}
+                                  </div>
+                                  <div className="text-sm">
+                                    <span className="font-medium">Email:</span> {claimsAgent.email}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card> */}
 
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-lg">Assessor</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-2">
-                          <div className="text-sm">
-                            <span className="font-medium">Name:</span> {claim.contactInfo.assessor.name}
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium">Phone:</span> {claim.contactInfo.assessor.phone}
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium">Email:</span> {claim.contactInfo.assessor.email}
-                          </div>
-                        </div>
+                        {claim.assessments?.map((assement, i) => (
+                          <div key={i} className="space-y-2">
+                            <div className="text-sm">
+                              <span className="font-medium">Name:</span> {assement.assessor.first_name} {assement.assessor.last_name}
+                            </div>
+                            <div className="text-sm">
+                              <span className="font-medium">Phone:</span> {assement.assessor.phone}
+                            </div>
+                            <div className="text-sm">
+                              <span className="font-medium">Email:</span> {assement.assessor.email}
+                            </div>
+                          </div>))}
                       </CardContent>
                     </Card>
                   </div>
@@ -407,17 +541,18 @@ export default function ClaimDetailsPage({ params }) {
                       <CardTitle className="text-lg">Garage</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        <div className="text-sm">
-                          <span className="font-medium">Name:</span> {claim.contactInfo.garage.name}
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium">Address:</span> {claim.contactInfo.garage.address}
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium">Phone:</span> {claim.contactInfo.garage.phone}
-                        </div>
-                      </div>
+                      {claim.garages?.map((garage, i) => (
+                        <div className="space-y-2">
+                          <div className="text-sm">
+                            <span className="font-medium">Name:</span> {garage.name}
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">Address:</span> {garage.address}
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">Phone:</span> {garage.phone}
+                          </div>
+                        </div>))}
                     </CardContent>
                   </Card>
                 </div>
@@ -446,5 +581,6 @@ export default function ClaimDetailsPage({ params }) {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+    // </ErrorBoundary>
   )
 }
