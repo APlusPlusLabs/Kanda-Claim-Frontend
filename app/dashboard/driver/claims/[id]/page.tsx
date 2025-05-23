@@ -35,6 +35,8 @@ import { format } from "date-fns"
 //   </div>
 // );
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
+
+const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
 type Vehicle = {
   id: string;
   tenant_id: string;
@@ -48,6 +50,9 @@ type Vehicle = {
   updated_at?: string;
 }
 
+interface DocCategory {
+  id: string; name: string;
+};
 
 interface Document {
   id: string;
@@ -55,6 +60,7 @@ interface Document {
   mime_type: string;
   file_path: string;
   created_at: string;
+  category: DocCategory;
 }
 
 interface Activity {
@@ -128,7 +134,7 @@ const defaultClaim: Claim = {
   assessments: []
 };
 interface Props {
-  params: Promise<{ id: string }>; 
+  params: Promise<{ id: string }>;
 }
 export default function ClaimDetailsPage({ params }: Props) {
   const router = useRouter()
@@ -246,7 +252,7 @@ export default function ClaimDetailsPage({ params }: Props) {
     // <ErrorBoundary FallbackComponent={ErrorFallback}>
     <DashboardLayout
       user={{
-        name: user.name,
+        name: user?.name||'Driver name',
         role: "Driver",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -269,7 +275,7 @@ export default function ClaimDetailsPage({ params }: Props) {
               <MessageSquareText className="mr-2 h-4 w-4" /> Contact Insurer
             </Button>
             {claim.status !== "Completed" && claim.status !== "Rejected" && (
-              <Button onClick={()=> router.push(`/dashboard/driver/claims/edit/${claim.id}`)}>
+              <Button onClick={() => router.push(`/dashboard/driver/claims/edit/${claim.id}`)}>
                 <FileText className="mr-2 h-4 w-4" /> Update Claim
               </Button>
             )}
@@ -336,7 +342,7 @@ export default function ClaimDetailsPage({ params }: Props) {
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="text-muted-foreground">Submission Date:</div>
-                          <div>{claim.created_at?.substring(0,10)}</div>
+                          <div>{claim.created_at?.substring(0, 10)}</div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="text-muted-foreground">Insurer:</div>
@@ -383,19 +389,20 @@ export default function ClaimDetailsPage({ params }: Props) {
                       {claim.documents.map((doc) => (
                         <Card key={doc.id} className="overflow-hidden">
                           <CardContent className="p-0">
-                            {doc.mime_type === "image" ? (
+                            {doc.mime_type.startsWith('image/') ? (
                               <div
                                 className="cursor-pointer"
                                 onClick={() => {
-                                  const imageUrl = doc.file_path || `/placeholder.svg?height=300&width=400&text=${encodeURIComponent(doc.file_name)}`;
+                                  const imageUrl = `${STORAGES_URL + doc.file_path}` || `/placeholder.svg?height=300&width=400&text=${encodeURIComponent(doc.file_name)}`;
                                   console.log("Setting image URL:", imageUrl);
                                   setSelectedImage(imageUrl);
                                 }}
                               >
+
                                 <AspectRatio ratio={4 / 3} className="bg-muted">
                                   <img
-                                    src={doc.file_path}
-                                    alt={`Document: ${doc.file_name}`}
+                                    src={`${STORAGES_URL + doc.file_path}`}
+                                    alt={`Document: ${doc.category?.name} ${doc.mime_type}`}
                                     className="object-cover w-full h-full"
                                   />
                                 </AspectRatio>
@@ -409,13 +416,13 @@ export default function ClaimDetailsPage({ params }: Props) {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center">
                                   {getDocumentIcon(doc.mime_type)}
-                                  <span className="ml-2 text-sm font-medium truncate max-w-[150px]">{doc.file_name}</span>
+                                  <span className="ml-2 text-sm font-medium truncate max-w-[150px]">{doc.category?.name} {doc.mime_type}</span>
                                 </div>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => window.open(doc.file_path, "_blank")}
-                                  aria-label={`Download ${doc.file_name}`}
+                                  aria-label={`Download ${doc.category?.name} ${doc.mime_type}`}
                                 >
                                   <Download className="h-4 w-4" />
                                 </Button>

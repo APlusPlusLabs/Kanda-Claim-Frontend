@@ -16,7 +16,7 @@ interface VehiclePickupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
-  vehicleDetails: {
+  vehicle: {
     make: string
     model: string
     plateNumber: string
@@ -24,7 +24,7 @@ interface VehiclePickupDialogProps {
   }
 }
 
-export function VehiclePickupDialog({ open, onOpenChange, onConfirm, vehicleDetails }: VehiclePickupDialogProps) {
+export function VehiclePickupDialog({ open, onOpenChange, onConfirm, vehicle }: VehiclePickupDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleConfirm = () => {
@@ -53,13 +53,13 @@ export function VehiclePickupDialog({ open, onOpenChange, onConfirm, vehicleDeta
             <h4 className="font-medium mb-2">Vehicle Details</h4>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="text-muted-foreground">Make:</div>
-              <div>{vehicleDetails.make}</div>
+              <div>{vehicle.make}</div>
               <div className="text-muted-foreground">Model:</div>
-              <div>{vehicleDetails.model}</div>
+              <div>{vehicle.model}</div>
               <div className="text-muted-foreground">Plate Number:</div>
-              <div>{vehicleDetails.plateNumber}</div>
+              <div>{vehicle.plateNumber}</div>
               <div className="text-muted-foreground">Garage:</div>
-              <div>{vehicleDetails.garage}</div>
+              <div>{vehicle.garage}</div>
             </div>
           </div>
         </div>

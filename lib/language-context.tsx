@@ -39,6 +39,7 @@ const translations: Record<Language, TranslationKeys> = {
       clear_all: "Clear All",
       save_and_next: "Save & Next",
       view_details: "View Details",
+      remove: "Remove"
     },
     claims: {
       new: "Submit New Claim",
@@ -52,6 +53,8 @@ const translations: Record<Language, TranslationKeys> = {
       other_vehicles: "Other Vehicles",
       other_vehicles_details: "Information about other vehicles involved",
       injuries_damages: "Injuries and Material Damage",
+      injuries: "Injuries",
+      damages: "Material Damages",
       injuries_details: "Information about injuries and property damage",
       garage_info: "Garage Information",
       garage_details: "Details about the garage if vehicle is already there",
@@ -136,7 +139,7 @@ const translations: Record<Language, TranslationKeys> = {
       number_of_other_vehicles: "Number of Other Vehicles",
       damage_owner_name: "Damage Owner Name",
       driver_no_license: "Driver does not have a license",
-      police_visited: "Did you visit the police station",
+      police_visited: "Did you visit the police station Or the Police got involved?",
       police_station: "Police Station",
       police_station_placeholder: "Enter police station name",
       police_report_number: "Police Report Number",
@@ -178,7 +181,7 @@ const translations: Record<Language, TranslationKeys> = {
       profession_placeholder: "Enter person's profession",
       injury_description: "Injury Description",
       injury_description_placeholder: "Describe the injuries in detail",
-      check_if_deceased: "Check if the person is deceased",
+      check_if_deceased: "the person is deceased?",
       material_damage: "Was there any material damage",
       number_of_damages: "Number of Damaged Items",
       damage_type: "Type of Damage",
@@ -233,6 +236,7 @@ const translations: Record<Language, TranslationKeys> = {
       vehicle_damage_description: "Pictures describing vehicle damage",
       witness_statement_description: "witness statement documents",
       other_description: "Pictures showing more descrition of incident",
+      add_police_assignment: "Add Police Info"
     },
     language: {
       select: "Select Language",
@@ -308,6 +312,7 @@ const translations: Record<Language, TranslationKeys> = {
       clear_all: "Tout Effacer",
       save_and_next: "Enregistrer & Suivant",
       view_details: "Voir les Détails",
+      remove: "Enveler"
     },
     claims: {
       new: "Soumettre une Nouvelle Réclamation",
@@ -321,6 +326,8 @@ const translations: Record<Language, TranslationKeys> = {
       other_vehicles: "Autres Véhicules",
       other_vehicles_details: "Informations sur les autres véhicules impliqués",
       injuries_damages: "Blessures et Dommages Matériels",
+      injuries: "Les Blessures",
+      damages: "Dommages Matériels",
       injuries_details: "Informations sur les blessures et les dommages matériels",
       garage_info: "Informations sur le Garage",
       garage_details: "Détails sur le garage si le véhicule s'y trouve déjà",
@@ -405,7 +412,7 @@ const translations: Record<Language, TranslationKeys> = {
       number_of_other_vehicles: "Nombre d'Autres Véhicules",
       damage_owner_name: "Nom du Propriétaire des Dommages",
       driver_no_license: "Le conducteur n'a pas de permis",
-      police_visited: "Avez-vous visité le poste de police",
+      police_visited: "Avez-vous visité le poste de police ou la police est involve",
       police_station: "Poste de Police",
       police_station_placeholder: "Entrez le nom du poste de police",
       police_report_number: "Numéro de Rapport de Police",
@@ -446,7 +453,7 @@ const translations: Record<Language, TranslationKeys> = {
       profession_placeholder: "Entrez la profession de la personne",
       injury_description: "Description des Blessures",
       injury_description_placeholder: "Décrivez en détail les blessures",
-      check_if_deceased: "Cochez si la personne est décédée",
+      check_if_deceased: "la personne est décédée?",
       material_damage: "Y a-t-il eu des dommages matériels",
       number_of_damages: "Nombre d'Articles Endommagés",
       damage_type: "Type de Dommage",
@@ -502,6 +509,7 @@ const translations: Record<Language, TranslationKeys> = {
       vehicle_damage_description: "Photos montrans les domage du vehicle",
       witness_statement_description: "documents de déclaration de témoin",
       other_description: "Image montrant une description plus détaillée de l'incident",
+      add_police_assignment: "Ajouter Police Info"
     },
     language: {
       select: "Choisir la Langue",
@@ -578,6 +586,7 @@ const translations: Record<Language, TranslationKeys> = {
       clear_all: "Gusiba Byose",
       save_and_next: "Kubika & Komeza",
       view_details: "Kureba Birambuye",
+      remove: "Kuraho"
     },
     claims: {
       new: "Ohereza Ubusabe Bushya",
@@ -591,6 +600,8 @@ const translations: Record<Language, TranslationKeys> = {
       other_vehicles: "Ibindi binyabiziga",
       other_vehicles_details: "Amakuru y'ibindi binyabiziga byagize uruhare",
       injuries_damages: "Ibikomere n'ibyangirika",
+      injuries: "Ibikomere",
+      damages: "Ibyangiritse",
       injuries_details: "Amakuru ku bikomere n'ibintu byangiritse",
       garage_info: "Amakuru y'igaraji",
       garage_details: "Amakuru y'igaraji niba ikinyabiziga kirimo",
@@ -675,7 +686,7 @@ const translations: Record<Language, TranslationKeys> = {
       number_of_other_vehicles: "Umubare w'Ibindi Binyabiziga",
       damage_owner_name: "Izina rya Nyir'Ibyangiritse",
       driver_no_license: "Umushoferi ntafite perimi",
-      police_visited: "Waragiye kuri polisi",
+      police_visited: "Wagiye kuri polisi cg police yakurikiranye iyi mpanuka",
       police_station: "Sitasiyo ya Polisi",
       police_station_placeholder: "Andika izina rya sitasiyo ya polisi",
       police_report_number: "Nomero ya Raporo ya Polisi",
@@ -716,7 +727,7 @@ const translations: Record<Language, TranslationKeys> = {
       profession_placeholder: "Andika umwuga w'umuntu",
       injury_description: "Ibisobanuro by'Ibikomere",
       injury_description_placeholder: "Sobanura mu buryo burambuye ibikomere",
-      check_if_deceased: "Kora kugirango werekane ko umuntu yapfuye",
+      check_if_deceased: "Uwo umuntu yapfuye?",
       material_damage: "Hari ibintu byangiritse",
       number_of_damages: "Umubare w'Ibintu Byangiritse",
       damage_type: "Ubwoko bw'Ibyangiritse",
@@ -773,6 +784,7 @@ const translations: Record<Language, TranslationKeys> = {
       vehicle_damage_description: "Amafoto yerekana ibyangiritse kumodoka",
       witness_statement_description: "Inyandiko zubuhamya bwababibonye",
       other_description: "Amafoto yerekana byinshi birambuye kumpanuka",
+      add_police_assignment: "Ongeraho Uruhare rwa Police"
     },
     language: {
       select: "Hitamo Ururimi",

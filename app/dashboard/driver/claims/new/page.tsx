@@ -687,7 +687,7 @@ export default function NewClaimPage() {
       }
       const values = form.getValues();
       let response;
-  
+
       if (step === 1) {
         const data = {
           claim_type_id: values.claim_type_id,
@@ -718,7 +718,7 @@ export default function NewClaimPage() {
           };
           await apiRequest(`${API_URL}claims/${claimId}/driver-details`, "POST", driverData);
         }
-  
+
         if (values.vehicles && values.vehicles.length > 0) {
           const vehicle = values.vehicles[0];
           const vehicleData = {
@@ -779,7 +779,7 @@ export default function NewClaimPage() {
             await apiRequest(`${API_URL}claims/${claimId}/injuries`, "POST", injury);
           }
         }
-  
+
         const dataDamages = {
           damages: values.damages?.map((damage) => ({
             type: damage.type,
@@ -810,9 +810,9 @@ export default function NewClaimPage() {
         values.documents?.forEach(async (doc, index) => {
           if (doc.file) {
             const formData = new FormData();
-            formData.append(`documents[${index}][type]`, doc.type);
-            formData.append(`documents[${index}][file]`, doc.file);
-            formData.append(`documents[${index}][claim_id]`, claimId!); // Attach claimId
+            formData.append('type', doc.type);
+            formData.append('file', doc.file);
+            formData.append('claim_id', claimId+"");
             response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
           }
         });
@@ -825,13 +825,13 @@ export default function NewClaimPage() {
         //   response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
         // }
       }
-  
+
       setCompletedSteps((prev) => [...prev, step]);
       toast({
         title: `Step ${step} Saved`,
         description: `Step ${step} has been successfully saved.`,
       });
-  
+
       if (step < 7) {
         setStep(step + 1); // Advance to next step (e.g., Step 7 after Step 6)
       } else if (step === 7) {
@@ -854,11 +854,7 @@ export default function NewClaimPage() {
   };
   return (
     <DashboardLayout
-      user={{
-        name: user.name,
-        role: "Driver",
-        avatar: "/placeholder.svg?height=40&width=40",
-      }}
+      user={{ name: user?.name || 'Driver', role: 'Driver', avatar: '/placeholder.svg' }}
       navigation={[
         {
           name: `Kanda Claim - ${t("nav.dashboard")}`,
@@ -875,7 +871,7 @@ export default function NewClaimPage() {
         },
       ]}
     >
-      <div className="space-y-6">
+      <div className="container mx-auto p-4">
         <div className="mb-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-2">
             {[
@@ -1400,9 +1396,9 @@ export default function NewClaimPage() {
                           <FormItem className="space-y-3">
                             <FormLabel>{t("form.police_visited")}?</FormLabel>
                             <FormControl>
-                            <RadioGroup
+                              <RadioGroup
                                 onValueChange={(value) => field.onChange(value === "true")}
-                                defaultValue={field.value ? true : false}
+                                defaultValue={field.value ? "true" : "false"}
                                 className="flex flex-row space-x-4"
                               >
                                 <div className="flex items-center space-x-2">

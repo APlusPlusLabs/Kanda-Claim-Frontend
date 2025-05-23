@@ -25,6 +25,10 @@ import {
   FileImage,
   FileIcon as FilePdf,
   MessageSquareText,
+  MessageSquare,
+  Bell,
+  User,
+  LogOut,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-provider";
@@ -33,8 +37,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { format } from "date-fns";
 import router from "next/router";
+import { useLanguage } from "@/lib/language-context";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
+
+const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL+"/storage/";
 
 interface Vehicle {
   id: string;
@@ -270,9 +277,11 @@ function ClaimsTabContent({
                   <Eye className="mr-2 h-4 w-4" /> View Details
                 </Button>
                 {!isCompletedOrRejected && (
-                  <Button size="sm" onClick={() => router.push(`/dashboard/driver/claims/edit/${claim.id}`)}>
-                    <FileText className="mr-2 h-4 w-4" /> Update Claim
-                  </Button>
+                  <Link href={`/dashboard/driver/claims/edit/${claim.id}`}>
+                    <Button size="sm">
+                      <FileText className="mr-2 h-4 w-4" /> Update Claim
+                    </Button>
+                  </Link>
                 )}
               </div>
             </CardContent>
@@ -300,6 +309,7 @@ function ClaimsTabContent({
 
 export default function DriverClaimsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const { user, apiRequest } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -449,8 +459,36 @@ export default function DriverClaimsPage() {
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
-        { name: "Dashboard", href: "/dashboard/driver", icon: <Car className="h-5 w-5" /> },
-        { name: "My Claims", href: "/dashboard/driver/claims", icon: <FileText className="h-5 w-5" /> },
+        {
+          name: `Kanda Claim - ${t("nav.dashboard")}`,
+          href: "/dashboard/driver",
+          icon: <Car className="h-5 w-5" />,
+          translationKey: "nav.dashboard",
+        },
+        {
+          name: t("nav.claims"),
+          href: "/dashboard/driver/claims",
+          icon: <FileText className="h-5 w-5" />,
+          translationKey: "nav.claims",
+        },
+        {
+          name: t("nav.messages"),
+          href: "/dashboard/driver/messages",
+          icon: <MessageSquare className="h-5 w-5" />,
+          translationKey: "nav.messages",
+        },
+        {
+          name: t("nav.notifications"),
+          href: "/dashboard/driver/notifications",
+          icon: <Bell className="h-5 w-5" />,
+          translationKey: "nav.notifications",
+        },
+        {
+          name: t("nav.profile"),
+          href: "/dashboard/driver/profile",
+          icon: <User className="h-5 w-5" />,
+          translationKey: "nav.profile",
+        }, { name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }
       ]}
     >
       <div className="space-y-6">
@@ -650,13 +688,16 @@ export default function DriverClaimsPage() {
 
                 <div className="flex justify-end space-x-2 mt-4">
                   {selectedClaim.status !== "Closed" && selectedClaim.status !== "Rejected" && (
-                    <Button onClick={() => router.push(`/dashboard/driver/claims/edit/${selectedClaim.id}`)}>
-                      <FileText className="mr-2 h-4 w-4" /> Update Claim
-                    </Button>
+                    <Link href={`/dashboard/driver/claims/edit/${selectedClaim.id}`}>
+                      <Button>
+                        <FileText className="mr-2 h-4 w-4" /> Update Claim
+                      </Button>
+                    </Link>
                   )}
-                  <Button variant="secondary" onClick={() => router.push(`/dashboard/driver/claims/${selectedClaim.id}`)}>
-                    <FileText className="mr-2 h-4 w-4" /> Full Info on Claim
-                  </Button>
+                  <Link href={`/dashboard/driver/claims/${selectedClaim.id}`}>
+                    <Button variant="secondary">
+                      <FileText className="mr-2 h-4 w-4" /> Full Info on Claim
+                    </Button></Link>
                   <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
                     Close
                   </Button>

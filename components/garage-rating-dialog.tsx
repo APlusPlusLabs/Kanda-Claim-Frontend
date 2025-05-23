@@ -18,13 +18,13 @@ import { useToast } from "@/components/ui/use-toast"
 interface GarageRatingDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  garageDetails: {
+  garage: {
     name: string
     address: string
   }
 }
 
-export function GarageRatingDialog({ open, onOpenChange, garageDetails }: GarageRatingDialogProps) {
+export function GarageRatingDialog({ open, onOpenChange, garage }: GarageRatingDialogProps) {
   const [rating, setRating] = useState(0)
   const [feedback, setFeedback] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -64,7 +64,7 @@ export function GarageRatingDialog({ open, onOpenChange, garageDetails }: Garage
             Rate Your Garage Experience
           </DialogTitle>
           <DialogDescription>
-            Please rate your experience with {garageDetails.name} and provide any feedback.
+            Please rate your experience with {garage.name} and provide any feedback.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
