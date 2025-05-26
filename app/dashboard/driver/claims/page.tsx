@@ -38,79 +38,12 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { format } from "date-fns";
 import router from "next/router";
 import { useLanguage } from "@/lib/language-context";
+import { Claim } from "@/lib/types/claims";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 
 const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL+"/storage/";
 
-interface Vehicle {
-  id: string;
-  tenant_id: string;
-  user_id: string;
-  license_plate: string;
-  make: string;
-  model: string;
-  year: string;
-  vin: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface Document {
-  id: string;
-  file_name: string;
-  mime_type: string;
-  file_path: string;
-  created_at: string;
-}
-
-interface Activity {
-  id: string;
-  event: string;
-  status: string;
-  created_at: string;
-}
-
-interface Message {
-  id: string;
-  sender: string;
-  content: string;
-  date: string;
-}
-
-interface Claim {
-  id: string;
-  tenant_id: string;
-  user_id: string;
-  claim_type_id: string;
-  code: string;
-  amount: number;
-  approved_amount: string;
-  currency: string;
-  status: string;
-  priority: string;
-  policy_number: string;
-  accident_date: string;
-  accident_time: string;
-  location: string;
-  description: string;
-  rejection_reason?: string;
-  note?: string;
-  driver_details?: any;
-  vehicles: Vehicle[];
-  police_assignment?: any[];
-  injuries?: any[];
-  damages?: any[];
-  garages?: any[];
-  documents: Document[];
-  messages: Message[];
-  assessments?: any[];
-  activities: Activity[];
-  insurer: { name: string };
-  progress: number;
-  created_at?: string;
-  updated_at?: string;
-}
 
 // Define status configuration
 const statusConfig = [

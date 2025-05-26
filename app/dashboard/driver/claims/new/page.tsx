@@ -702,6 +702,8 @@ export default function NewClaimPage() {
           tenant_id: user?.tenant_id,
           role_id: user?.role_id,
           user_id: user?.id,
+          submitted_at: new Date().toDateString(),
+          submitted_by: user?.name,
         };
         response = await apiRequest(`${API_URL}claims`, "POST", data);
         if (!response.id) throw new Error("Claim ID not returned from API");

@@ -42,6 +42,7 @@ import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/components/ui/use-toast";
 
 import { EditUserDialog } from "@/components/EditUserDialog";
+import { Role, User } from "@/lib/types/users";
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const userFormSchema = z.object({
@@ -70,27 +71,6 @@ const userFormSchema = z.object({
   }
 );
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  role: any;
-  role_id: string;
-  tenant_id: string;
-  tenant: any;
-  avatar: string;
-  status: string;
-  last_login: string;
-}
-
-type Role = {
-  id: string;
-  name: string;
-  tenant_id: string;
-};
 
 export default function UsersManagementPage() {
   const { user, apiRequest, logout } = useAuth();
@@ -107,7 +87,7 @@ export default function UsersManagementPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const usersData = await apiRequest(`${API_URL}users`, "POST", { 'tenant_id': user?.tenant_id });
+        const usersData = await apiRequest(`${API_URL}users/by-tenant/${user?.tenant_id}`, "GET");
         setUsers(
           usersData.map((u: any) => ({
             id: u.id,

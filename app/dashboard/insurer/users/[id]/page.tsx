@@ -5,51 +5,20 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, User, Building, FileText, Edit } from "lucide-react";
+import { ArrowLeft, Building, FileText, Edit, CheckCircle2, Eye, XCircle, Clock, FileImage, FileDownIcon, Link, Plus, User2 } from "lucide-react";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/components/ui/use-toast";
 import { EditUserDialog } from "@/components/EditUserDialog";
+import { format } from "date-fns";
+import { Progress } from "@radix-ui/react-progress";
+import { Role, Tenant, User } from "@/lib/types/users";
+import { Claim } from "@/lib/types/claims";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
-interface User {
-    id: string;
-    email: string;
-    name: string;
-    first_name: string;
-    last_name: string;
-    phone: string;
-    role: any;
-    role_id: string;
-    tenant_id: string;
-    tenant: any;
-    avatar: string;
-    status: string;
-    last_login: string;
-}
-type Role = {
-    id: string;
-    name: string;
-    tenant_id: string;
-};
-
-type Tenant = {
-    id: string;
-    name: string;
-};
-
-type Claim = {
-    id: string;
-    code: string;
-    policy_number: string;
-    status: string;
-    created_at: string;
-    description: string;
-    amount: number;
-};
 
 export default function ViewUserPage() {
     const { user, apiRequest, logout } = useAuth();
@@ -112,17 +81,18 @@ export default function ViewUserPage() {
                 avatar: ""
             };
             setUserData(userData);
+            console.log('user data', userResponse);
 
             // Validate tenant_id
-            if (userData.tenant_id !== user.tenant_id && userData.role_id !== "insurer") {
-                throw new Error("Unauthorized: User belongs to a different tenant.");
-            }
+            // if (userData.tenant_id !== user.tenant_id) {
+            //     throw new Error("Unauthorized: User belongs to a different tenant.");
+            // }
 
             const rolesResponse = await apiRequest(`${API_URL}roles`, "GET");
             const userRole = rolesResponse.find((r: Role) => r.id === userData.role_id);
-            if (!userRole) {
-                throw new Error("Role not found.");
-            }
+            // if (!userRole) {
+            //     throw new Error("Role not found.");
+            // }
             setRole(userRole);
             setRoles(rolesResponse);
 
@@ -133,19 +103,10 @@ export default function ViewUserPage() {
             // Fetch claims for driver or assessor
             if (["driver", "assessor"].includes(userRole.name.toLowerCase())) {
                 const claimsResponse = await apiRequest(
-                    `${API_URL}claims/byuser?user_id=${id}&tenant_id=${userData.tenant_id}`,
+                    `${API_URL}claims/${id}/get-by-user`,
                     "GET"
                 );
-                setClaims(
-                    claimsResponse.map((c: any) => ({
-                        id: c.id,
-                        code: c.code,
-                        policy_number: c.policy_number,
-                        status: c.status,
-                        created_at: c.created_at,
-                        amount: c.amount,
-                    }))
-                );
+                setClaims(claimsResponse.data||[]);
             }
         } catch (error: any) {
             console.error("fetchData error", error);
@@ -207,7 +168,49 @@ export default function ViewUserPage() {
         console.log("Rendering: No data, redirect handled");
         return null; // Redirect handled in fetchData
     }
+    const isCompletedOrRejected = ["completed", "rejected"].includes(status);
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case "Draft":
+                return <Badge className="bg-gray-500">Draft</Badge>;
+            case "Submitted":
+                return <Badge className="bg-blue-500">Submitted</Badge>;
+            case "Under Review":
+                return <Badge className="bg-yellow-500">Under Review</Badge>;
+            case "Approved":
+                return <Badge className="bg-green-500">Approved</Badge>;
+            case "Closed":
+                return <Badge className="bg-green-500">Completed</Badge>;
+            case "Rejected":
+                return <Badge variant="destructive">Rejected</Badge>;
+            default:
+                return <Badge>{status}</Badge>;
+        }
+    };
 
+    const getTimelineStatusIcon = (status: string) => {
+        switch (status.toLowerCase()) {
+            case "complete":
+                return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+            case "in-progress":
+                return <Clock className="h-5 w-5 text-blue-500" />;
+            case "rejected":
+                return <XCircle className="h-5 w-5 text-red-500" />;
+            default:
+                return <Clock className="h-5 w-5 text-gray-300" />;
+        }
+    };
+
+    const getDocumentIcon = (type: string) => {
+        switch (type) {
+            case "image":
+                return <FileImage className="h-5 w-5 text-blue-500" />;
+            case "pdf":
+                return <FileDownIcon className="h-5 w-5 text-red-500" />;
+            default:
+                return <FileText className="h-5 w-5 text-gray-500" />;
+        }
+    };
     console.log("Rendering: Displaying user data", { userData, role, tenant });
 
     return (
@@ -219,7 +222,7 @@ export default function ViewUserPage() {
             }}
             navigation={[
                 { name: "Dashboard", href: "/dashboard/insurer", icon: <Building className="h-5 w-5" /> },
-                { name: "Users", href: "/dashboard/insurer/users", icon: <User className="h-5 w-5" /> },
+                { name: "Users", href: "/dashboard/insurer/users", icon: <User2 className="h-5 w-5" /> },
             ]}
         >
             <div className="space-y-6">
@@ -255,9 +258,7 @@ export default function ViewUserPage() {
                         </div>
                     </div>
                     <div className="flex grid">
-                        <div className="col-6">
-
-                            {/* User Basic Info */}
+                        <div className="grid grid-cols-2 space-x-2">
                             <Card>
                                 <CardHeader>
                                     <CardTitle>User Info</CardTitle>
@@ -284,13 +285,9 @@ export default function ViewUserPage() {
                                 </CardContent>
                             </Card>
 
-                        </div>
-                        <div className="col-6">
-
-                            {/* Tenant/Company */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Company</CardTitle>
+                                    <CardTitle>Insurer</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-2">
                                     <div>
@@ -303,42 +300,104 @@ export default function ViewUserPage() {
                             </Card>
 
                         </div>
+                        <h3></h3>
+                        <div className="p-3">
+                            <h2 className="text-3xl font-bold">{userData.first_name} {userData.last_name} Claims</h2>
+                            <p className="text-muted-foreground mt-2">
+                               View & Manage {userData.first_name} {userData.last_name} Claims
+                            </p>
+                        </div>
+                        <div>
+                            {claims.length > 0 ? (
+                                claims.map((claim) => (
+                                    <Card key={claim.id}>
+                                        <CardContent className="p-6">
+                                            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                                                <div>
+                                                    <h3 className="text-lg font-semibold">Claim #{claim.code ?? "N/A"}</h3>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {claim.vehicles?.[0]?.model ?? "N/A"} {claim.vehicles?.[0]?.make ?? ""} - {claim.vehicles?.[0]?.year ?? ""} (
+                                                        {claim.vehicles?.[0]?.license_plate ?? "N/A"}) •{" "}
+                                                        {claim.accident_date && claim.accident_time
+                                                            ? `${format(new Date(claim.accident_date), "yyyy-MM-dd")} at ${claim.accident_time}`
+                                                            : "N/A"}
+                                                    </p>
+                                                </div>
+                                                <div className="mt-2 md:mt-0">
+                                                    {isCompletedOrRejected ? (
+                                                        status === "completed" ? (
+                                                            <Badge className="w-fit bg-green-500">
+                                                                <CheckCircle2 className="h-3 w-3 mr-1" /> Completed
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge className="w-fit" variant="destructive">
+                                                                <XCircle className="h-3 w-3 mr-1" /> Rejected
+                                                            </Badge>
+                                                        )
+                                                    ) : (
+                                                        getStatusBadge(claim.status)
+                                                    )}
+                                                </div>
+                                            </div>
 
-                        <div className="col-6">
-                            {/* Claims */}
-                            {claims.length > 0 && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Claims</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <ul className="space-y-2">
-                                            {claims.map((claim) => (
-                                                <li key={claim.id} className="border-b py-2">
-                                                    <div>
-                                                        <span className="text-muted-foreground">Claim #:</span> {claim.code}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-muted-foreground">Status:</span>{" "}
-                                                        <Badge>{claim.status}</Badge>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-muted-foreground">Date:</span>{" "}
-                                                        {new Date(claim.created_at).toLocaleDateString()}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-muted-foreground">Amount:</span> RWF {claim.amount}
-                                                    </div>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </CardContent>
-                                </Card>
+                                            <p className="text-sm mb-4">{claim.description ?? "No description available"}</p>
 
-                            )}  </div>
+                                            {!isCompletedOrRejected && (
+                                                <div className="space-y-2 mb-4">
+                                                    <div className="flex justify-between text-sm">
+                                                        <span>Progress</span>
+                                                        <span>{claim.progress ?? 0}%</span>
+                                                    </div>
+                                                    <Progress value={claim.progress ?? 0} className="h-2" />
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-col md:flex-row md:items-center justify-between">
+                                                <div className="text-sm">
+                                                    <span className="text-muted-foreground">Insurer:</span> {claim.insurer?.name ?? "N/A"}
+                                                </div>
+                                                {!status.includes("rejected") && (
+                                                    <div className="text-sm mt-2 md:mt-0">
+                                                        <span className="text-muted-foreground">
+                                                            {status === "completed" ? "Final Amount:" : "Estimated Amount:"}
+                                                        </span>{" "}
+                                                        {(claim.amount ?? 0).toLocaleString()} {claim.currency ?? "N/A"}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="mt-4 flex justify-end space-x-2">
+                                                <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/driver/claims/${claim.id}`)}>
+                                                    <Eye className="mr-2 h-4 w-4" /> View Details
+                                                </Button>
+                                                {!isCompletedOrRejected && (
+                                                    <Button size="sm" onClick={() => router.push(`/dashboard/driver/claims/edit/${claim.id}`)}>
+                                                        <FileText className="mr-2 h-4 w-4" /> Update Claim
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))): (
+                                    <Card>
+                                      <CardContent className="p-6 text-center">
+                                        <div className="flex flex-col items-center justify-center py-8">
+                                        <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                                          <h3 className="text-lg font-semibold mb-2">No Claims Found</h3>
+                                          <p className="text-sm text-muted-foreground mb-4">{userData?.name} doesn't have any claims yet.</p>
+                                          <Button asChild>
+                                            <Link href="/dashboard/driver/claims/new">
+                                              <Plus className="mr-2 h-4 w-4" /> Submit New Claim
+                                            </Link>
+                                          </Button>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                        </div>
                     </div>
                 </div>
             </div>
-        </DashboardLayout>
+        </DashboardLayout >
     );
 }

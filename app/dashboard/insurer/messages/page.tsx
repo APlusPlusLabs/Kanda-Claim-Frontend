@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -19,169 +19,161 @@ import {
   Phone,
   Video,
   Info,
+  Car,
+  Users,
+  BarChart3,
 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { format } from "date-fns"
 
-export default function InsurerMessages() {
-  const { user } = useAuth()
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { ChatBubbleIcon, PaperPlaneIcon, PlusCircledIcon } from "@radix-ui/react-icons";
+import { useLanguage } from "@/lib/language-context";
+
+interface Message {
+  id: string | number;
+  sender: string;
+  content: string;
+  timestamp: string;
+  is_me: boolean;
+}
+interface Participant {
+  id: string;
+  name: string;
+  role: string;
+}
+
+interface Conversation {
+  id: string;
+  claim_id: string;
+  with: string;
+  last_message: string;
+  timestamp: string;
+  code: string;
+  unread: boolean;
+  unread_count: number;
+  participants: Participant[];
+  messages: Message[];
+}
+
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/";
+
+export default function MessagesPage() {
+  const { user, apiRequest } = useAuth();
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState("")
-  const [currentChat, setCurrentChat] = useState(null)
+  const [currentChat, setCurrentChat] = useState<Conversation>()
   const [messageText, setMessageText] = useState("")
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // In a real app, you would fetch this data from an API
-  const [conversations, setConversations] = useState([
-    {
-      id: 1,
-      name: "Mugisha Nkusi",
-      role: "Customer",
-      avatar: "/placeholder.svg?height=40&width=40",
-      lastMessage: "When will my claim be processed?",
-      timestamp: "2025-03-15T10:30:00",
-      unread: 2,
-      messages: [
-        {
-          id: 1,
-          sender: "Mugisha Nkusi",
-          text: "Hello, I submitted a claim yesterday (CL-2025-001) for my Toyota RAV4.",
-          timestamp: "2025-03-15T10:15:00",
-          isMe: false,
-        },
-        {
-          id: 2,
-          sender: "Mugisha Nkusi",
-          text: "When will my claim be processed?",
-          timestamp: "2025-03-15T10:30:00",
-          isMe: false,
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "Habimana Jean",
-      role: "Assessor",
-      avatar: "/placeholder.svg?height=40&width=40",
-      lastMessage: "Assessment for claim CL-2025-002 has been completed",
-      timestamp: "2025-03-14T14:20:00",
-      unread: 1,
-      messages: [
-        {
-          id: 1,
-          sender: "Habimana Jean",
-          text: "Hello, I've completed the assessment for claim CL-2025-002 (Suzuki Swift).",
-          timestamp: "2025-03-14T14:15:00",
-          isMe: false,
-        },
-        {
-          id: 2,
-          sender: "Habimana Jean",
-          text: "Assessment for claim CL-2025-002 has been completed. The report is available in the system.",
-          timestamp: "2025-03-14T14:20:00",
-          isMe: false,
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: "Kigali Auto Center",
-      role: "Garage",
-      avatar: "/placeholder.svg?height=40&width=40",
-      lastMessage: "Repairs for Honda Civic (CL-2025-003) are complete",
-      timestamp: "2025-03-10T16:45:00",
-      unread: 0,
-      messages: [
-        {
-          id: 1,
-          sender: "Kigali Auto Center",
-          text: "We've completed the repairs for the Honda Civic (CL-2025-003).",
-          timestamp: "2025-03-10T16:40:00",
-          isMe: false,
-        },
-        {
-          id: 2,
-          sender: "Kigali Auto Center",
-          text: "Repairs for Honda Civic (CL-2025-003) are complete. The customer has been notified for pickup.",
-          timestamp: "2025-03-10T16:45:00",
-          isMe: false,
-        },
-        {
-          id: 3,
-          sender: "Marie Uwase",
-          text: "Thank you for the update. I'll process the payment right away.",
-          timestamp: "2025-03-10T17:00:00",
-          isMe: true,
-        },
-      ],
-    },
-  ])
+  // Fetch conversations from the backend
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        setLoading(true)
+        const response = await apiRequest(`${API_URL}messages/threads/${user?.id}`, "GET")
+        setConversations(response.data)
+      } catch (error) {
+        console.error("Error fetching conversations:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchConversations()
+  }, [])
 
+  // Filter conversations by search term
   const filteredConversations = conversations.filter((conversation) =>
-    conversation.name.toLowerCase().includes(searchTerm.toLowerCase()),
+    conversation.claim_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    conversation.participants.some((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
-  const handleSendMessage = () => {
+  // Handle sending a new message
+  const handleSendMessage = async () => {
     if (!messageText.trim() || !currentChat) return
 
     const newMessage = {
-      id: currentChat.messages.length + 1,
-      sender: "Marie Uwase",
-      text: messageText,
-      timestamp: new Date().toISOString(),
-      isMe: true,
+      thread_id: currentChat.id,
+      content: messageText,
     }
 
-    const updatedConversations = conversations.map((conversation) => {
-      if (conversation.id === currentChat.id) {
-        return {
-          ...conversation,
-          messages: [...conversation.messages, newMessage],
-          lastMessage: messageText,
-          timestamp: new Date().toISOString(),
-          unread: 0,
-        }
-      }
-      return conversation
-    })
+    try {
+      const response = await apiRequest(`${API_URL}messages/${user?.id}`, "POST", newMessage)
+      const updatedMessage = response.data
 
-    setConversations(updatedConversations)
-    setCurrentChat({
-      ...currentChat,
-      messages: [...currentChat.messages, newMessage],
-      lastMessage: messageText,
-      timestamp: new Date().toISOString(),
-      unread: 0,
-    })
-    setMessageText("")
+      const updatedConversations = conversations.map((conversation) => {
+        if (conversation.id === currentChat.id) {
+          return {
+            ...conversation,
+            messages: [...conversation.messages, updatedMessage],
+            last_message: messageText,
+            timestamp: new Date().toISOString(),
+            unread_count: 0,
+          }
+        }
+        return conversation
+      })
+
+      setConversations(updatedConversations)
+      setCurrentChat({
+        ...currentChat,
+        messages: [...currentChat.messages, updatedMessage],
+        last_message: messageText,
+        timestamp: new Date().toISOString(),
+        unread_count: 0,
+      })
+      setMessageText("")
+    } catch (error) {
+      console.error("Error sending message:", error)
+    }
   }
 
-  const handleChatSelect = (conversation) => {
-    // Mark as read
-    const updatedConversations = conversations.map((c) => {
-      if (c.id === conversation.id) {
-        return { ...c, unread: 0 }
-      }
-      return c
-    })
-    setConversations(updatedConversations)
-    setCurrentChat(conversation)
+  // Handle selecting a conversation
+  const handleChatSelect = async (conversation) => {
+    try {
+      // Mark messages as read
+      await apiRequest(`${API_URL}messages/threads/${conversation.id}/read/${user?.id}`, 'PATCH')
+      const updatedConversations = conversations.map((c) => {
+        if (c.id === conversation.id) {
+          return { ...c, unread_count: 0 }
+        }
+        return c
+      })
+      setConversations(updatedConversations)
+      setCurrentChat(conversation)
+    } catch (error) {
+      console.error("Error marking messages as read:", error)
+    }
   }
 
   return (
     <DashboardLayout
-      user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Marie Uwase",
-        role: "Insurance Company",
-        avatar: "/placeholder.svg?height=40&width=40",
-      }}
-      navigation={[
-        { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
-        { name: "Claims", href: "/dashboard/insurer/claims", icon: <FileText className="h-5 w-5" /> },
-        { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
-        { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
-        { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
-      ]}
-      actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
+    user={{
+      name: user?.name ? `${user.name} ` : "user name",
+      role: user?.role?.name+" @ "+ user?.tenant?.name,
+      avatar: "/placeholder.svg?height=40&width=40",
+    }}
+    navigation={[
+      { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
+      { name: "Claims", href: "/dashboard/insurer/claims", icon: <FileText className="h-5 w-5" /> },
+      {
+        name: "Multi-Signature Claims",
+        href: "/dashboard/insurer/multi-signature-claims",
+        icon: <FileText className="h-5 w-5" />,
+      },
+      { name: "Bids", href: "/dashboard/insurer/bids", icon: <FileText className="h-5 w-5" /> },
+      { name: "Documents", href: "/dashboard/insurer/documents", icon: <FileText className="h-5 w-5" /> },
+      { name: "Analytics", href: "/dashboard/insurer/analytics", icon: <BarChart3 className="h-5 w-5" /> },
+      { name: "Users", href: "/dashboard/insurer/users", icon: <Users className="h-5 w-5" /> },
+      { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
+      { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
+      { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
+      { name: "Logout", href: "/login", icon: <LogOut className="h-5 w-5" />}
+    ]}
     >
       <div className="h-[calc(100vh-120px)] flex flex-col">
         <h1 className="text-3xl font-bold mb-6">Messages</h1>
@@ -193,7 +185,7 @@ export default function InsurerMessages() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search conversations..."
+                  placeholder="Search by claim ID or participant..."
                   className="pl-8"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -204,50 +196,56 @@ export default function InsurerMessages() {
             <Tabs defaultValue="all" className="flex-1 flex flex-col">
               <div className="px-4 pt-2">
                 <TabsList className="w-full">
-                  <TabsTrigger value="all" className="flex-1">
-                    All
-                  </TabsTrigger>
-                  <TabsTrigger value="unread" className="flex-1">
-                    Unread
-                  </TabsTrigger>
+                  <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
+                  <TabsTrigger value="unread" className="flex-1">Unread</TabsTrigger>
                 </TabsList>
               </div>
 
               <TabsContent value="all" className="flex-1 overflow-auto p-0 m-0">
                 <ScrollArea className="h-full">
-                  {filteredConversations.length > 0 ? (
+                  {loading ? (
+                    <div className="p-4 text-center text-muted-foreground">Loading...</div>
+                  ) : filteredConversations.length > 0 ? (
                     filteredConversations.map((conversation) => (
                       <div
                         key={conversation.id}
-                        className={`p-4 border-b cursor-pointer hover:bg-muted/50 ${
-                          currentChat?.id === conversation.id ? "bg-muted" : ""
-                        }`}
+                        className={`p-4 border-b cursor-pointer hover:bg-muted/50 ${currentChat?.id === conversation.id ? "bg-muted" : ""
+                          }`}
                         onClick={() => handleChatSelect(conversation)}
                       >
                         <div className="flex items-start space-x-3">
                           <div className="relative">
+                          <div className="relative">
                             <img
-                              src={conversation.avatar || "/placeholder.svg"}
-                              alt={conversation.name}
+                              src={"/placeholder.svg"}
+                              alt={conversation.claim_id}
                               className="w-10 h-10 rounded-full"
                             />
-                            {conversation.unread > 0 && (
+                            {/* {conversation.unread && ( */}
                               <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                {conversation.unread}
+                                {conversation.unread_count}
+                              </span>
+                            {/* )} */}
+                          </div>
+                            {conversation.unread_count > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                {conversation.unread_count}
                               </span>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-baseline">
-                              <h3 className="font-medium truncate">{conversation.name}</h3>
+                              <h3 className="font-medium truncate">Claim {conversation.claim_id}</h3>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(conversation.timestamp), "h:mm a")}
+                                {conversation.timestamp}
                               </span>
                             </div>
-                            <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
-                            {conversation.role && (
-                              <span className="text-xs bg-muted px-1.5 py-0.5 rounded">{conversation.role}</span>
-                            )}
+                            <p className="text-sm text-muted-foreground truncate">{conversation.last_message}</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {conversation.participants.map((p) => (
+                                <span key={p.id} className="text-xs bg-muted px-1.5 py-0.5 rounded">{p.role}</span>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -260,41 +258,42 @@ export default function InsurerMessages() {
 
               <TabsContent value="unread" className="flex-1 overflow-auto p-0 m-0">
                 <ScrollArea className="h-full">
-                  {filteredConversations.filter((c) => c.unread > 0).length > 0 ? (
+                  {loading ? (
+                    <div className="p-4 text-center text-muted-foreground">Loading...</div>
+                  ) : filteredConversations.filter((c) => c.unread_count > 0).length > 0 ? (
                     filteredConversations
-                      .filter((c) => c.unread > 0)
+                      .filter((c) => c.unread_count > 0)
                       .map((conversation) => (
                         <div
                           key={conversation.id}
-                          className={`p-4 border-b cursor-pointer hover:bg-muted/50 ${
-                            currentChat?.id === conversation.id ? "bg-muted" : ""
-                          }`}
+                          className={`p-4 border-b cursor-pointer hover:bg-muted/50 ${currentChat?.id === conversation.id ? "bg-muted" : ""
+                            }`}
                           onClick={() => handleChatSelect(conversation)}
                         >
                           <div className="flex items-start space-x-3">
                             <div className="relative">
-                              <img
-                                src={conversation.avatar || "/placeholder.svg"}
-                                alt={conversation.name}
-                                className="w-10 h-10 rounded-full"
-                              />
-                              {conversation.unread > 0 && (
+                              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                                <MessageSquare className="h-5 w-5" />
+                              </div>
+                              {conversation.unread_count > 0 && (
                                 <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                  {conversation.unread}
+                                  {conversation.unread_count}
                                 </span>
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex justify-between items-baseline">
-                                <h3 className="font-medium truncate">{conversation.name}</h3>
+                                <h3 className="font-medium truncate">Claim {conversation.claim_id}</h3>
                                 <span className="text-xs text-muted-foreground">
-                                  {format(new Date(conversation.timestamp), "h:mm a")}
+                                  {conversation.timestamp}
                                 </span>
                               </div>
-                              <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
-                              {conversation.role && (
-                                <span className="text-xs bg-muted px-1.5 py-0.5 rounded">{conversation.role}</span>
-                              )}
+                              <p className="text-sm text-muted-foreground truncate">{conversation.last_message}</p>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {conversation.participants.map((p) => (
+                                  <span key={p.id} className="text-xs bg-muted px-1.5 py-0.5 rounded">{p.role}</span>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -312,16 +311,16 @@ export default function InsurerMessages() {
               <>
                 <div className="p-4 border-b flex justify-between items-center">
                   <div className="flex items-center space-x-3">
-                    <img
-                      src={currentChat.avatar || "/placeholder.svg"}
-                      alt={currentChat.name}
-                      className="w-10 h-10 rounded-full"
-                    />
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                      <MessageSquare className="h-5 w-5" />
+                    </div>
                     <div>
-                      <h3 className="font-medium">{currentChat.name}</h3>
-                      {currentChat.role && (
-                        <span className="text-xs bg-muted px-1.5 py-0.5 rounded">{currentChat.role}</span>
-                      )}
+                      <h3 className="font-medium">Claim {currentChat.claim_id}</h3>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {currentChat.participants.map((p) => (
+                          <span key={p.id} className="text-xs bg-muted px-1.5 py-0.5 rounded">{p.role}</span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -343,19 +342,17 @@ export default function InsurerMessages() {
                 <ScrollArea className="flex-1 p-4">
                   <div className="space-y-4">
                     {currentChat.messages.map((message) => (
-                      <div key={message.id} className={`flex ${message.isMe ? "justify-end" : "justify-start"}`}>
+                      <div key={message.id} className={`flex ${message.is_me ? "justify-end" : "justify-start"}`}>
                         <div
-                          className={`max-w-[70%] rounded-lg p-3 ${
-                            message.isMe ? "bg-primary text-primary-foreground" : "bg-muted"
-                          }`}
-                        >
-                          <p>{message.text}</p>
-                          <div
-                            className={`text-xs mt-1 ${
-                              message.isMe ? "text-primary-foreground/70" : "text-muted-foreground"
+                          className={`max-w-[70%] rounded-lg p-3 ${message.is_me ? "bg-primary text-primary-foreground" : "bg-muted"
                             }`}
+                        >
+                          <p>{message.content}</p>
+                          <div
+                            className={`text-xs mt-1 ${message.is_me ? "text-primary-foreground/70" : "text-muted-foreground"
+                              }`}
                           >
-                            {format(new Date(message.timestamp), "h:mm a")}
+                            <small>  {message.sender} - {message.timestamp}</small>
                           </div>
                         </div>
                       </div>

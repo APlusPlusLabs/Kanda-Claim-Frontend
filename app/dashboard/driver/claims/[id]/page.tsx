@@ -252,7 +252,7 @@ export default function ClaimDetailsPage({ params }: Props) {
     // <ErrorBoundary FallbackComponent={ErrorFallback}>
     <DashboardLayout
       user={{
-        name: user?.name||'Driver name',
+        name: user?.name || 'Driver name',
         role: "Driver",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -287,8 +287,14 @@ export default function ClaimDetailsPage({ params }: Props) {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
               <div>
                 <h2 className="text-xl font-semibold">
-                  {claim?.vehicles?.[0]?.model} {claim?.vehicles?.[0]?.make} - {claim?.vehicles?.[0]?.year} ({claim?.vehicles?.[0]?.license_plate})
+                  Client: {claim?.user.first_name} {claim?.user.first_name} - {claim?.user.phone}
                 </h2>
+                <h2 className="text-xl font-semibold">
+                  Vehicle: {claim?.vehicles?.[0]?.model} {claim?.vehicles?.[0]?.make} - {claim?.vehicles?.[0]?.year} ({claim?.vehicles?.[0]?.license_plate})
+                </h2>
+                {/* <h2 className="text-xl font-semibold">
+                  Driver: {claim?.driver_details[0]?.user.first_name} {claim?.driver_details[0]?.user.first_name} - {claim?.driver_details[0]?.user.phone}
+                </h2> */}
                 <p className="text-sm text-muted-foreground">Incident Happened on {claim.accident_date.substring(0, 10) + ' at ' + claim.accident_time}</p>
                 <p className="text-sm text-muted-foreground">Submitted on {claim.created_at?.substring(0, 10)}</p>
               </div>
@@ -421,7 +427,7 @@ export default function ClaimDetailsPage({ params }: Props) {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => window.open(doc.file_path, "_blank")}
+                                  onClick={() => window.open(STORAGES_URL + doc.file_path, "_blank")}
                                   aria-label={`Download ${doc.category?.name} ${doc.mime_type}`}
                                 >
                                   <Download className="h-4 w-4" />

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,7 +36,7 @@ import {
   Brain,
 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-provider"
+import { useAuth } from "@/lib/auth-hooks"
 import { useToast } from "@/components/ui/use-toast"
 import {
   Dialog,
@@ -60,17 +60,643 @@ import { format } from "date-fns"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { Textarea } from "@/components/ui/textarea"
 import { X } from "lucide-react"
-import { Claim, PoliceReport } from "@/lib/types/claims"
 
-const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
-
-const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
-
+// Mock data for claims with more detailed information
+const mockClaims = [
+  {
+    id: "CL-2025-001",
+    policyNumber: "POL-2024-12345",
+    vehicle: {
+      make: "Toyota",
+      model: "RAV4",
+      year: "2023",
+      plateNumber: "RAA 123A",
+      color: "Silver",
+    },
+    driver: {
+      name: "Mugisha Nkusi",
+      phone: "+250 788 123 456",
+      licenseNumber: "DL-2024-45678",
+      licenseCategory: "B",
+    },
+    accident: {
+      date: "2025-01-15",
+      time: "14:30",
+      location: "Kimironko Junction, Kigali",
+      description:
+        "Front bumper damage due to collision with another vehicle at Kimironko junction. The other driver ran a red light.",
+      policeReport: true,
+      policeStation: "Kimironko Police Station",
+      policeReportNumber: "PR-2025-0123",
+    },
+    otherVehicles: [
+      {
+        make: "Honda",
+        model: "Civic",
+        plateNumber: "RAB 456B",
+        owner: "Kamanzi Eric",
+        insurer: "Sanlam Alianz",
+        policyNumber: "POL-2024-67890",
+      },
+    ],
+    injuries: [
+      {
+        name: "Uwase Marie",
+        age: 28,
+        description: "Minor cuts and bruises on arms",
+        severity: "Minor",
+      },
+    ],
+    damages: [
+      {
+        type: "Vehicle",
+        description: "Front bumper damaged, headlight broken",
+        estimatedCost: 350000,
+      },
+      {
+        type: "Property",
+        description: "Street sign knocked down",
+        estimatedCost: 100000,
+      },
+    ],
+    garage: {
+      name: "Kigali Auto Services",
+      address: "KK 123 St, Kigali",
+      phone: "+250 788 987 654",
+    },
+    documents: [
+      { name: "Accident_Scene_1.jpg", type: "image", uploadedAt: "2025-01-15" },
+      { name: "Accident_Scene_2.jpg", type: "image", uploadedAt: "2025-01-15" },
+      { name: "Police_Report.pdf", type: "pdf", uploadedAt: "2025-01-16" },
+      { name: "Damage_Photos_1.jpg", type: "image", uploadedAt: "2025-01-15" },
+      { name: "Damage_Photos_2.jpg", type: "image", uploadedAt: "2025-01-15" },
+      { name: "Driver_License.jpg", type: "image", uploadedAt: "2025-01-15" },
+      { name: "Vehicle_Registration.jpg", type: "image", uploadedAt: "2025-01-15" },
+    ],
+    status: "Pending Review",
+    pendingReason: "Waiting for initial assessment",
+    pendingWith: "Claims Department",
+    responsiblePerson: "Marie Uwase",
+    priority: "Medium",
+    submittedAt: "2025-01-15 15:45",
+    lastUpdated: "2025-01-16 09:30",
+    estimatedAmount: 450000,
+    timeline: [
+      {
+        date: "2025-01-15 15:45",
+        event: "Claim submitted by driver",
+        status: "complete",
+        actor: "Mugisha Nkusi (Driver)",
+      },
+      {
+        date: "2025-01-16 09:30",
+        event: "Claim received and assigned for review",
+        status: "complete",
+        actor: "System",
+      },
+      {
+        date: "2025-01-16 10:15",
+        event: "Initial review started",
+        status: "in-progress",
+        actor: "Marie Uwase (Claims Agent)",
+      },
+      { date: "2025-01-18", event: "Assessment scheduling", status: "pending", actor: "Assessment Department" },
+      { date: "2025-01-20", event: "Assessment", status: "pending", actor: "Assessor" },
+      { date: "2025-01-22", event: "Repair approval", status: "pending", actor: "Claims Department" },
+      { date: "2025-01-25", event: "Repairs", status: "pending", actor: "Garage" },
+      { date: "2025-01-30", event: "Claim settlement", status: "pending", actor: "Finance Department" },
+    ],
+    notes: [
+      {
+        date: "2025-01-16 09:35",
+        author: "Marie Uwase",
+        content: "Claim appears to be valid. All required documents provided. Proceeding with initial review.",
+      },
+    ],
+  },
+  {
+    id: "CL-2025-002",
+    policyNumber: "POL-2024-78901",
+    vehicle: {
+      make: "Suzuki",
+      model: "Swift",
+      year: "2022",
+      plateNumber: "RAC 789C",
+      color: "Blue",
+    },
+    driver: {
+      name: "Uwimana Jean",
+      phone: "+250 788 234 567",
+      licenseNumber: "DL-2024-12345",
+      licenseCategory: "B",
+    },
+    accident: {
+      date: "2025-01-10",
+      time: "08:45",
+      location: "Kigali Heights Parking, Kigali",
+      description:
+        "Side mirror and door damage from parking incident at Kigali Heights. Another vehicle scraped against while parked.",
+      policeReport: false,
+    },
+    otherVehicles: [],
+    injuries: [],
+    damages: [
+      {
+        type: "Vehicle",
+        description: "Side mirror broken, driver's door scratched",
+        estimatedCost: 280000,
+      },
+    ],
+    garage: {
+      name: "Rwanda Motors",
+      address: "KN 5 Ave, Kigali",
+      phone: "+250 788 456 789",
+    },
+    documents: [
+      { name: "Damage_Photos_1.jpg", type: "image", uploadedAt: "2025-01-10" },
+      { name: "Damage_Photos_2.jpg", type: "image", uploadedAt: "2025-01-10" },
+      { name: "Damage_Photos_3.jpg", type: "image", uploadedAt: "2025-01-10" },
+      { name: "Driver_License.jpg", type: "image", uploadedAt: "2025-01-10" },
+      { name: "Vehicle_Registration.jpg", type: "image", uploadedAt: "2025-01-10" },
+    ],
+    status: "Assessment Scheduled",
+    pendingReason: "Waiting for assessor visit",
+    pendingWith: "Assessment Department",
+    responsiblePerson: "Habimana Jean",
+    priority: "Low",
+    submittedAt: "2025-01-10 10:15",
+    lastUpdated: "2025-01-12 14:20",
+    estimatedAmount: 280000,
+    timeline: [
+      {
+        date: "2025-01-10 10:15",
+        event: "Claim submitted by driver",
+        status: "complete",
+        actor: "Uwimana Jean (Driver)",
+      },
+      {
+        date: "2025-01-10 11:30",
+        event: "Claim received and assigned for review",
+        status: "complete",
+        actor: "System",
+      },
+      {
+        date: "2025-01-11 09:45",
+        event: "Initial review completed",
+        status: "complete",
+        actor: "Eric Kamanzi (Claims Agent)",
+      },
+      {
+        date: "2025-01-12 14:20",
+        event: "Assessment scheduled for 2025-01-17",
+        status: "complete",
+        actor: "Assessment Department",
+      },
+      { date: "2025-01-17", event: "Assessment", status: "pending", actor: "Habimana Jean (Assessor)" },
+      { date: "2025-01-19", event: "Repair approval", status: "pending", actor: "Claims Department" },
+      { date: "2025-01-22", event: "Repairs", status: "pending", actor: "Garage" },
+      { date: "2025-01-27", event: "Claim settlement", status: "pending", actor: "Finance Department" },
+    ],
+    notes: [
+      {
+        date: "2025-01-11 09:45",
+        author: "Eric Kamanzi",
+        content: "No police report as it was a minor parking incident. Damage appears consistent with description.",
+      },
+      {
+        date: "2025-01-12 14:20",
+        author: "Mutesi Sarah",
+        content: "Assessment scheduled for January 17th at Rwanda Motors garage.",
+      },
+    ],
+  },
+  {
+    id: "CL-2025-003",
+    policyNumber: "POL-2024-56789",
+    vehicle: {
+      make: "Honda",
+      model: "Civic",
+      year: "2024",
+      plateNumber: "RAD 456D",
+      color: "White",
+    },
+    driver: {
+      name: "Mutoni Sarah",
+      phone: "+250 788 345 678",
+      licenseNumber: "DL-2024-78901",
+      licenseCategory: "B",
+    },
+    accident: {
+      date: "2025-01-05",
+      time: "17:20",
+      location: "Nyabugogo Bus Station, Kigali",
+      description:
+        "Rear bumper damage from being hit while parked at Nyabugogo bus station. Driver was not present at the time of the incident.",
+      policeReport: true,
+      policeStation: "Nyabugogo Police Station",
+      policeReportNumber: "PR-2025-0089",
+    },
+    otherVehicles: [
+      {
+        make: "Toyota",
+        model: "Coaster",
+        plateNumber: "RAE 567E",
+        owner: "Kigali Bus Services",
+        insurer: "Sanlam Alianz",
+        policyNumber: "POL-2024-34567",
+      },
+    ],
+    injuries: [],
+    damages: [
+      {
+        type: "Vehicle",
+        description: "Rear bumper dented, tail light broken",
+        estimatedCost: 320000,
+      },
+    ],
+    garage: {
+      name: "Kigali Auto Center",
+      address: "KG 123 St, Kigali",
+      phone: "+250 788 567 890",
+    },
+    documents: [
+      { name: "Accident_Scene.jpg", type: "image", uploadedAt: "2025-01-05" },
+      { name: "Police_Report.pdf", type: "pdf", uploadedAt: "2025-01-06" },
+      { name: "Damage_Photos_1.jpg", type: "image", uploadedAt: "2025-01-05" },
+      { name: "Damage_Photos_2.jpg", type: "image", uploadedAt: "2025-01-05" },
+      { name: "Driver_License.jpg", type: "image", uploadedAt: "2025-01-05" },
+      { name: "Vehicle_Registration.jpg", type: "image", uploadedAt: "2025-01-05" },
+    ],
+    status: "Repair Approved",
+    pendingReason: "Waiting for repairs to begin",
+    pendingWith: "Garage",
+    responsiblePerson: "Kigali Auto Center",
+    priority: "Medium",
+    submittedAt: "2025-01-05 18:45",
+    lastUpdated: "2025-01-11 15:30",
+    estimatedAmount: 320000,
+    timeline: [
+      {
+        date: "2025-01-05 18:45",
+        event: "Claim submitted by driver",
+        status: "complete",
+        actor: "Mutoni Sarah (Driver)",
+      },
+      {
+        date: "2025-01-06 09:15",
+        event: "Claim received and assigned for review",
+        status: "complete",
+        actor: "System",
+      },
+      {
+        date: "2025-01-07 11:30",
+        event: "Initial review completed",
+        status: "complete",
+        actor: "Jean Mugabo (Claims Agent)",
+      },
+      { date: "2025-01-08 14:00", event: "Assessment scheduled", status: "complete", actor: "Assessment Department" },
+      {
+        date: "2025-01-09 10:30",
+        event: "Assessment completed",
+        status: "complete",
+        actor: "Claude Nshimiyimana (Assessor)",
+      },
+      { date: "2025-01-11 15:30", event: "Repair approved", status: "complete", actor: "Marie Uwase (Claims Manager)" },
+      { date: "2025-01-15", event: "Repairs to begin", status: "pending", actor: "Kigali Auto Center (Garage)" },
+      { date: "2025-01-20", event: "Claim settlement", status: "pending", actor: "Finance Department" },
+    ],
+    notes: [
+      {
+        date: "2025-01-07 11:30",
+        author: "Jean Mugabo",
+        content:
+          "Police report confirms the incident. The other party (Kigali Bus Services) has accepted responsibility.",
+      },
+      {
+        date: "2025-01-09 10:30",
+        author: "Claude Nshimiyimana",
+        content: "Damage assessment completed. Repair cost estimated at 320,000 RWF.",
+      },
+      { date: "2025-01-11 15:30", author: "Marie Uwase", content: "Repair approved. Garage can proceed with repairs." },
+    ],
+  },
+  {
+    id: "CL-2025-004",
+    policyNumber: "POL-2024-23456",
+    vehicle: {
+      make: "Toyota",
+      model: "Corolla",
+      year: "2023",
+      plateNumber: "RAF 678F",
+      color: "Black",
+    },
+    driver: {
+      name: "Nkusi Emmanuel",
+      phone: "+250 788 456 789",
+      licenseNumber: "DL-2024-56789",
+      licenseCategory: "B",
+    },
+    accident: {
+      date: "2025-01-02",
+      time: "11:15",
+      location: "Kigali-Musanze Highway, 20km from Kigali",
+      description:
+        "Windshield crack from road debris on Kigali-Musanze highway. A truck ahead kicked up a stone that hit the windshield.",
+      policeReport: false,
+    },
+    otherVehicles: [],
+    injuries: [],
+    damages: [
+      {
+        type: "Vehicle",
+        description: "Windshield cracked on driver's side",
+        estimatedCost: 150000,
+      },
+    ],
+    garage: {
+      name: "Glass Auto Rwanda",
+      address: "KK 456 St, Kigali",
+      phone: "+250 788 678 901",
+    },
+    documents: [
+      { name: "Damage_Photos_1.jpg", type: "image", uploadedAt: "2025-01-02" },
+      { name: "Damage_Photos_2.jpg", type: "image", uploadedAt: "2025-01-02" },
+      { name: "Driver_License.jpg", type: "image", uploadedAt: "2025-01-02" },
+      { name: "Vehicle_Registration.jpg", type: "image", uploadedAt: "2025-01-02" },
+    ],
+    status: "Rejected",
+    pendingReason: null,
+    pendingWith: null,
+    responsiblePerson: null,
+    priority: "Low",
+    submittedAt: "2025-01-02 12:30",
+    lastUpdated: "2025-01-04 14:45",
+    estimatedAmount: 0,
+    timeline: [
+      {
+        date: "2025-01-02 12:30",
+        event: "Claim submitted by driver",
+        status: "complete",
+        actor: "Nkusi Emmanuel (Driver)",
+      },
+      {
+        date: "2025-01-02 14:15",
+        event: "Claim received and assigned for review",
+        status: "complete",
+        actor: "System",
+      },
+      {
+        date: "2025-01-03 10:30",
+        event: "Initial review completed",
+        status: "complete",
+        actor: "Eric Kamanzi (Claims Agent)",
+      },
+      {
+        date: "2025-01-04 14:45",
+        event: "Claim rejected - Not covered under policy",
+        status: "rejected",
+        actor: "Marie Uwase (Claims Manager)",
+      },
+    ],
+    notes: [
+      {
+        date: "2025-01-03 10:30",
+        author: "Eric Kamanzi",
+        content: "Policy does not cover windshield damage from road debris unless comprehensive coverage is included.",
+      },
+      {
+        date: "2025-01-04 14:45",
+        author: "Marie Uwase",
+        content:
+          "Claim rejected as policy POL-2024-23456 only has third-party coverage, not comprehensive. Customer has been notified.",
+      },
+    ],
+  },
+  {
+    id: "CL-2025-005",
+    policyNumber: "POL-2024-90123",
+    vehicle: {
+      make: "Nissan",
+      model: "X-Trail",
+      year: "2023",
+      plateNumber: "RAG 789G",
+      color: "Green",
+    },
+    driver: {
+      name: "Gasana Robert",
+      phone: "+250 788 567 890",
+      licenseNumber: "DL-2024-34567",
+      licenseCategory: "B",
+    },
+    accident: {
+      date: "2024-12-28",
+      time: "19:45",
+      location: "Remera, Kigali",
+      description:
+        "Vehicle damaged during a hailstorm while parked outside residence in Remera. Multiple dents on roof and hood.",
+      policeReport: false,
+    },
+    otherVehicles: [],
+    injuries: [],
+    damages: [
+      {
+        type: "Vehicle",
+        description: "Multiple dents on roof, hood, and trunk from hail",
+        estimatedCost: 520000,
+      },
+    ],
+    garage: {
+      name: "Premium Auto Body",
+      address: "KN 78 Ave, Kigali",
+      phone: "+250 788 789 012",
+    },
+    documents: [
+      { name: "Damage_Photos_1.jpg", type: "image", uploadedAt: "2024-12-28" },
+      { name: "Damage_Photos_2.jpg", type: "image", uploadedAt: "2024-12-28" },
+      { name: "Damage_Photos_3.jpg", type: "image", uploadedAt: "2024-12-28" },
+      { name: "Damage_Photos_4.jpg", type: "image", uploadedAt: "2024-12-28" },
+      { name: "Driver_License.jpg", type: "image", uploadedAt: "2024-12-28" },
+      { name: "Vehicle_Registration.jpg", type: "image", uploadedAt: "2024-12-28" },
+      { name: "Weather_Report.pdf", type: "pdf", uploadedAt: "2024-12-29" },
+    ],
+    status: "Completed",
+    pendingReason: null,
+    pendingWith: null,
+    responsiblePerson: null,
+    priority: "Medium",
+    submittedAt: "2024-12-28 20:30",
+    lastUpdated: "2025-01-10 16:15",
+    estimatedAmount: 520000,
+    finalAmount: 520000,
+    timeline: [
+      {
+        date: "2024-12-28 20:30",
+        event: "Claim submitted by driver",
+        status: "complete",
+        actor: "Gasana Robert (Driver)",
+      },
+      {
+        date: "2024-12-29 09:00",
+        event: "Claim received and assigned for review",
+        status: "complete",
+        actor: "System",
+      },
+      {
+        date: "2024-12-29 14:30",
+        event: "Initial review completed",
+        status: "complete",
+        actor: "Jean Mugabo (Claims Agent)",
+      },
+      { date: "2024-12-30 10:15", event: "Assessment scheduled", status: "complete", actor: "Assessment Department" },
+      {
+        date: "2025-01-02 11:30",
+        event: "Assessment completed",
+        status: "complete",
+        actor: "Habimana Jean (Assessor)",
+      },
+      { date: "2025-01-03 15:45", event: "Repair approved", status: "complete", actor: "Marie Uwase (Claims Manager)" },
+      { date: "2025-01-04 09:30", event: "Repairs begun", status: "complete", actor: "Premium Auto Body (Garage)" },
+      { date: "2025-01-09 14:00", event: "Repairs completed", status: "complete", actor: "Premium Auto Body (Garage)" },
+      { date: "2025-01-10 16:15", event: "Claim settled and closed", status: "complete", actor: "Finance Department" },
+    ],
+    notes: [
+      {
+        date: "2024-12-29 14:30",
+        author: "Jean Mugabo",
+        content:
+          "Weather report confirms hailstorm in Remera on the date of the incident. Damage appears consistent with hail damage.",
+      },
+      {
+        date: "2025-01-02 11:30",
+        author: "Habimana Jean",
+        content:
+          "Assessment completed. Extensive hail damage to roof, hood, and trunk. Repair cost estimated at 520,000 RWF.",
+      },
+      {
+        date: "2025-01-03 15:45",
+        author: "Marie Uwase",
+        content: "Repair approved as damage is covered under comprehensive policy.",
+      },
+      {
+        date: "2025-01-09 14:00",
+        author: "Premium Auto Body",
+        content: "Repairs completed. Vehicle ready for pickup.",
+      },
+      {
+        date: "2025-01-10 16:15",
+        author: "Finance Department",
+        content: "Payment of 520,000 RWF processed to Premium Auto Body. Claim closed.",
+      },
+    ],
+  },
+  {
+    id: "CL-2025-006",
+    policyNumber: "POL-2024-45678",
+    vehicle: {
+      make: "Mazda",
+      model: "CX-5",
+      year: "2024",
+      plateNumber: "RAH 890H",
+      color: "Red",
+    },
+    driver: {
+      name: "Kamana Alex",
+      phone: "+250 788 678 901",
+      licenseNumber: "DL-2024-67890",
+      licenseCategory: "B",
+    },
+    accident: {
+      date: "2025-01-08",
+      time: "13:20",
+      location: "Gisozi, Kigali",
+      description:
+        "Vehicle stolen from parking lot at Gisozi shopping center. Driver returned from shopping to find vehicle missing.",
+      policeReport: true,
+      policeStation: "Gisozi Police Station",
+      policeReportNumber: "PR-2025-0102",
+    },
+    otherVehicles: [],
+    injuries: [],
+    damages: [
+      {
+        type: "Vehicle Theft",
+        description: "Complete vehicle theft",
+        estimatedCost: 15000000,
+      },
+    ],
+    documents: [
+      { name: "Police_Report.pdf", type: "pdf", uploadedAt: "2025-01-08" },
+      { name: "Driver_License.jpg", type: "image", uploadedAt: "2025-01-08" },
+      { name: "Vehicle_Registration.jpg", type: "image", uploadedAt: "2025-01-08" },
+      { name: "Purchase_Invoice.pdf", type: "pdf", uploadedAt: "2025-01-08" },
+    ],
+    status: "Investigation",
+    pendingReason: "Waiting for police investigation results",
+    pendingWith: "Special Investigation Unit",
+    responsiblePerson: "Nshimiyimana Claude",
+    priority: "High",
+    submittedAt: "2025-01-08 15:45",
+    lastUpdated: "2025-01-10 11:30",
+    estimatedAmount: 15000000,
+    timeline: [
+      {
+        date: "2025-01-08 15:45",
+        event: "Claim submitted by driver",
+        status: "complete",
+        actor: "Kamana Alex (Driver)",
+      },
+      {
+        date: "2025-01-08 16:30",
+        event: "Claim received and assigned for review",
+        status: "complete",
+        actor: "System",
+      },
+      {
+        date: "2025-01-09 09:15",
+        event: "Initial review completed",
+        status: "complete",
+        actor: "Jean Mugabo (Claims Agent)",
+      },
+      {
+        date: "2025-01-09 11:30",
+        event: "Claim escalated to Special Investigation Unit",
+        status: "complete",
+        actor: "Marie Uwase (Claims Manager)",
+      },
+      {
+        date: "2025-01-10 11:30",
+        event: "Investigation initiated",
+        status: "in-progress",
+        actor: "Nshimiyimana Claude (Special Investigator)",
+      },
+      { date: "2025-01-20", event: "Investigation results", status: "pending", actor: "Special Investigation Unit" },
+      { date: "2025-01-25", event: "Claim decision", status: "pending", actor: "Claims Department" },
+    ],
+    notes: [
+      {
+        date: "2025-01-09 09:15",
+        author: "Jean Mugabo",
+        content:
+          "Police report confirms vehicle theft. Due to high value, claim is being escalated to Special Investigation Unit.",
+      },
+      {
+        date: "2025-01-09 11:30",
+        author: "Marie Uwase",
+        content: "Claim assigned to Special Investigation Unit for thorough verification before processing.",
+      },
+      {
+        date: "2025-01-10 11:30",
+        author: "Nshimiyimana Claude",
+        content: "Investigation initiated. Will coordinate with police and verify all circumstances of the theft.",
+      },
+    ],
+  },
+]
 
 export default function InsurerClaimsPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, apiRequest } = useAuth()
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -80,62 +706,21 @@ export default function InsurerClaimsPage() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false)
   const [newNote, setNewNote] = useState("")
-  const [sortField, setSortField] = useState("submitted_at")
+  const [sortField, setSortField] = useState("submittedAt")
   const [sortDirection, setSortDirection] = useState("desc")
   const [activeTab, setActiveTab] = useState("all")
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
-  const [claims, setClaims] = useState<Claim[]>([]);
-  const [loading, setLoading] = useState(true);
-  const fetchClaims = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await apiRequest(`${API_URL}claims/${user?.tenant_id}/get-by-insurer`, "GET");
-      setClaims(response.data || []);
-    } catch (error: any) {
-      if (Array.isArray(error.errors)) {
-        error.errors.forEach((er: string) => {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: er,
-          });
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to fetch claim data",
-        });
-      }
-      console.error("Error fetching claims:", error);
-      setClaims([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [apiRequest, toast, user?.id]);
 
-  useEffect(() => {
-    if (user) {
-      fetchClaims();
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "You have to sign in to use this panel",
-      });
-      router.push("/login");
-    }
-  }, [user, fetchClaims, router, toast]);
   // Filter claims based on search query, status filter, priority filter, and date filter
-  const filteredClaims = claims.filter((claim) => {
+  const filteredClaims = mockClaims.filter((claim) => {
     const matchesSearch =
       claim.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      claim.vehicles[0]?.make.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      claim.vehicles[0]?.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      claim.vehicles[0]?.license_plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      claim.driver_details?.user?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      claim.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      claim.policy_number.toLowerCase().includes(searchQuery.toLowerCase())
+      claim.vehicle.make.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      claim.vehicle.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      claim.vehicle.plateNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      claim.driver.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      claim.accident.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      claim.policyNumber.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus =
       statusFilter === "all" ||
@@ -154,7 +739,7 @@ export default function InsurerClaimsPage() {
       (priorityFilter === "low" && claim.priority === "Low")
 
     // Date filtering logic
-    const claimDate = new Date(claim.submitted_at ? claim.submitted_at : claim.created_at)
+    const claimDate = new Date(claim.submittedAt)
     const now = new Date()
     const isToday = claimDate.toDateString() === now.toDateString()
     const isThisWeek = claimDate > new Date(now.setDate(now.getDate() - 7))
@@ -175,13 +760,13 @@ export default function InsurerClaimsPage() {
 
     // Determine the values to compare based on the sort field
     switch (sortField) {
-      case "submitted_at":
-        aValue = new Date(a.submitted_at).getTime()
-        bValue = new Date(b.submitted_at).getTime()
+      case "submittedAt":
+        aValue = new Date(a.submittedAt).getTime()
+        bValue = new Date(b.submittedAt).getTime()
         break
-      case "updated_at":
-        aValue = new Date(a.updated_at).getTime()
-        bValue = new Date(b.updated_at).getTime()
+      case "lastUpdated":
+        aValue = new Date(a.lastUpdated).getTime()
+        bValue = new Date(b.lastUpdated).getTime()
         break
       case "priority":
         const priorityOrder = { High: 3, Medium: 2, Low: 1 }
@@ -229,14 +814,6 @@ export default function InsurerClaimsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "Draft":
-        return <Badge className="bg-yellow-500">Draft Stage</Badge>
-      case "Submitted":
-        return <Badge className="bg-yellow-500">Submitted</Badge>
-      case "Approved":
-        return <Badge className="bg-yellow-500">Approved</Badge>
-      case "Under Review":
-        return <Badge className="bg-yellow-500">Under Review</Badge>
       case "Pending Review":
         return <Badge className="bg-yellow-500">Pending Review</Badge>
       case "Assessment Scheduled":
@@ -303,8 +880,8 @@ export default function InsurerClaimsPage() {
     }
   }
 
-  const getResponsibleIcon = (department?.name: string) => {
-    switch (department?.name) {
+  const getResponsibleIcon = (pendingWith: string) => {
+    switch (pendingWith) {
       case "Claims Department":
         return <UserCog className="h-5 w-5 text-blue-500" />
       case "Assessment Department":
@@ -318,7 +895,7 @@ export default function InsurerClaimsPage() {
     }
   }
 
-  const handleAddNote = async () => {
+  const handleAddNote = () => {
     if (!selectedClaim || !newNote.trim()) return
 
     const updatedClaim = {
@@ -332,45 +909,17 @@ export default function InsurerClaimsPage() {
         },
       ],
     }
-    try {
-      setLoading(true)
-      const newNoteData = {
-        tenant_id: user?.tenant_id,
-        user_id: user?.id,
-        claim_id: selectedClaim?.id,
-        content: newNote
-      }
-      const response = await apiRequest(`${API_URL}notes/${selectedClaim?.id}`, "POST", newNoteData)
-      response.data
-      setSelectedClaim(response.data)
-      setNewNote("")
-      setIsNotesDialogOpen(false)
 
-      toast({
-        title: "Note added",
-        description: "Your note has been added to the claim.",
-      })
-    } catch (error: any) {
-      if (Array.isArray(error.errors)) {
-        error.errors.forEach((er: string) => {
-          toast({
-            variant: "destructive",
-            title: "Error while sending new note",
-            description: er,
-          });
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to send claim note data",
-        });
-      }
-      console.error("Error sendin note:", error);
-      setClaims([]);
-    } finally {
-      setLoading(false);
-    }
+    // In a real app, this would call an API to update the claim
+    // For now, we'll just update the local state
+    setSelectedClaim(updatedClaim)
+    setNewNote("")
+    setIsNotesDialogOpen(false)
+
+    toast({
+      title: "Note added",
+      description: "Your note has been added to the claim.",
+    })
   }
 
   const handleAssignClaim = (department: string, person: string) => {
@@ -378,9 +927,9 @@ export default function InsurerClaimsPage() {
 
     const updatedClaim = {
       ...selectedClaim,
-      department?.name: department,
+      pendingWith: department,
       responsiblePerson: person,
-      updated_at: format(new Date(), "yyyy-MM-dd HH:mm"),
+      lastUpdated: format(new Date(), "yyyy-MM-dd HH:mm"),
       notes: [
         ...selectedClaim.notes,
         {
@@ -408,7 +957,7 @@ export default function InsurerClaimsPage() {
     const updatedClaim = {
       ...selectedClaim,
       status: newStatus,
-      updated_at: format(new Date(), "yyyy-MM-dd HH:mm"),
+      lastUpdated: format(new Date(), "yyyy-MM-dd HH:mm"),
       notes: [
         ...selectedClaim.notes,
         {
@@ -432,18 +981,11 @@ export default function InsurerClaimsPage() {
   const handleAIAnalysis = () => {
     router.push(`/dashboard/insurer/claims/${selectedClaim?.id}/analysis`)
   }
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="animate-pulse bg-muted h-10 w-1/4 rounded"></div>
-        <div className="animate-pulse bg-muted h-64 w-full rounded"></div>
-      </div>
-    );
-  }
+
   return (
     <DashboardLayout
       user={{
-        name: user?.name || "Insurer Name",
+        name: user?.first_name ? `${user.first_name} ${user.last_name}` : "Sanlam Rwanda",
         role: "Insurance Company",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -608,9 +1150,9 @@ export default function InsurerClaimsPage() {
                         </Button>
                       </TableHead>
                       <TableHead>
-                        <Button variant="ghost" className="p-0 font-semibold" onClick={() => handleSort("submitted_at")}>
+                        <Button variant="ghost" className="p-0 font-semibold" onClick={() => handleSort("submittedAt")}>
                           Submitted
-                          {sortField === "submitted_at" && (
+                          {sortField === "submittedAt" && (
                             <ArrowUpDown className={`ml-2 h-4 w-4 ${sortDirection === "asc" ? "rotate-180" : ""}`} />
                           )}
                         </Button>
@@ -628,45 +1170,45 @@ export default function InsurerClaimsPage() {
                         >
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
-                              <span>{claim.code}</span>
-                              <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
+                              <span>{claim.id}</span>
+                              <span className="text-xs text-muted-foreground">{claim.policyNumber}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="font-medium">
-                                {claim.vehicles[0]?.make} {claim.vehicles[0]?.model}
+                                {claim.vehicle.make} {claim.vehicle.model}
                               </span>
-                              <span className="text-xs">{claim.vehicles[0]?.license_plate}</span>
-                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details[0]?.user?.name || claim.user.name}</span>
+                              <span className="text-xs">{claim.vehicle.plateNumber}</span>
+                              <span className="text-xs text-muted-foreground mt-1">{claim.driver.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.accident_date), "MMM d, yyyy")}</span>
-                              <span className="text-xs text-muted-foreground">{claim.location}</span>
+                              <span className="text-sm">{format(new Date(claim.accident.date), "MMM d, yyyy")}</span>
+                              <span className="text-xs text-muted-foreground">{claim.accident.location}</span>
                               <span className="text-xs text-muted-foreground line-clamp-1 max-w-[250px]">
-                                {claim.description}
+                                {claim.accident.description}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               {getStatusBadge(claim.status)}
-                              {claim.pending_reason && (
+                              {claim.pendingReason && (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div className="flex items-center text-xs text-muted-foreground mt-1 cursor-help">
                                         <Info className="h-3 w-3 mr-1" />
-                                        <span className="truncate max-w-[120px]">{claim.pending_reason}</span>
+                                        <span className="truncate max-w-[120px]">{claim.pendingReason}</span>
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p>{claim.pending_reason}</p>
-                                      {claim.department.name && (
+                                      <p>{claim.pendingReason}</p>
+                                      {claim.pendingWith && (
                                         <p className="font-semibold mt-1">
-                                          With: {claim.department.name} ({claim.assignment?.assessor?.name})
+                                          With: {claim.pendingWith} ({claim.responsiblePerson})
                                         </p>
                                       )}
                                     </TooltipContent>
@@ -678,9 +1220,9 @@ export default function InsurerClaimsPage() {
                           <TableCell>{getPriorityBadge(claim.priority)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.submitted_at?.toString()), "MMM d, yyyy")}</span>
+                              <span className="text-sm">{format(new Date(claim.submittedAt), "MMM d, yyyy")}</span>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(claim.submitted_at), "h:mm a")}
+                                {format(new Date(claim.submittedAt), "h:mm a")}
                               </span>
                             </div>
                           </TableCell>
@@ -776,44 +1318,44 @@ export default function InsurerClaimsPage() {
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span>{claim.id}</span>
-                              <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
+                              <span className="text-xs text-muted-foreground">{claim.policyNumber}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="font-medium">
-                                {claim.vehicles[0]?.make} {claim.vehicles[0]?.model}
+                                {claim.vehicle.make} {claim.vehicle.model}
                               </span>
-                              <span className="text-xs">{claim.vehicles[0]?.license_plate}</span>
-                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details?.user?.name}</span>
+                              <span className="text-xs">{claim.vehicle.plateNumber}</span>
+                              <span className="text-xs text-muted-foreground mt-1">{claim.driver.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.accident_date), "MMM d, yyyy")}</span>
-                              <span className="text-xs text-muted-foreground">{claim.location}</span>
+                              <span className="text-sm">{format(new Date(claim.accident.date), "MMM d, yyyy")}</span>
+                              <span className="text-xs text-muted-foreground">{claim.accident.location}</span>
                               <span className="text-xs text-muted-foreground line-clamp-1 max-w-[250px]">
-                                {claim.description}
+                                {claim.accident.description}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               {getStatusBadge(claim.status)}
-                              {claim.pending_reason && (
+                              {claim.pendingReason && (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div className="flex items-center text-xs text-muted-foreground mt-1 cursor-help">
                                         <Info className="h-3 w-3 mr-1" />
-                                        <span className="truncate max-w-[120px]">{claim.pending_reason}</span>
+                                        <span className="truncate max-w-[120px]">{claim.pendingReason}</span>
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p>{claim.pending_reason}</p>
-                                      {claim.department?.name && (
+                                      <p>{claim.pendingReason}</p>
+                                      {claim.pendingWith && (
                                         <p className="font-semibold mt-1">
-                                          With: {claim.department?.name} ({claim.assignment?.assessor?.name})
+                                          With: {claim.pendingWith} ({claim.responsiblePerson})
                                         </p>
                                       )}
                                     </TooltipContent>
@@ -825,9 +1367,9 @@ export default function InsurerClaimsPage() {
                           <TableCell>{getPriorityBadge(claim.priority)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.submitted_at?.toString()), "MMM d, yyyy")}</span>
+                              <span className="text-sm">{format(new Date(claim.submittedAt), "MMM d, yyyy")}</span>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(claim.submitted_at?.toString()), "h:mm a")}
+                                {format(new Date(claim.submittedAt), "h:mm a")}
                               </span>
                             </div>
                           </TableCell>
@@ -923,44 +1465,44 @@ export default function InsurerClaimsPage() {
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span>{claim.id}</span>
-                              <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
+                              <span className="text-xs text-muted-foreground">{claim.policyNumber}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="font-medium">
-                                {claim.vehicles[0]?.make} {claim.vehicles[0]?.model}
+                                {claim.vehicle.make} {claim.vehicle.model}
                               </span>
-                              <span className="text-xs">{claim.vehicles[0]?.license_plate}</span>
-                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details?.user?.name}</span>
+                              <span className="text-xs">{claim.vehicle.plateNumber}</span>
+                              <span className="text-xs text-muted-foreground mt-1">{claim.driver.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.accident_date), "MMM d, yyyy")}</span>
-                              <span className="text-xs text-muted-foreground">{claim.location}</span>
+                              <span className="text-sm">{format(new Date(claim.accident.date), "MMM d, yyyy")}</span>
+                              <span className="text-xs text-muted-foreground">{claim.accident.location}</span>
                               <span className="text-xs text-muted-foreground line-clamp-1 max-w-[250px]">
-                                {claim.description}
+                                {claim.accident.description}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               {getStatusBadge(claim.status)}
-                              {claim.pending_reason && (
+                              {claim.pendingReason && (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div className="flex items-center text-xs text-muted-foreground mt-1 cursor-help">
                                         <Info className="h-3 w-3 mr-1" />
-                                        <span className="truncate max-w-[120px]">{claim.pending_reason}</span>
+                                        <span className="truncate max-w-[120px]">{claim.pendingReason}</span>
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p>{claim.pending_reason}</p>
-                                      {claim.department?.name && (
+                                      <p>{claim.pendingReason}</p>
+                                      {claim.pendingWith && (
                                         <p className="font-semibold mt-1">
-                                          With: {claim.department?.name} ({claim.assignment?.assessor?.name})
+                                          With: {claim.pendingWith} ({claim.responsiblePerson})
                                         </p>
                                       )}
                                     </TooltipContent>
@@ -972,9 +1514,9 @@ export default function InsurerClaimsPage() {
                           <TableCell>{getPriorityBadge(claim.priority)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.submitted_at), "MMM d, yyyy")}</span>
+                              <span className="text-sm">{format(new Date(claim.submittedAt), "MMM d, yyyy")}</span>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(claim.submitted_at), "h:mm a")}
+                                {format(new Date(claim.submittedAt), "h:mm a")}
                               </span>
                             </div>
                           </TableCell>
@@ -1070,24 +1612,24 @@ export default function InsurerClaimsPage() {
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span>{claim.id}</span>
-                              <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
+                              <span className="text-xs text-muted-foreground">{claim.policyNumber}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="font-medium">
-                                {claim.vehicles[0]?.make} {claim.vehicles[0]?.model}
+                                {claim.vehicle.make} {claim.vehicle.model}
                               </span>
-                              <span className="text-xs">{claim.vehicles[0]?.license_plate}</span>
-                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details?.user?.name}</span>
+                              <span className="text-xs">{claim.vehicle.plateNumber}</span>
+                              <span className="text-xs text-muted-foreground mt-1">{claim.driver.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.accident_date), "MMM d, yyyy")}</span>
-                              <span className="text-xs text-muted-foreground">{claim.location}</span>
+                              <span className="text-sm">{format(new Date(claim.accident.date), "MMM d, yyyy")}</span>
+                              <span className="text-xs text-muted-foreground">{claim.accident.location}</span>
                               <span className="text-xs text-muted-foreground line-clamp-1 max-w-[250px]">
-                                {claim.description}
+                                {claim.accident.description}
                               </span>
                             </div>
                           </TableCell>
@@ -1097,9 +1639,9 @@ export default function InsurerClaimsPage() {
                           <TableCell>{getPriorityBadge(claim.priority)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.submitted_at), "MMM d, yyyy")}</span>
+                              <span className="text-sm">{format(new Date(claim.submittedAt), "MMM d, yyyy")}</span>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(claim.submitted_at), "h:mm a")}
+                                {format(new Date(claim.submittedAt), "h:mm a")}
                               </span>
                             </div>
                           </TableCell>
@@ -1186,24 +1728,24 @@ export default function InsurerClaimsPage() {
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span>{claim.id}</span>
-                              <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
+                              <span className="text-xs text-muted-foreground">{claim.policyNumber}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="font-medium">
-                                {claim.vehicles[0]?.make} {claim.vehicles[0]?.model}
+                                {claim.vehicle.make} {claim.vehicle.model}
                               </span>
-                              <span className="text-xs">{claim.vehicles[0]?.license_plate}</span>
-                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details?.user?.name}</span>
+                              <span className="text-xs">{claim.vehicle.plateNumber}</span>
+                              <span className="text-xs text-muted-foreground mt-1">{claim.driver.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.accident_date), "MMM d, yyyy")}</span>
-                              <span className="text-xs text-muted-foreground">{claim.location}</span>
+                              <span className="text-sm">{format(new Date(claim.accident.date), "MMM d, yyyy")}</span>
+                              <span className="text-xs text-muted-foreground">{claim.accident.location}</span>
                               <span className="text-xs text-muted-foreground line-clamp-1 max-w-[250px]">
-                                {claim.description}
+                                {claim.accident.description}
                               </span>
                             </div>
                           </TableCell>
@@ -1213,9 +1755,9 @@ export default function InsurerClaimsPage() {
                           <TableCell>{getPriorityBadge(claim.priority)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.submitted_at), "MMM d, yyyy")}</span>
+                              <span className="text-sm">{format(new Date(claim.submittedAt), "MMM d, yyyy")}</span>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(claim.submitted_at), "h:mm a")}
+                                {format(new Date(claim.submittedAt), "h:mm a")}
                               </span>
                             </div>
                           </TableCell>
@@ -1292,7 +1834,7 @@ export default function InsurerClaimsPage() {
               <>
                 <DialogHeader>
                   <div className="flex items-center justify-between">
-                    <DialogTitle className="text-xl">Claim #{selectedClaim.code}</DialogTitle>
+                    <DialogTitle className="text-xl">Claim #{selectedClaim.id}</DialogTitle>
                     <div className="flex items-center space-x-2">
                       {getPriorityBadge(selectedClaim.priority)}
                       {getStatusBadge(selectedClaim.status)}
@@ -1301,16 +1843,16 @@ export default function InsurerClaimsPage() {
                   <DialogDescription>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-2">
                       <span>
-                        Policy: <span className="font-medium">{selectedClaim.policy_number}</span> • Submitted:{" "}
-                        {format(new Date(selectedClaim.submitted_at), "MMM d, yyyy h:mm a")}
+                        Policy: <span className="font-medium">{selectedClaim.policyNumber}</span> • Submitted:{" "}
+                        {format(new Date(selectedClaim.submittedAt), "MMM d, yyyy h:mm a")}
                       </span>
-                      {selectedClaim.department?.name && (
+                      {selectedClaim.pendingWith && (
                         <div className="flex items-center mt-2 sm:mt-0">
                           <span className="text-muted-foreground mr-1">Pending with:</span>
                           <Badge variant="outline" className="flex items-center gap-1">
-                            {getResponsibleIcon(selectedClaim.department?.name)}
+                            {getResponsibleIcon(selectedClaim.pendingWith)}
                             <span>
-                              {selectedClaim.department?.name} ({selectedClaim.assignment?.assessor?.name})
+                              {selectedClaim.pendingWith} ({selectedClaim.responsiblePerson})
                             </span>
                           </Badge>
                         </div>
@@ -1338,17 +1880,17 @@ export default function InsurerClaimsPage() {
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">Make & Model:</div>
                               <div>
-                                {selectedClaim.vehicles[0]?.make} {selectedClaim.vehicles[0]?.model} ({selectedClaim.vehicles[0]?.year}
+                                {selectedClaim.vehicle.make} {selectedClaim.vehicle.model} ({selectedClaim.vehicle.year}
                                 )
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">Plate Number:</div>
-                              <div>{selectedClaim.vehicles[0]?.license_plate}</div>
+                              <div>{selectedClaim.vehicle.plateNumber}</div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">Color:</div>
-                              <div>{selectedClaim.vehicles[0]?.color}</div>
+                              <div>{selectedClaim.vehicle.color}</div>
                             </div>
                           </div>
                         </div>
@@ -1360,43 +1902,42 @@ export default function InsurerClaimsPage() {
                           <div className="bg-muted p-3 rounded-md space-y-2">
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">Name:</div>
-                              <div>{selectedClaim.driver_details[0]?.user?.name || selectedClaim.user?.name}</div>
+                              <div>{selectedClaim.driver.name}</div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">Phone:</div>
-                              <div>{selectedClaim.driver_details[0]?.user?.phone || selectedClaim.user?.phone}</div>
+                              <div>{selectedClaim.driver.phone}</div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">License Number:</div>
-                              <div>{selectedClaim.driver_details[0]?.license_number}</div>
+                              <div>{selectedClaim.driver.licenseNumber}</div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">License Category:</div>
-                              <div>{selectedClaim.driver_details[0]?.license_category}</div>
+                              <div>{selectedClaim.driver.licenseCategory}</div>
                             </div>
                           </div>
                         </div>
 
-                        {selectedClaim.garages && selectedClaim.garages.lenght > 0 && (
+                        {selectedClaim.garage && (
                           <div>
                             <h3 className="text-sm font-semibold mb-2 flex items-center">
                               <Wrench className="h-4 w-4 mr-2" /> Garage Information
                             </h3>
-                            selectedClaim.garages.map( (garage: Garage) =>(
                             <div className="bg-muted p-3 rounded-md space-y-2">
                               <div className="grid grid-cols-2 gap-2 text-sm">
                                 <div className="text-muted-foreground">Name:</div>
-                                <div>{garage.name}</div>
+                                <div>{selectedClaim.garage.name}</div>
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-sm">
                                 <div className="text-muted-foreground">Address:</div>
-                                <div>{garage.address}</div>
+                                <div>{selectedClaim.garage.address}</div>
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-sm">
                                 <div className="text-muted-foreground">Phone:</div>
-                                <div>{garage.phone}</div>
+                                <div>{selectedClaim.garage.phone}</div>
                               </div>
-                            </div>))
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1410,48 +1951,39 @@ export default function InsurerClaimsPage() {
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">Date & Time:</div>
                               <div>
-                                {format(new Date(selectedClaim.accident_date), "MMM d, yyyy")} at{" "}
-                                {selectedClaim.accident_time}
+                                {format(new Date(selectedClaim.accident.date), "MMM d, yyyy")} at{" "}
+                                {selectedClaim.accident.time}
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">Location:</div>
-                              <div>{selectedClaim.location}</div>
+                              <div>{selectedClaim.accident.location}</div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="text-muted-foreground">Police Report:</div>
                               <div>
-                                {selectedClaim.police_assignment?.length ? (
+                                {selectedClaim.accident.policeReport ? (
                                   <span className="text-green-600">Yes</span>
                                 ) : (
                                   <span className="text-red-600">No</span>
                                 )}
                               </div>
                             </div>
-                            {selectedClaim.police_assignment && selectedClaim.police_assignement.length > 0 && (
-                              selectedClaim.police_assignment?.map((police_report: PoliceReport) => (
-                                <>
-                                  <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div className="text-muted-foreground">Police Station:</div>
-                                    <div>{police_report.police_station}</div>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div className="text-muted-foreground">Report Number:</div>
-                                    <div>{police_report.police_report_number}</div>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div className="text-muted-foreground">Police Officer Name:</div>
-                                    <div>{police_report.police_officer_name}</div>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div className="text-muted-foreground">Police Officer Phone:</div>
-                                    <div>{police_report.police_officer_phone}</div>
-                                  </div>
-                                </>))
+                            {selectedClaim.accident.policeReport && (
+                              <>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div className="text-muted-foreground">Police Station:</div>
+                                  <div>{selectedClaim.accident.policeStation}</div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div className="text-muted-foreground">Report Number:</div>
+                                  <div>{selectedClaim.accident.policeReportNumber}</div>
+                                </div>
+                              </>
                             )}
                             <div className="text-sm mt-2">
                               <div className="text-muted-foreground mb-1">Description:</div>
-                              <div className="text-sm">{selectedClaim.description}</div>
+                              <div className="text-sm">{selectedClaim.accident.description}</div>
                             </div>
                           </div>
                         </div>
@@ -1472,17 +2004,16 @@ export default function InsurerClaimsPage() {
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div className="text-muted-foreground">Plate Number:</div>
-                                    <div>{vehicle.license_plate}</div>
+                                    <div>{vehicle.plateNumber}</div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div className="text-muted-foreground">Owner:</div>
                                     <div>{vehicle.owner}</div>
-                                    <div><small>Address: {vehicle.owner_address}</small></div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div className="text-muted-foreground">Insurer:</div>
                                     <div>
-                                      {vehicle.insurer_name} ({vehicle.policy_number})
+                                      {vehicle.insurer} ({vehicle.policyNumber})
                                     </div>
                                   </div>
                                   {index < selectedClaim.otherVehicles.length - 1 && <Separator className="my-2" />}
@@ -1503,16 +2034,16 @@ export default function InsurerClaimsPage() {
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div className="text-muted-foreground">Person:</div>
                                     <div>
-                                      {injury.name} ({injury.age} yrs)
+                                      {injury.name} ({injury.age} years)
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div className="text-muted-foreground">Is Dead?:</div>
-                                    <div>{injury.is_deceased}</div>
+                                    <div className="text-muted-foreground">Severity:</div>
+                                    <div>{injury.severity}</div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div className="text-muted-foreground">Description:</div>
-                                    <div>{injury.injury_description}</div>
+                                    <div>{injury.description}</div>
                                   </div>
                                   {index < selectedClaim.injuries.length - 1 && <Separator className="my-2" />}
                                 </div>
@@ -1531,8 +2062,7 @@ export default function InsurerClaimsPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Property owner</TableHead>
-                              <TableHead>Damage Type</TableHead>
+                              <TableHead>Type</TableHead>
                               <TableHead>Description</TableHead>
                               <TableHead className="text-right">Estimated Cost (RWF)</TableHead>
                             </TableRow>
@@ -1540,10 +2070,9 @@ export default function InsurerClaimsPage() {
                           <TableBody>
                             {selectedClaim.damages.map((damage: any, index: number) => (
                               <TableRow key={index}>
-                                <TableCell>{damage.owner_name}</TableCell>
                                 <TableCell>{damage.type}</TableCell>
                                 <TableCell>{damage.description}</TableCell>
-                                <TableCell className="text-right">{damage.estimated_cost.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{damage.estimatedCost.toLocaleString()}</TableCell>
                               </TableRow>
                             ))}
                             <TableRow>
@@ -1552,7 +2081,7 @@ export default function InsurerClaimsPage() {
                               </TableCell>
                               <TableCell className="font-semibold text-right">
                                 {selectedClaim.damages
-                                  .reduce((sum: number, damage: any) => sum + damage.estimated_cost, 0)
+                                  .reduce((sum: number, damage: any) => sum + damage.estimatedCost, 0)
                                   .toLocaleString()}{" "}
                                 RWF
                               </TableCell>
@@ -1572,16 +2101,16 @@ export default function InsurerClaimsPage() {
                               {doc.type === "image" ? (
                                 <div
                                   className="cursor-pointer"
-                                  onClick={() => {
-                                    const imageUrl = `${STORAGES_URL + doc.file_path}` || `/placeholder.svg?height=300&width=400&text=${encodeURIComponent(doc.file_name)}`;
-                                    console.log("Setting image URL:", imageUrl);
-                                    setSelectedImage(imageUrl);
-                                  }}
+                                  onClick={() =>
+                                    setSelectedImage(
+                                      `/placeholder.svg?height=300&width=400&text=${encodeURIComponent(doc.name)}`,
+                                    )
+                                  }
                                 >
                                   <AspectRatio ratio={4 / 3} className="bg-muted">
                                     <img
-                                      src={`${STORAGES_URL + doc.file_path}`}
-                                      alt={`Document: ${doc.category?.name} ${doc.mime_type}`}
+                                      src={`/placeholder.svg?height=300&width=400&text=${encodeURIComponent(doc.name)}`}
+                                      alt={doc.name}
                                       className="object-cover w-full h-full"
                                     />
                                   </AspectRatio>
@@ -1595,14 +2124,13 @@ export default function InsurerClaimsPage() {
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center">
                                     {getDocumentIcon(doc.type)}
-                                    <span className="ml-2 text-sm font-medium truncate max-w-[150px]">{doc.category?.name} {doc.mime_type}</span>
+                                    <span className="ml-2 text-sm font-medium truncate max-w-[150px]">{doc.name}</span>
                                   </div>
-                                  <Button variant="ghost" size="icon" onClick={() => window.open(STORAGES_URL + doc.file_path, "_blank")}
-                                    aria-label={`Download ${doc.category?.name} ${doc.mime_type}`}>
+                                  <Button variant="ghost" size="icon">
                                     <Download className="h-4 w-4" />
                                   </Button>
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-1">Uploaded: {format(new Date(doc.created_at), "yyyy-MM-dd")}</div>
+                                <div className="text-xs text-muted-foreground mt-1">Uploaded: {doc.uploadedAt}</div>
                               </div>
                             </CardContent>
                           </Card>
@@ -1613,7 +2141,7 @@ export default function InsurerClaimsPage() {
 
                   <TabsContent value="timeline">
                     <div className="space-y-4">
-                      {selectedClaim.timeline?.map((item: any, index: number) => (
+                      {selectedClaim.timeline.map((item: any, index: number) => (
                         <div key={index} className="flex">
                           <div className="mr-3">{getTimelineStatusIcon(item.status)}</div>
                           <div className="flex-1">
@@ -1631,7 +2159,7 @@ export default function InsurerClaimsPage() {
                   <TabsContent value="notes">
                     <div className="space-y-4">
                       {selectedClaim.notes.length > 0 ? (
-                        selectedClaim.notes?.map((note: any, index: number) => (
+                        selectedClaim.notes.map((note: any, index: number) => (
                           <Card key={index}>
                             <CardContent className="p-4">
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
