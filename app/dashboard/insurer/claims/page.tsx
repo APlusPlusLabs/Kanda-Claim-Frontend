@@ -60,7 +60,12 @@ import { format } from "date-fns"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { Textarea } from "@/components/ui/textarea"
 import { X } from "lucide-react"
-import { Claim, PoliceReport } from "@/lib/types/claims"
+import { Claim, Garage, PoliceReport } from "@/lib/types/claims"
+import { randomUUID } from "crypto"
+import { Form, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 
@@ -85,7 +90,31 @@ export default function InsurerClaimsPage() {
   const [activeTab, setActiveTab] = useState("all")
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const mockdepartments = [
+    {
+      name: "Claims Department (Mock)", description: "Claims Department", id: randomUUID,
+      tenant_id: user?.tenant_id
+    },
+    {
+      name: "Assessment Department (Mock)", description: "Assessment Department", id: randomUUID,
+      tenant_id: user?.tenant_id
+    },
+    {
+      name: "Special Investigation Unit (Mock)", description: "Special Investigation Unit Department", id: randomUUID,
+      tenant_id: user?.tenant_id
+    },
+    {
+      name: "Finance Department (Mock)", description: "Finance Department", id: randomUUID,
+      tenant_id: user?.tenant_id
+    },
+    {
+      name: "Garage (Mock)", description: "Garage Department", id: randomUUID,
+      tenant_id: user?.tenant_id
+    }
+  ]
   const fetchClaims = useCallback(async () => {
     try {
       setLoading(true);
@@ -117,6 +146,7 @@ export default function InsurerClaimsPage() {
   useEffect(() => {
     if (user) {
       fetchClaims();
+      setDepartments(user.tenant.departments || mockdepartments)
     } else {
       toast({
         variant: "destructive",
@@ -141,17 +171,20 @@ export default function InsurerClaimsPage() {
       statusFilter === "all" ||
       (statusFilter === "pending" &&
         (claim.status === "Pending Review" ||
+          claim.status === "Draft" ||
+          claim.status === "Submitted" ||
           claim.status === "Assessment Scheduled" ||
           claim.status === "Investigation")) ||
       (statusFilter === "approved" && claim.status === "Repair Approved") ||
+      (statusFilter === "approved" && claim.status === "Approved") ||
       (statusFilter === "completed" && claim.status === "Completed") ||
       (statusFilter === "rejected" && claim.status === "Rejected")
 
     const matchesPriority =
       priorityFilter === "all" ||
-      (priorityFilter === "high" && claim.priority === "High") ||
-      (priorityFilter === "medium" && claim.priority === "Medium") ||
-      (priorityFilter === "low" && claim.priority === "Low")
+      (priorityFilter === "high" && claim.priority === "high") ||
+      (priorityFilter === "medium" && claim.priority === "medium") ||
+      (priorityFilter === "low" && claim.priority === "low")
 
     // Date filtering logic
     const claimDate = new Date(claim.submitted_at ? claim.submitted_at : claim.created_at)
@@ -209,6 +242,10 @@ export default function InsurerClaimsPage() {
     (claim) =>
       claim.status === "Pending Review" || claim.status === "Assessment Scheduled" || claim.status === "Investigation",
   )
+  const draftClaims = sortedClaims.filter((claim) => claim.status === "Draft")
+  const ApprovedClaims = sortedClaims.filter((claim) => claim.status === "Approved")
+  const submittedClaims = sortedClaims.filter((claim) => claim.status === "Submitted")
+  const underReviewClaims = sortedClaims.filter((claim) => claim.status === "Under Review")
   const approvedClaims = sortedClaims.filter((claim) => claim.status === "Repair Approved")
   const completedClaims = sortedClaims.filter((claim) => claim.status === "Completed")
   const rejectedClaims = sortedClaims.filter((claim) => claim.status === "Rejected")
@@ -303,8 +340,8 @@ export default function InsurerClaimsPage() {
     }
   }
 
-  const getResponsibleIcon = (department?.name: string) => {
-    switch (department?.name) {
+  const getResponsibleIcon = (departmentname: string) => {
+    switch (departmentname) {
       case "Claims Department":
         return <UserCog className="h-5 w-5 text-blue-500" />
       case "Assessment Department":
@@ -317,21 +354,59 @@ export default function InsurerClaimsPage() {
         return <User className="h-5 w-5 text-gray-500" />
     }
   }
+  const assignFormDataSchama = z.object({
+    department_id: z.string().min(1, { message: "Department is required" }), // Changed from 2
+    assessor_id: z.string().min(1, { message: "Agent/Assessor is required" }), // Changed from 16
+    notes: z.string().optional(),
+  });
+
+  const assignForm = useForm<z.infer<typeof assignFormDataSchama>>({
+    resolver: zodResolver(assignFormDataSchama),
+    defaultValues: {
+      department_id: departments?.[0]?.id?.toString() || '', // Fixed to use departments, not mockdepartments
+      assessor_id: user?.tenant?.users?.[0]?.id?.toString() || '',
+      notes: ''
+    },
+  });
+
+  const onSubmitAssignClaim = async (values: z.infer<typeof assignFormDataSchama>) => {
+    if (!selectedClaim) return
+    try {
+      const newAssignment = await apiRequest(`${API_URL}claims/assign/${selectedClaim.id}`, "POST", {
+        department_id: values.department_id,
+        assessor_id: values.assessor_id,
+        tenant_id: user?.tenant_id,
+        user_id: user?.id,
+        claim_id: selectedClaim.id,
+        notes: values.notes
+      });
+
+      const updatedClaim = {
+        ...selectedClaim,
+        department_id: values.department_id,
+        assignment: newAssignment
+      }
+      setSelectedClaim(updatedClaim)
+      setIsAssignDialogOpen(false)
+      toast({
+        title: "Assigned successfully",
+        description: `Successfully been assigned agent & department to claim ${selectedClaim.code}.`,
+      });
+
+      assignForm.reset();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to assign department & user to claim.",
+      });
+    }
+  };
 
   const handleAddNote = async () => {
     if (!selectedClaim || !newNote.trim()) return
 
-    const updatedClaim = {
-      ...selectedClaim,
-      notes: [
-        ...selectedClaim.notes,
-        {
-          date: format(new Date(), "yyyy-MM-dd HH:mm"),
-          author: user?.first_name ? `${user.first_name} ${user.last_name}` : "Claims Agent",
-          content: newNote,
-        },
-      ],
-    }
+
     try {
       setLoading(true)
       const newNoteData = {
@@ -341,8 +416,15 @@ export default function InsurerClaimsPage() {
         content: newNote
       }
       const response = await apiRequest(`${API_URL}notes/${selectedClaim?.id}`, "POST", newNoteData)
-      response.data
-      setSelectedClaim(response.data)
+      const noteFromRsponse = response.data
+      const updatedClaim = {
+        ...selectedClaim,
+        notes: [
+          ...selectedClaim.notes,
+          noteFromRsponse
+        ],
+      }
+      setSelectedClaim(updatedClaim)
       setNewNote("")
       setIsNotesDialogOpen(false)
 
@@ -373,34 +455,7 @@ export default function InsurerClaimsPage() {
     }
   }
 
-  const handleAssignClaim = (department: string, person: string) => {
-    if (!selectedClaim) return
 
-    const updatedClaim = {
-      ...selectedClaim,
-      department?.name: department,
-      responsiblePerson: person,
-      updated_at: format(new Date(), "yyyy-MM-dd HH:mm"),
-      notes: [
-        ...selectedClaim.notes,
-        {
-          date: format(new Date(), "yyyy-MM-dd HH:mm"),
-          author: user?.first_name ? `${user.first_name} ${user.last_name}` : "Claims Agent",
-          content: `Claim assigned to ${person} in ${department}.`,
-        },
-      ],
-    }
-
-    // In a real app, this would call an API to update the claim
-    // For now, we'll just update the local state
-    setSelectedClaim(updatedClaim)
-    setIsAssignDialogOpen(false)
-
-    toast({
-      title: "Claim assigned",
-      description: `Claim has been assigned to ${person} in ${department}.`,
-    })
-  }
 
   const handleUpdateStatus = (newStatus: string) => {
     if (!selectedClaim) return
@@ -487,6 +542,9 @@ export default function InsurerClaimsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="draft">Draft Stage</SelectItem>
+                  <SelectItem value="submitted">Submitted 100%</SelectItem>
+                  <SelectItem value="underReview">Under Review</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
@@ -523,7 +581,25 @@ export default function InsurerClaimsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
+          <Card className="bg-gray-50 border-yellow-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-800">Draft Claims</CardTitle>
+              <div className="text-2xl font-bold text-gray-900">{draftClaims.length}</div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xs text-gray-700">Claims submition NOT completed </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-green-80 border-green-300">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-green-700">Submitted Claims</CardTitle>
+              <div className="text-2xl font-bold text-green-600">{submittedClaims.length}</div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xs text-green-500">Claims just submitted 100%</div>
+            </CardContent>
+          </Card>
           <Card className="bg-yellow-50 border-yellow-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-yellow-800">Pending Claims</CardTitle>
@@ -1299,23 +1375,23 @@ export default function InsurerClaimsPage() {
                     </div>
                   </div>
                   <DialogDescription>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-2">
+                    <span className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-2">
                       <span>
                         Policy: <span className="font-medium">{selectedClaim.policy_number}</span> • Submitted:{" "}
                         {format(new Date(selectedClaim.submitted_at), "MMM d, yyyy h:mm a")}
                       </span>
                       {selectedClaim.department?.name && (
-                        <div className="flex items-center mt-2 sm:mt-0">
-                          <span className="text-muted-foreground mr-1">Pending with:</span>
+                        <span className="flex items-center mt-2 sm:mt-0">
+                          <span className="text-muted-foreground mr-1">{selectedClaim.status} :</span>
                           <Badge variant="outline" className="flex items-center gap-1">
                             {getResponsibleIcon(selectedClaim.department?.name)}
                             <span>
                               {selectedClaim.department?.name} ({selectedClaim.assignment?.assessor?.name})
                             </span>
                           </Badge>
-                        </div>
+                        </span>
                       )}
-                    </div>
+                    </span>
                   </DialogDescription>
                 </DialogHeader>
 
@@ -1376,27 +1452,27 @@ export default function InsurerClaimsPage() {
                             </div>
                           </div>
                         </div>
-
-                        {selectedClaim.garages && selectedClaim.garages.lenght > 0 && (
+                        {selectedClaim.garages && selectedClaim.garages.length > 0 && (
                           <div>
                             <h3 className="text-sm font-semibold mb-2 flex items-center">
                               <Wrench className="h-4 w-4 mr-2" /> Garage Information
                             </h3>
-                            selectedClaim.garages.map( (garage: Garage) =>(
-                            <div className="bg-muted p-3 rounded-md space-y-2">
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="text-muted-foreground">Name:</div>
-                                <div>{garage.name}</div>
+                            {selectedClaim.garages.map((garage: Garage) => (
+                              <div key={garage.id} className="bg-muted p-3 rounded-md space-y-2">
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div className="text-muted-foreground">Name:</div>
+                                  <div>{garage.name}</div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div className="text-muted-foreground">Address:</div>
+                                  <div>{garage.address}</div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div className="text-muted-foreground">Phone:</div>
+                                  <div>{garage.phone}</div>
+                                </div>
                               </div>
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="text-muted-foreground">Address:</div>
-                                <div>{garage.address}</div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="text-muted-foreground">Phone:</div>
-                                <div>{garage.phone}</div>
-                              </div>
-                            </div>))
+                            ))}
                           </div>
                         )}
                       </div>
@@ -1503,12 +1579,12 @@ export default function InsurerClaimsPage() {
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div className="text-muted-foreground">Person:</div>
                                     <div>
-                                      {injury.name} ({injury.age} yrs)
+                                      {injury.name} <br /> ({injury.age} yrs)
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div className="text-muted-foreground">Is Dead?:</div>
-                                    <div>{injury.is_deceased}</div>
+                                    <div>{injury.is_deceased ? 'Yes' : 'No'}</div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div className="text-muted-foreground">Description:</div>
@@ -1569,7 +1645,7 @@ export default function InsurerClaimsPage() {
                         {selectedClaim.documents.map((doc: any, index: number) => (
                           <Card key={index} className="overflow-hidden">
                             <CardContent className="p-0">
-                              {doc.type === "image" ? (
+                              {doc.mime_type.startsWith('image/') ? (
                                 <div
                                   className="cursor-pointer"
                                   onClick={() => {
@@ -1578,13 +1654,12 @@ export default function InsurerClaimsPage() {
                                     setSelectedImage(imageUrl);
                                   }}
                                 >
-                                  <AspectRatio ratio={4 / 3} className="bg-muted">
-                                    <img
-                                      src={`${STORAGES_URL + doc.file_path}`}
-                                      alt={`Document: ${doc.category?.name} ${doc.mime_type}`}
-                                      className="object-cover w-full h-full"
-                                    />
-                                  </AspectRatio>
+
+                                  <img
+                                    src={`${STORAGES_URL + doc.file_path}`}
+                                    alt={`Document: ${doc.category?.name} ${doc.mime_type}`}
+                                    className="object-cover w-full h-full"
+                                  />
                                 </div>
                               ) : (
                                 <div className="h-[200px] flex items-center justify-center bg-muted">
@@ -1594,7 +1669,7 @@ export default function InsurerClaimsPage() {
                               <div className="p-3">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center">
-                                    {getDocumentIcon(doc.type)}
+                                    {getDocumentIcon(doc.mime_type)}
                                     <span className="ml-2 text-sm font-medium truncate max-w-[150px]">{doc.category?.name} {doc.mime_type}</span>
                                   </div>
                                   <Button variant="ghost" size="icon" onClick={() => window.open(STORAGES_URL + doc.file_path, "_blank")}
@@ -1702,44 +1777,94 @@ export default function InsurerClaimsPage() {
               <DialogTitle>Assign Claim</DialogTitle>
               <DialogDescription>Assign this claim to a department and responsible person.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Select defaultValue="Claims Department">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Claims Department">Claims Department</SelectItem>
-                    <SelectItem value="Assessment Department">Assessment Department</SelectItem>
-                    <SelectItem value="Special Investigation Unit">Special Investigation Unit</SelectItem>
-                    <SelectItem value="Finance Department">Finance Department</SelectItem>
-                    <SelectItem value="Garage">Garage</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="person">Responsible Person</Label>
-                <Select defaultValue="Marie Uwase">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select person" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Marie Uwase">Marie Uwase</SelectItem>
-                    <SelectItem value="Jean Mugabo">Jean Mugabo</SelectItem>
-                    <SelectItem value="Eric Kamanzi">Eric Kamanzi</SelectItem>
-                    <SelectItem value="Habimana Jean">Habimana Jean</SelectItem>
-                    <SelectItem value="Nshimiyimana Claude">Nshimiyimana Claude</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => handleAssignClaim("Claims Department", "Marie Uwase")}>Assign</Button>
-            </DialogFooter>
+            <Form {...assignForm}>
+              <form onSubmit={assignForm.handleSubmit(onSubmitAssignClaim)} className="space-y-4 py-4">
+                <div className="space-y-4 py-4">
+                  <FormField
+                    control={assignForm.control}
+                    name="department_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="space-y-2">
+                          <FormLabel htmlFor="department_id">Department</FormLabel>
+                          <Select
+                            name="department_id"
+                            defaultValue={departments?.[0]?.id?.toString()}
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select assigned department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {departments?.map((department) => (
+                                <SelectItem key={department.id} value={department.id.toString()}>
+                                  {department.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={assignForm.control}
+                    name="assessor_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="space-y-2">
+                          <FormLabel htmlFor="assessor_id">Responsible Person</FormLabel>
+                          <Select
+                            name="assessor_id"
+                            defaultValue={user?.tenant?.users?.[0]?.id?.toString()}
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select assigned person" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {user?.tenant?.users?.map((uza) => (
+                                <SelectItem key={uza.id} value={uza.id.toString()}>
+                                  {uza.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={assignForm.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="space-y-2">
+                          <FormLabel htmlFor="notes">Any Note?</FormLabel>
+                          <Textarea
+                            {...field}
+                            rows={2}
+                            placeholder="Optional notes..."
+                          />
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Assign</Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
 

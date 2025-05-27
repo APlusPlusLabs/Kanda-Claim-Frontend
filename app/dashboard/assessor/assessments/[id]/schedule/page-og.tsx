@@ -16,31 +16,28 @@ import { useAuth } from "@/lib/auth-provider"
 import { format } from "date-fns"
 import { useToast } from "@/components/ui/use-toast"
 import { DatePickerWithLimits } from "@/components/date-picker-with-limits"
-
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 interface Props {
   params: Promise<{ id: string }>;
 }
-
 export default function ScheduleAssessment({ params }: Props) {
   const router = useRouter()
   const { id } = use(params);
 
   const [scheduledDate, setScheduledDate] = useState<Date>(new Date())
   const [time, setTime] = useState("10:00")
-  const [duration, setDuration] = useState(2)
   const [location, setLocation] = useState("")
   const [notes, setNotes] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const { user, apiRequest } = useAuth()
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [assessment, setAssessment] = useState<any>(null);
   const [assignment, setAssignment] = useState<any>(null);
-
   const fetchAssignment = useCallback(async () => {
+
     try {
       setLoading(true);
       const response = await apiRequest(`${API_URL}claim-assignments/${id}`, "GET");
@@ -69,19 +66,6 @@ export default function ScheduleAssessment({ params }: Props) {
         }
         setAssignment(assessment)
         setAssessment(assessment)
-
-        // Pre-fill form if assessment is already scheduled
-        if (assign.scheduled_date) {
-          const scheduledDateTime = new Date(assign.scheduled_date)
-          setScheduledDate(scheduledDateTime)
-          setTime(format(scheduledDateTime, "HH:mm"))
-        }
-        if (assign.location) {
-          setLocation(assign.location)
-        }
-        if (assign.notes) {
-          setNotes(assign.notes)
-        }
       }
     } catch (error: any) {
       if (Array.isArray(error.errors)) {
@@ -119,6 +103,26 @@ export default function ScheduleAssessment({ params }: Props) {
     }
   }, [user, fetchAssignment, router, toast]);
 
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="animate-pulse bg-muted h-10 w-1/4 rounded"></div>
+        <div className="animate-pulse bg-muted h-64 w-full rounded"></div>
+      </div>
+    );
+  }
+
+  if (!assignment) {
+    return (
+      <div className="text-center py-8">
+        <h3 className="text-lg font-semibold mb-2">Error</h3>
+        <p className="text-muted-foreground">Failed to load Assessement data.</p>
+        <Button onClick={() => router.push("/dashboard/driver/assessements")} className="mt-4">
+          Back to Assessements
+        </Button>
+      </div>
+    );
+  }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -135,13 +139,17 @@ export default function ScheduleAssessment({ params }: Props) {
         scheduled_date: scheduleDateTime.toISOString(),
         location: location.trim(),
         notes: notes.trim(),
-        duration: duration,
+        claim_id: assessment.claim.id,
+        tenan_id: assessment.claim.tenant_id,
         assessor_id: user.id,
-        tenant_id: user.tenant_id,
-        claim_id: assessment.claim.id
+        assignment_id: id,
+        vehicle_id: assessment.claim.vehicle.id,
       };
 
       const endpoint = `${API_URL}claim-assignments/${id}/schedule`;
+      // const endpoint = `${API_URL}assessments/${id}/schedule`;
+      // const endpoint = `${API_URL}claims/${assessment.claimId}/schedule-assessment/${id}`;
+
       const response = await apiRequest(endpoint, 'POST', data);
 
       if (response) {
@@ -149,6 +157,8 @@ export default function ScheduleAssessment({ params }: Props) {
           title: "Assessment Scheduled",
           description: `Assessment for claim ${assessment.claimId} has been scheduled for ${format(scheduledDate, "MMM d, yyyy")} at ${time}.`,
         });
+
+        // Redirect back to the assessment details
         router.push(`/dashboard/assessor/assessments/${id}`);
       }
     } catch (error: any) {
@@ -174,26 +184,7 @@ export default function ScheduleAssessment({ params }: Props) {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="animate-pulse bg-muted h-10 w-1/4 rounded"></div>
-        <div className="animate-pulse bg-muted h-64 w-full rounded"></div>
-      </div>
-    );
-  }
 
-  if (!assignment) {
-    return (
-      <div className="text-center py-8">
-        <h3 className="text-lg font-semibold mb-2">Error</h3>
-        <p className="text-muted-foreground">Failed to load Assessment data.</p>
-        <Button onClick={() => router.push("/dashboard/assessor/assessments")} className="mt-4">
-          Back to Assessments
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <DashboardLayout
@@ -208,8 +199,7 @@ export default function ScheduleAssessment({ params }: Props) {
         { name: "Messages", href: "/dashboard/assessor/messages", icon: <MessageSquare className="h-5 w-5" /> },
         { name: "Schedule", href: "/dashboard/assessor/schedule", icon: <Calendar className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/assessor/notifications", icon: <Bell className="h-5 w-5" /> },
-        { name: "Profile", href: "/dashboard/assessor/profile", icon: <User className="h-5 w-5" /> },
-        { name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }
+        { name: "Profile", href: "/dashboard/assessor/profile", icon: <User className="h-5 w-5" /> }, { name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }
       ]}
     >
       <div className="space-y-6">
@@ -245,47 +235,34 @@ export default function ScheduleAssessment({ params }: Props) {
               <CardDescription>Provide details for scheduling the assessment</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date">Date</Label>
-                  <DatePickerWithLimits date={scheduledDate} setDate={setScheduledDate} />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="date">Date</Label>
+                <DatePickerWithLimits date={scheduledDate} setDate={setScheduledDate} />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="time">Time</Label>
-                  <Input
-                    type="time"
-                    id="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    required
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="time">Time</Label>
+                <Input
+                  type="time"
+                  id="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  required
+                />
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="location">Duration <small>(how long will it take? in hours)</small></Label>
-                  <Input
-                    type="number"
-                    id="duration" min={0} max={10}
-                    placeholder="how long will it take? in hours (0-10)"
-                    value={duration}
-                    onChange={(e) => setDuration(Number(e.target.value))}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    type="text"
-                    id="location"
-                    placeholder="Enter the assessment location"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    required
-                  />
-                </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  type="text"
+                  id="location"
+                  placeholder="Enter the assessment location"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  required
+                />
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
@@ -302,9 +279,7 @@ export default function ScheduleAssessment({ params }: Props) {
             <Button variant="outline" asChild>
               <Link href={`/dashboard/assessor/assessments/${id}`}>Cancel</Link>
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Scheduling..." : "Schedule Assessment"}
-            </Button>
+            <Button type="submit">Schedule Assessment</Button>
           </div>
         </form>
       </div>

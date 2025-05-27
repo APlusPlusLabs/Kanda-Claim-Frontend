@@ -77,44 +77,38 @@ const formSchema = z.object({
   accidentDescription: z.string().min(10, { message: "Please provide a detailed description" }),
 
   // Step 2 - Driver & Vehicle Information
-  driver_details: z.array(
-    z.object({
-      hasLicense: z.boolean().optional(),
-      licenseNumber: z.string().optional(),
-      licenseCategory: z.string().optional(),
-      licenseIssuedDate: z.date().optional(),
-      surname: z.string().min(2, { message: "Surname is required" }),
-      name: z.string().min(2, { message: "Name is required" }),
-      phone: z.string().min(6, { message: "Valid phone number is required" }),
-    }),
-  ).min(1, { message: "At least one driver detail is required" }),
+  driver_details: z.object({
+    has_license: z.boolean().optional(),
+    license_number: z.string().optional(),
+    license_category: z.string().optional(),
+    license_issued_date: z.date().optional(),
+    surname: z.string().min(2, { message: "Surname is required" }),
+    name: z.string().min(2, { message: "Name is required" }),
+    phone: z.string().min(6, { message: "Valid phone number is required" }),
+  }),
 
-  vehicles: z.array(
-    z.object({
-      vehicleLicensePlate: z.string().min(2, { message: "Plate number is required" }),
-      vehicleMake: z.string().min(2, { message: "Make is required" }),
-      vehicleModel: z.string().min(2, { message: "Model is required" }),
-      vin: z.string().min(17, { message: "VIN (Vehicle Identification Number) is required & 17 characters" }),
-      vehicleYear: z
-        .string()
-        .regex(/^\d{4}$/, { message: "Year must be a 4-digit number" })
-        .refine((val) => {
-          const year = parseInt(val);
-          return year >= 1900 && year <= new Date().getFullYear();
-        }, { message: "Year must be between 1900 and the current year" }),
-    }),
-  ).min(1, { message: "At least one vehicle is required" }),
+  vehicle: z.object({
+    license_plate: z.string().min(2, { message: "Plate number is required" }),
+    make: z.string().min(2, { message: "Make is required" }),
+    model: z.string().min(2, { message: "Model is required" }),
+    vin: z.string().min(17, { message: "VIN (Vehicle Identification Number) is required & 17 characters" }),
+    year: z
+      .string()
+      .regex(/^\d{4}$/, { message: "Year must be a 4-digit number" })
+      .refine((val) => {
+        const year = parseInt(val);
+        return year >= 1900 && year <= new Date().getFullYear();
+      }, { message: "Year must be between 1900 and the current year" }),
+  }),
 
   // Step 3 - Police Information
-  police_assignments: z.array(
-    z.object({
-      policeVisited: z.boolean().optional(),
-      policeStation: z.string().optional(),
-      policeOfficerName: z.string().optional(),
-      policeOfficerPhone: z.string().optional(),
-      policeReportNumber: z.string().optional(),
-    }),
-  ).optional(),
+  police_assignment: z.object({
+    police_visited: z.boolean().optional(),
+    police_station: z.string().optional(),
+    police_officer_name: z.string().optional(),
+    police_officer_phone: z.string().optional(),
+    police_report_number: z.string().optional(),
+  }).optional(),
 
   // Step 4 - Other Vehicles
   other_vehicles: z.array(
@@ -195,24 +189,29 @@ const stepValidationSchemas = [
   }),
   // Step 2
   z.object({
-    driver_details: z.array(z.object({
+    driver_details: z.object({
+      has_license: z.boolean().optional().default(true),
       surname: z.string().min(2),
       name: z.string().min(2),
       phone: z.string().min(6),
-    })).min(1),
-    vehicles: z.array(
-      z.object({
-        vehicleLicensePlate: z.string().min(2),
-        vehicleMake: z.string().min(2),
-        vehicleModel: z.string().min(2),
-        vin: z.string().min(17),
-        vehicleYear: z.string().regex(/^\d{4}$/),
-      }),
-    ).min(1),
+    }),
+    vehicle: z.object({
+      license_plate: z.string().min(2),
+      make: z.string().min(2),
+      model: z.string().min(2),
+      vin: z.string().min(17),
+      year: z.string().regex(/^\d{4}$/),
+    }),
   }),
   // Step 3
   z.object({
-    police_assignments: z.array(z.object({ policeVisited: z.boolean() })).optional(),
+    police_assignment: z.object({
+      police_visited: z.boolean(),
+      police_station: z.string().optional(),
+      police_officer_name: z.string().optional(),
+      police_officer_phone: z.string().optional(),
+      police_report_number: z.string().optional(),
+    }).optional(),
   }),
   // Step 4
   z.object({
@@ -332,25 +331,29 @@ export default function NewClaimPage() {
       accidentTime: "",
       accidentLocation: "",
       accidentDescription: "",
-      driver_details: [{
-        hasLicense: true,
-        licenseNumber: "",
-        licenseCategory: "",
-        licenseIssuedDate: undefined,
+      driver_details: {
+        has_license: true,
+        license_number: "",
+        license_category: "",
+        license_issued_date: undefined,
         surname: "",
         name: "",
         phone: "",
-      }],
-      vehicles: [
-        {
-          vehicleLicensePlate: "",
-          vehicleMake: "",
-          vehicleModel: "",
-          vehicleYear: "",
-          vin: "",
-        },
-      ],
-      police_assignments: [],
+      },
+      vehicle: {
+        license_plate: "",
+        make: "",
+        model: "",
+        year: "",
+        vin: "",
+      },
+      police_assignment: {
+        police_visited: true,
+        police_station: "",
+        police_officer_name: "",
+        police_officer_phone: "",
+        police_report_number: "",
+      },
       other_vehicles: [],
       injuries: [],
       damages: [],
@@ -361,18 +364,6 @@ export default function NewClaimPage() {
   });
 
   // Field arrays for dynamic inputs
-  const { fields: driverFields, append: appendDriver, remove: removeDriver } = useFieldArray({
-    control: form.control,
-    name: "driver_details",
-  });
-  const { fields: vehicleFields, append: appendVehicle, remove: removeVehicle } = useFieldArray({
-    control: form.control,
-    name: "vehicles",
-  });
-  const { fields: policeFields, append: appendPolice, remove: removePolice } = useFieldArray({
-    control: form.control,
-    name: "police_assignments",
-  });
   const { fields: otherVehicleFields, append: appendOtherVehicle, remove: removeOtherVehicle } = useFieldArray({
     control: form.control,
     name: "other_vehicles",
@@ -549,10 +540,10 @@ export default function NewClaimPage() {
   //         const driver = values.driver_details[0];
   //         const driverData = {
   //           user_id: user?.id,
-  //           has_license: driver.hasLicense ? true : false,
-  //           license_number: driver.hasLicense ? (driver.licenseNumber || "") : "",
-  //           license_category: driver.hasLicense ? (driver.licenseCategory || "") : "",
-  //           license_issued_date: driver.hasLicense ? (driver.licenseIssuedDate?.toISOString().split("T")[0] || "") : ""
+  //           has_license: driver.has_license ? true : false,
+  //           license_number: driver.has_license ? (driver.license_number || "") : "",
+  //           license_category: driver.has_license ? (driver.license_category || "") : "",
+  //           license_issued_date: driver.has_license ? (driver.license_issued_date?.toISOString().split("T")[0] || "") : ""
   //         };
 
   //         await apiRequest(`${API_URL}claims/${claimId}/driver-details`, "POST", driverData);
@@ -561,10 +552,10 @@ export default function NewClaimPage() {
   //       if (values.vehicles && values.vehicles.length > 0) {
   //         const vehicle = values.vehicles[0];
   //         const vehicleData = {
-  //           license_plate: vehicle.vehicleLicensePlate,
-  //           make: vehicle.vehicleMake,
-  //           model: vehicle.vehicleModel,
-  //           year: vehicle.vehicleYear,
+  //           license_plate: vehicle.license_plate,
+  //           make: vehicle.make,
+  //           model: vehicle.model,
+  //           year: vehicle.year,
   //           vin: vehicle.vin,
   //           user_id: user?.id,
   //           tenant_id: user?.tenant_id,
@@ -575,12 +566,12 @@ export default function NewClaimPage() {
   //       }
   //     } else if (step === 3) {
   //       const data = {
-  //         police_assignments: values.police_assignments?.map(police => ({
-  //           police_visited: police.policeVisited ? true : false,
-  //           police_station: police.policeStation || "",
-  //           police_report_number: police.policeReportNumber || "",
-  //           police_officer_name: police.policeOfficerName || "",
-  //           police_officer_phone: police.policeOfficerPhone || ""
+  //         police_assignment: values.police_assignment?.map(police => ({
+  //           police_visited: police.police_visited ? true : false,
+  //           police_station: police.police_station || "",
+  //           police_report_number: police.police_report_number || "",
+  //           police_officer_name: police.police_officer_name || "",
+  //           police_officer_phone: police.police_officer_phone || ""
   //         }))
   //       }
   //       response = await apiRequest(`${API_URL}claims/${claimId}/police-assignments`, "POST", data);
@@ -709,25 +700,25 @@ export default function NewClaimPage() {
         if (!response.id) throw new Error("Claim ID not returned from API");
         setClaimId(response.id);
       } else if (step === 2) {
-        if (values.driver_details && values.driver_details.length > 0) {
-          const driver = values.driver_details[0];
+        if (values.driver_details) {
+          const driver = values.driver_details;
           const driverData = {
             user_id: user?.id,
-            has_license: driver.hasLicense ? true : false,
-            license_number: driver.hasLicense ? (driver.licenseNumber || "") : "",
-            license_category: driver.hasLicense ? (driver.licenseCategory || "") : "",
-            license_issued_date: driver.hasLicense ? (driver.licenseIssuedDate?.toISOString().split("T")[0] || "") : "",
+            has_license: driver.has_license ? true : false,
+            license_number: driver.has_license ? (driver.license_number || "") : "",
+            license_category: driver.has_license ? (driver.license_category || "") : "",
+            license_issued_date: driver.has_license ? (driver.license_issued_date?.toISOString().split("T")[0] || "") : "",
           };
           await apiRequest(`${API_URL}claims/${claimId}/driver-details`, "POST", driverData);
         }
 
-        if (values.vehicles && values.vehicles.length > 0) {
-          const vehicle = values.vehicles[0];
+        if (values.vehicle) {
+          const vehicle = values.vehicle;
           const vehicleData = {
-            license_plate: vehicle.vehicleLicensePlate,
-            make: vehicle.vehicleMake,
-            model: vehicle.vehicleModel,
-            year: vehicle.vehicleYear,
+            license_plate: vehicle.license_plate,
+            make: vehicle.make,
+            model: vehicle.model,
+            year: vehicle.year,
             vin: vehicle.vin,
             user_id: user?.id,
             tenant_id: user?.tenant_id,
@@ -736,16 +727,17 @@ export default function NewClaimPage() {
           await apiRequest(`${API_URL}vehicles`, "POST", vehicleData);
         }
       } else if (step === 3) {
-        const data = {
-          police_assignments: values.police_assignments?.map((police) => ({
-            police_visited: police.policeVisited ? true : false,
-            police_station: police.policeStation || "",
-            police_report_number: police.policeReportNumber || "",
-            police_officer_name: police.policeOfficerName || "",
-            police_officer_phone: police.policeOfficerPhone || "",
-          })),
-        };
-        response = await apiRequest(`${API_URL}claims/${claimId}/police-assignments`, "POST", data);
+        const police = values.police_assignment
+        if (police) {
+          const data = {
+            police_visited: police.police_visited ? true : false,
+            police_station: police.police_station || "",
+            police_report_number: police.police_report_number || "",
+            police_officer_name: police.police_officer_name || "",
+            police_officer_phone: police.police_officer_phone || "",
+          }
+          response = await apiRequest(`${API_URL}claims/${claimId}/police-assignments`, "POST", data);
+        }
       } else if (step === 4) {
         const data = {
           other_vehicles: values.other_vehicles?.map((vehicle) => ({
@@ -814,7 +806,7 @@ export default function NewClaimPage() {
             const formData = new FormData();
             formData.append('type', doc.type);
             formData.append('file', doc.file);
-            formData.append('claim_id', claimId+"");
+            formData.append('claim_id', claimId + "");
             response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
           }
         });
@@ -1092,278 +1084,227 @@ export default function NewClaimPage() {
                   <CardDescription>{t("claims.driver_details")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {driverFields.map((field, index) => (
-                    <div key={field.id} className="border p-4 rounded-md space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-medium">{formatString(t("form.driver_details"), { number: index + 1 })}</h3>
-                        {/* {index > 0 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeDriver(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )} */}
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name={`driver_details.${index}.hasLicense`}
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                            <FormControl>
-                              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>{t("form.has_license")}</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                      {form.watch(`driver_details.${index}.hasLicense`) && (
-                        <div className="space-y-4">
+                  <div className="border p-4 rounded-md space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-medium">{t("form.driver_details")}</h3>
+
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name={`driver_details.has_license`}
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>{t("form.has_license")}</FormLabel>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    {form.watch(`driver_details.has_license`) && (
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name={`driver_details.license_number`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.license_number")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.license_number_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
-                            name={`driver_details.${index}.licenseNumber`}
+                            name={`driver_details.license_category`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>{t("form.license_number")}*</FormLabel>
-                                <FormControl>
-                                  <Input placeholder={t("form.license_number_placeholder")} {...field} />
-                                </FormControl>
+                                <FormLabel>{t("form.license_category")}*</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("form.select_category")} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="A">A</SelectItem>
+                                    <SelectItem value="B">B</SelectItem>
+                                    <SelectItem value="C">C</SelectItem>
+                                    <SelectItem value="D">D</SelectItem>
+                                    <SelectItem value="E">E</SelectItem>
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`driver_details.${index}.licenseCategory`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.license_category")}*</FormLabel>
-                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormField
+                            control={form.control}
+                            name={`driver_details.license_issued_date`}
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col">
+                                <FormLabel>{t("form.issue_date")}*</FormLabel>
+                                <Popover>
+                                  <PopoverTrigger asChild>
                                     <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder={t("form.select_category")} />
-                                      </SelectTrigger>
+                                      <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                          "w-full pl-3 text-left font-normal",
+                                          !field.value && "text-muted-foreground",
+                                        )}
+                                      >
+                                        {field.value ? format(field.value, "PPP") : <span>{t("form.pick_date")}</span>}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                      </Button>
                                     </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="A">A</SelectItem>
-                                      <SelectItem value="B">B</SelectItem>
-                                      <SelectItem value="C">C</SelectItem>
-                                      <SelectItem value="D">D</SelectItem>
-                                      <SelectItem value="E">E</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`driver_details.${index}.licenseIssuedDate`}
-                              render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                  <FormLabel>{t("form.issue_date")}*</FormLabel>
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <FormControl>
-                                        <Button
-                                          variant={"outline"}
-                                          className={cn(
-                                            "w-full pl-3 text-left font-normal",
-                                            !field.value && "text-muted-foreground",
-                                          )}
-                                        >
-                                          {field.value ? format(field.value, "PPP") : <span>{t("form.pick_date")}</span>}
-                                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                      </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={(date) => field.onChange(date)}
-                                        disabled={(date) => date > new Date()}
-                                        initialFocus
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={field.value}
+                                      onSelect={(date) => field.onChange(date)}
+                                      disabled={(date) => date > new Date()}
+                                      initialFocus
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
-                      )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name={`driver_details.${index}.surname`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t("form.driver_surname")}*</FormLabel>
-                              <FormControl>
-                                <Input placeholder={t("form.driver_surname_placeholder")} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`driver_details.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t("form.driver_name")}*</FormLabel>
-                              <FormControl>
-                                <Input placeholder={t("form.driver_name_placeholder")} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
                       </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name={`driver_details.${index}.phone`}
+                        name={`driver_details.surname`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t("form.driver_phone")}*</FormLabel>
+                            <FormLabel>{t("form.driver_surname")}*</FormLabel>
                             <FormControl>
-                              <Input type="tel" placeholder="+250 788 123 456" {...field} />
+                              <Input placeholder={t("form.driver_surname_placeholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`driver_details.name`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.driver_name")}*</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("form.driver_name_placeholder")} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
-                  ))}
-                  {/* <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      appendDriver({
-                        hasLicense: true,
-                        licenseNumber: "",
-                        licenseCategory: "",
-                        licenseIssuedDate: undefined,
-                        surname: "",
-                        name: "",
-                        phone: "",
-                      })
-                    }
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t("form.add_driver")}
-                  </Button> */}
+                    <FormField
+                      control={form.control}
+                      name={`driver_details.phone`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("form.driver_phone")}*</FormLabel>
+                          <FormControl>
+                            <Input type="tel" placeholder="+250 788 123 456" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                  {vehicleFields.map((field, index) => (
-                    <div key={field.id} className="border p-4 rounded-md space-y-4 mt-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-medium">{formatString(t("form.vehicle_details"), { number: index + 1 })}</h3>
-                        {/* {index > 0 && (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeVehicle(index)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )} */}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name={`vehicles.${index}.vehicleLicensePlate`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t("form.vehicle_license_plate")}*</FormLabel>
-                              <FormControl>
-                                <Input placeholder={t("form.vehicle_license_plate_placeholder")} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`vehicles.${index}.vin`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t("form.vin")}*</FormLabel>
-                              <FormControl>
-                                <Input placeholder={t("form.vin_placeholder")} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                  <div className="border p-4 rounded-md space-y-4 mt-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-medium">{t("form.vehicle_details")}</h3>
 
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <FormField
-                          control={form.control}
-                          name={`vehicles.${index}.vehicleMake`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t("form.vehicle_make")}*</FormLabel>
-                              <FormControl>
-                                <Input placeholder={t("form.vehicle_make_placeholder")} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`vehicles.${index}.vehicleModel`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t("form.vehicle_model")}*</FormLabel>
-                              <FormControl>
-                                <Input placeholder={t("form.vehicle_model_placeholder")} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`vehicles.${index}.vehicleYear`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t("form.vehicle_year")}*</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  placeholder={t("form.vehicle_year_placeholder")}
-                                  {...field}
-                                  onChange={(e) => field.onChange(e.target.value)}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
                     </div>
-                  ))}
-                  {/* <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      appendVehicle({
-                        vehicleLicensePlate: "",
-                        vehicleMake: "",
-                        vehicleModel: "",
-                        vehicleYear: "",
-                        vin: "",
-                      })
-                    }
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t("form.add_vehicle")}
-                  </Button> */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`vehicle.license_plate`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.vehicle_license_plate")}*</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("form.vehicle_license_plate_placeholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`vehicle.vin`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.vin")}*</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("form.vin_placeholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`vehicle.make`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.vehicle_make")}*</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("form.vehicle_make_placeholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`vehicle.model`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.vehicle_model")}*</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("form.vehicle_model_placeholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`vehicle.year`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.vehicle_year")}*</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder={t("form.vehicle_year_placeholder")}
+                                {...field}
+                                onChange={(e) => field.onChange(e.target.value)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -1378,123 +1319,98 @@ export default function NewClaimPage() {
                   <Alert>
                     <AlertDescription>{t("claims.police_report_optional")}</AlertDescription>
                   </Alert>
-                  {policeFields.map((field, index) => (
-                    <div key={field.id} className="border p-4 rounded-md space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-medium">{formatString(t("form.police_report_info_details"), { number: index + 1 })}</h3>
-                        {/* <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removePolice(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button> */}
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name={`police_assignments.${index}.policeVisited`}
-                        render={({ field }) => (
-                          <FormItem className="space-y-3">
-                            <FormLabel>{t("form.police_visited")}?</FormLabel>
-                            <FormControl>
-                              <RadioGroup
-                                onValueChange={(value) => field.onChange(value === "true")}
-                                defaultValue={field.value ? "true" : "false"}
-                                className="flex flex-row space-x-4"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="true" id={`police-yes-${index}`} />
-                                  <label htmlFor={`police-yes-${index}`}>{t("action.yes")}</label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="false" id={`police-no-${index}`} />
-                                  <label htmlFor={`police-no-${index}`}>{t("action.no")}</label>
-                                </div>
-                              </RadioGroup>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      {form.watch(`police_assignments.${index}.policeVisited`) && (
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`police_assignments.${index}.policeStation`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.police_station")}</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.police_station_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`police_assignments.${index}.policeReportNumber`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.police_report_number")}</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.police_report_number_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`police_assignments.${index}.policeOfficerName`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.officer_name")}</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder={t("form.officer_name_placeholder")} {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`police_assignments.${index}.policeOfficerPhone`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{t("form.officer_phone")}</FormLabel>
-                                  <FormControl>
-                                    <Input type="tel" placeholder="+250 788 123 456" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-                      )}
+                  <div className="border p-4 rounded-md space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-medium">{t("form.police_report_info_details")}</h3>
+
                     </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      appendPolice({
-                        policeVisited: false,
-                        policeStation: "",
-                        policeOfficerName: "",
-                        policeOfficerPhone: "",
-                        policeReportNumber: "",
-                      })
-                    }
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t("action.add_police_assignment")}
-                  </Button>
+                    <FormField
+                      control={form.control}
+                      name={`police_assignment.police_visited`}
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>{t("form.police_visited")}?</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={(value) => field.onChange(value === "true")}
+                              defaultValue={field.value ? "true" : "false"}
+                              className="flex flex-row space-x-4"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="true" id={`police-yes`} />
+                                <label htmlFor={`police-yes`}>{t("action.yes")}</label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="false" id={`police-no`} />
+                                <label htmlFor={`police-no`}>{t("action.no")}</label>
+                              </div>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {form.watch(`police_assignment.police_visited`) && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name={`police_assignment.police_station`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.police_station")}</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.police_station_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`police_assignment.police_report_number`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.police_report_number")}</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.police_report_number_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name={`police_assignment.police_officer_name`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.officer_name")}</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.officer_name_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`police_assignment.police_officer_phone`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.officer_phone")}</FormLabel>
+                                <FormControl>
+                                  <Input type="tel" placeholder="+250 788 123 456" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -2162,3 +2078,5 @@ export default function NewClaimPage() {
     </DashboardLayout>
   );
 }
+
+

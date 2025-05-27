@@ -26,6 +26,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
+import { Assignment, Claim, Message, defaultClaim } from "@/lib/types/claims"
 // import { ErrorBoundary } from 'react-error-boundary';
 
 // const ErrorFallback = ({ error }) => (
@@ -37,102 +38,8 @@ import { format } from "date-fns"
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
-type Vehicle = {
-  id: string;
-  tenant_id: string;
-  user_id: string;
-  license_plate: string;
-  make: string;
-  model: string;
-  year: string;
-  vin: string;
-  created_at?: string;
-  updated_at?: string;
-}
 
-interface DocCategory {
-  id: string; name: string;
-};
 
-interface Document {
-  id: string;
-  file_name: string;
-  mime_type: string;
-  file_path: string;
-  created_at: string;
-  category: DocCategory;
-}
-
-interface Activity {
-  id: string;
-  event: string;
-  status: string;
-  created_at: string;
-}
-interface Message {
-  id: string;
-  sender: string;
-  content: string;
-  date: string;
-}
-
-interface Claim {
-  id: string;
-  tenant_id: string;
-  user_id: string;
-  claim_type_id: string;
-  code: string;
-  amount: number;
-  approved_amount: string;
-  currency: string;
-  status: string;
-  priority: string;
-  policy_number: string;
-  accident_date: string;
-  accident_time: string;
-  location: string;
-  description: string;
-  rejection_reason?: string;
-  note?: string;
-  driver_details?: any;
-  vehicles: Vehicle[];
-  police_assignment?: any[];
-  injuries?: any[];
-  damages?: any[];
-  garages?: any[];
-  documents: Document[];
-  messages: Message[];
-  assessments: any[];
-  activities: Activity[];
-  insurer: { name: string };
-  progress: number;
-  created_at?: string;
-  updated_at?: string;
-}
-const defaultClaim: Claim = {
-  id: "",
-  tenant_id: "",
-  user_id: "",
-  claim_type_id: "",
-  code: "",
-  amount: 0,
-  approved_amount: "0",
-  currency: "RWF",
-  status: "",
-  priority: "",
-  policy_number: "",
-  accident_date: "",
-  accident_time: "",
-  location: "",
-  description: "",
-  vehicles: [],
-  documents: [],
-  messages: [],
-  activities: [],
-  insurer: { name: "" },
-  progress: 0,
-  assessments: []
-};
 interface Props {
   params: Promise<{ id: string }>;
 }
@@ -143,6 +50,8 @@ export default function ClaimDetailsPage({ params }: Props) {
   const { toast } = useToast();
   const { user, apiRequest } = useAuth();
   const [claim, setClaim] = useState<Claim>(defaultClaim);
+  const [assignements, setAssignements] = useState<Assignment[]>([]);
+  const [threadsMessages, setThreadsMessagess] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("details")
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -153,6 +62,20 @@ export default function ClaimDetailsPage({ params }: Props) {
       setLoading(true);
       const response = await apiRequest(`${API_URL}claims/${id}`, "GET");
       setClaim(response.data || null);
+      if (response.data) {
+        const claimId = response.data.id
+        const assignemtsRequests = await apiRequest(`${API_URL}claims/${claimId}/assignments`, "GET");
+        const msgThreadsRequests = await apiRequest(`${API_URL}messages-by-claim/${claimId}`, "GET");
+
+        var msgs: Message[] = []
+        msgThreadsRequests.data.forEach((thread: any) => {
+          thread.messages.forEach((msg: Message) => {
+            msgs.push(msg)
+          });
+        });
+        setThreadsMessagess(msgs)
+        setAssignements(assignemtsRequests)
+      }
     } catch (error: any) {
       if (Array.isArray(error.errors)) {
         error.errors.forEach((er: string) => {
@@ -328,7 +251,7 @@ export default function ClaimDetailsPage({ params }: Props) {
                 <TabsTrigger value="details">Claim Details</TabsTrigger>
                 <TabsTrigger value="documents">Documents ({claim.documents?.length})</TabsTrigger>
                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                <TabsTrigger value="messages">Messages ({claim.messages?.length})</TabsTrigger>
+                <TabsTrigger value="messages">Messages ({threadsMessages?.length})</TabsTrigger>
                 <TabsTrigger value="contact">Contact Info</TabsTrigger>
               </TabsList>
 
@@ -481,13 +404,13 @@ export default function ClaimDetailsPage({ params }: Props) {
               </TabsContent>
               <TabsContent value="messages">
                 <div className="space-y-4">
-                  {claim.messages.length > 0 ? (
-                    claim.messages.map((message, index) => (
+                  {threadsMessages?.length > 0 ? (
+                    threadsMessages?.map((message, index) => (
                       <Card key={index}>
                         <CardContent className="p-4">
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
                             <div className="font-medium">{message.sender}</div>
-                            <div className="text-xs text-muted-foreground">{message.date}</div>
+                            <div className="text-xs text-muted-foreground">{message.timestamp}</div>
                           </div>
                           <p className="text-sm">{message.content}</p>
                         </CardContent>
@@ -507,9 +430,8 @@ export default function ClaimDetailsPage({ params }: Props) {
               </TabsContent>
 
               <TabsContent value="contact">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* <Card>
+                <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+                  {/* <Card>
                               <CardHeader>
                                 <CardTitle className="text-lg">Claims Agent</CardTitle>
                               </CardHeader>
@@ -528,26 +450,31 @@ export default function ClaimDetailsPage({ params }: Props) {
                               </CardContent>
                             </Card> */}
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Assessor</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {claim.assessments?.map((assement, i) => (
-                          <div key={i} className="space-y-2">
-                            <div className="text-sm">
-                              <span className="font-medium">Name:</span> {assement.assessor.first_name} {assement.assessor.last_name}
-                            </div>
-                            <div className="text-sm">
-                              <span className="font-medium">Phone:</span> {assement.assessor.phone}
-                            </div>
-                            <div className="text-sm">
-                              <span className="font-medium">Email:</span> {assement.assessor.email}
-                            </div>
-                          </div>))}
-                      </CardContent>
-                    </Card>
-                  </div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Assessors / Agents</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {assignements.length > 0 && assignements.map((assignment) => (
+                        <div key={assignment.id} className="space-y-2">
+                          <div className="text-sm">
+                            <span className="font-medium">Name:</span> {assignment.assessor?.name}
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">Phone:</span> {assignment.assessor?.phone}
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">Email:</span> {assignment.assessor?.email}
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">Agent Department:</span> {assignment.assessor?.department?.name}
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">Claim Department:</span> {claim.department?.name}
+                          </div>
+                        </div>))}
+                    </CardContent>
+                  </Card>
 
                   <Card>
                     <CardHeader>
@@ -555,7 +482,7 @@ export default function ClaimDetailsPage({ params }: Props) {
                     </CardHeader>
                     <CardContent>
                       {claim.garages?.map((garage, i) => (
-                        <div className="space-y-2">
+                        <div key={i} className="space-y-2">
                           <div className="text-sm">
                             <span className="font-medium">Name:</span> {garage.name}
                           </div>

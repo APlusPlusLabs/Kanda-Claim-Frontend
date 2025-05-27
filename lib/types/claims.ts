@@ -1,4 +1,4 @@
-import { User } from "./users";
+import { Tenant, User } from "./users";
 
 export interface Vehicle {
   id: string;
@@ -12,8 +12,11 @@ export interface Vehicle {
   created_at?: string;
   updated_at?: string;
 }
-
+interface DocCategory {
+  id: string; name: string;
+};
 export interface Document {
+  category: any;
   id: string;
   file_name: string;
   mime_type: string;
@@ -32,17 +35,23 @@ export interface Message {
   id: string;
   sender: string;
   content: string;
-  date: string;
+  date?: string;
+  timestamp?: string;
 }
 export interface Assignment {
   id: string;
+  code: string;
   tenant_id: string;
+  tenant: Tenant;
   claim_id: string;
-  assessor: any;
+  claim: Claim;
+  assessor: User;
   assigned_at: string;
   status: string;
   reassigned_at: string;
   notes: string;
+  priority: string;
+  scheduled_date: string;
 }
 export interface Garage {
   id: string;
@@ -67,6 +76,7 @@ export interface PoliceReport {
 export interface Claim {
   id: string;
   tenant_id: string;
+  tenant: Tenant;
   user_id: string;
   claim_type_id: string;
   code: string;
@@ -103,3 +113,56 @@ export interface Claim {
   pending_reason?: string;
   assignment?: Assignment;
 }
+export const defaultClaim: Claim = {
+  id: "",
+  tenant_id: "",
+  user_id: "",
+  claim_type_id: "",
+  code: "",
+  amount: 0,
+  approved_amount: "0",
+  currency: "RWF",
+  status: "",
+  priority: "",
+  policy_number: "",
+  accident_date: "",
+  accident_time: "",
+  location: "",
+  description: "",
+  vehicles: [],
+  documents: [],
+  messages: [],
+  activities: [],
+  insurer: { name: "" },
+  progress: 0,
+  assessments: [],
+  user: {
+    id: "",
+    email: "",
+    name: "",
+    first_name: "",
+    last_name: "",
+    phone: "",
+    role: {},
+    role_id: "",
+    tenant_id: "",
+    tenant: {
+      id: "",
+      name: "",
+      users: []
+    },
+    avatar: "",
+    status: "",
+    last_login: ""
+  },
+  department: {},
+  created_at: "",
+  updated_at: "",
+  submitted_at: "",
+  submitted_by: "",
+  tenant: {
+    id: "",
+    name: "",
+    users: []
+  }
+};

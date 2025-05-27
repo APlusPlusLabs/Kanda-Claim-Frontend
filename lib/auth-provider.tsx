@@ -2,26 +2,14 @@
 
 import router from "next/router";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { User } from "./types/users";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL
 const WEB_URL = process.env.NEXT_PUBLIC_APP_WEB_URL
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  role: any;
-  role_id: string;
-  tenant_id: string;
-  tenant: any;
-  avatar: string;
-}
 
 interface AuthContextType {
-  user: User | null;
+  user: User;
   register: (data: {
     first_name: string;
     last_name: string;
@@ -42,7 +30,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User| any>();
   const [token, setToken] = useState<String | null>(null);
   const [tenantId, setTenantId] = useState<String | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               tenant: parsedUser.tenant,
               tenant_id: parsedUser.tenant_id,
               avatar: "/placeholder.svg?height=40&width=40",
+              status: parsedUser.status,
+              last_login: parsedUser.last_login,
+              department_id: parsedUser.department_id,
+              department: parsedUser.department,
             });
           }
         }
@@ -152,6 +144,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tenant: uzer.tenant,
         tenant_id: uzer.tenant_id,
         avatar: "/placeholder.svg?height=40&width=40",
+        status: uzer.status,
+        last_login: uzer.last_login,
+        department_id: uzer.department_id,
+        department: uzer.department,
       });
       setToken(JSON.stringify(result.token))
       setTenantId(JSON.stringify(uzer.tenant_id))
@@ -171,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem("ottqen");
     sessionStorage.removeItem("sessuza");
     setUser(null);
-    window.location.href = "/login";
+    window.location.assign('/');
   }
   //api POST
   async function apiPOST(data: any, urlpath: string) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "@/Next.js/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,49 +19,84 @@ import {
   ChevronRight,
 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns"
 import { DatePickerWithLimits } from "@/components/date-picker-with-limits"
+import { toast } from "@/components/ui/use-toast"
+import router from "next/router"
 
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 export default function AssessorSchedule() {
-  const { user } = useAuth()
+  const { user, apiRequest } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [selectedDate, setSelectedDate] = useState(new Date())
+  const [schedules, setSchedules] = useState<any[]>([])
+  const fetchAndProcessSchedules = async () => {
+    try {
+      const response = await apiRequest(`${API_URL}schedules-by-user/${user?.id}`, "GET");
+      const schedulesData = response?.data || response || [];
 
+      const processedSchedules = schedulesData.map((sched: any) => {
+        const claim = sched.assessment.claim;
+        const vehicle = sched.assessment.vehicle;
+
+        return {
+          ...claim,
+          ...sched,
+          id: sched.id,
+          code: sched.assessment.code,
+          claimId: claim?.code || 'N/A',
+          vehicle: vehicle ? `${vehicle.model} ${vehicle.make} ${vehicle.year}` : 'No vehicle info',
+          customer: claim?.user?.name || 'Unknown',
+          insurer: claim?.tenant?.name || 'Unknown',
+          scheduled_date: sched.scheduled_date,
+          status: sched.status,
+          date: sched.scheduled_at, 
+          location: sched.location,
+          priority: claim.priority,
+        };
+      });
+
+      console.log('Processed Schedules:', processedSchedules);
+      setSchedules(processedSchedules);
+
+    } catch (error: any) {
+      if (Array.isArray(error.errors)) {
+        error.errors.forEach((er: string) => {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: er,
+          });
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch schedules data",
+        });
+      }
+      console.error("Error fetching schedules:", error);
+      setSchedules([]);
+      setSchedules([]);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchAndProcessSchedules();
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You have to sign in to use this panel",
+      });
+      router.push("/login");
+    }
+  }, [user, router, toast]);
   // In a real app, you would fetch this data from an API
-  const [scheduledAssessments, setScheduledAssessments] = useState([
-    {
-      id: "ASS-2025-002",
-      claimId: "CL-2025-002",
-      vehicle: "Suzuki Swift",
-      date: new Date(2025, 3, 2, 9, 0), // April 2, 2025, 9:00 AM
-      customer: "Uwase Marie",
-      insurer: "Sanlam Alianz",
-      location: "Kigali, Kicukiro",
-      priority: "Medium",
-    },
-    {
-      id: "ASS-2025-005",
-      claimId: "CL-2025-005",
-      vehicle: "Hyundai Tucson",
-      date: new Date(2025, 3, 5, 14, 0), // April 5, 2025, 2:00 PM
-      customer: "Mutesi Sarah",
-      insurer: "Sanlam Alianz",
-      location: "Kigali, Nyarugenge",
-      priority: "Low",
-    },
-    {
-      id: "ASS-2025-007",
-      claimId: "CL-2025-007",
-      vehicle: "Toyota Corolla",
-      date: new Date(2025, 3, 4, 11, 0), // April 4, 2025, 11:00 AM
-      customer: "Hakizimana Jean",
-      insurer: "Radiant Insurance",
-      location: "Kigali, Gasabo",
-      priority: "High",
-    },
-  ])
+
 
   const nextWeek = () => {
     setCurrentWeek(addWeeks(currentWeek, 1))
@@ -73,14 +108,14 @@ export default function AssessorSchedule() {
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeek, i))
 
-  const getAssessmentsForDay = (day) => {
-    return scheduledAssessments.filter((assessment) => isSameDay(assessment.date, day))
+  const getSchedulesForDay = (day: string | number | Date) => {
+    return schedules.filter((assessment) => isSameDay(assessment.date, day))
   }
 
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Habimana Jean",
+        name: user.name,
         role: "Assessor",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -91,8 +126,8 @@ export default function AssessorSchedule() {
         { name: "Schedule", href: "/dashboard/assessor/schedule", icon: <Calendar className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/assessor/notifications", icon: <Bell className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/assessor/profile", icon: <User className="h-5 w-5" /> },
+        { name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }
       ]}
-      actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -124,8 +159,8 @@ export default function AssessorSchedule() {
                     <div className="text-sm">{format(day, "MMM d")}</div>
                   </div>
                   <div className="p-2 space-y-2 min-h-[150px]">
-                    {getAssessmentsForDay(day).length > 0 ? (
-                      getAssessmentsForDay(day).map((assessment) => (
+                    {getSchedulesForDay(day).length > 0 ? (
+                      getSchedulesForDay(day).map((assessment) => (
                         <div key={assessment.id} className="text-xs p-2 rounded bg-primary/10 border border-primary/20">
                           <div className="font-medium">{format(assessment.date, "h:mm a")}</div>
                           <div className="truncate">{assessment.vehicle}</div>
@@ -151,12 +186,12 @@ export default function AssessorSchedule() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Upcoming Assessments</CardTitle>
+            <CardTitle>Upcoming Schedules</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {scheduledAssessments.length > 0 ? (
-                scheduledAssessments
+              {schedules.length > 0 ? (
+                schedules
                   .sort((a, b) => a.date.getTime() - b.date.getTime())
                   .map((assessment) => (
                     <div
@@ -168,7 +203,7 @@ export default function AssessorSchedule() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-medium">Assessment #{assessment.id}</h3>
+                          <h3 className="font-medium">Schedule #{assessment.code}</h3>
                           <Badge
                             variant={
                               assessment.priority === "High"
@@ -194,7 +229,7 @@ export default function AssessorSchedule() {
                         </div>
                         <div className="mt-2">
                           <Button variant="outline" size="sm" asChild>
-                            <Link href={`/dashboard/assessor/assessments/${assessment.id}`}>View Details</Link>
+                            <Link href={`/dashboard/assessor/assessments`}>View Details</Link>
                           </Button>
                         </div>
                       </div>
@@ -203,7 +238,7 @@ export default function AssessorSchedule() {
               ) : (
                 <div className="text-center py-8">
                   <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Upcoming Assessments</h3>
+                  <h3 className="text-lg font-semibold mb-2">No Upcoming Schedules</h3>
                   <p className="text-sm text-muted-foreground">You don't have any scheduled assessments.</p>
                 </div>
               )}

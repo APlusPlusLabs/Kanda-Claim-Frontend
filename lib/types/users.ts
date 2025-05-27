@@ -8,7 +8,7 @@ export interface User {
     role: any;
     role_id: string;
     tenant_id: string;
-    tenant: any;
+    tenant: Tenant;
     avatar: string;
     status: string;
     last_login: string;
@@ -30,5 +30,7 @@ export interface Department {
 export interface Tenant {
     id: string;
     name: string;
+    users: User[];
+    departments?: Department[];
 };
 

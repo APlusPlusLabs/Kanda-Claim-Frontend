@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useCallback, useEffect } from "react"
 
 import { useState } from "react"
 import Link from "@/Next.js/link"
@@ -24,84 +24,89 @@ import {
   Filter,
 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
+import router from "next/router"
+import { toast } from "sonner"
+import { Assignment } from "@/lib/types/claims"
+import { useToast } from "@/components/ui/use-toast"
+import { format } from "date-fns"
 
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
+
+const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
 export default function AssessorAssessments() {
-  const { user } = useAuth()
+  const { toast } = useToast()
+  const { user, apiRequest } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [loading, setLoading] = useState(true);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [assessments, setAssessments] = useState<any[]>([])
 
-  const [assessments, setAssessments] = useState([
-    {
-      id: "ASS-2025-001",
-      claimId: "CL-2025-001",
-      vehicle: "Toyota RAV4",
-      date: "2025-03-15",
-      status: "Pending",
-      customer: "Mugisha Nkusi",
-      insurer: "Sanlam Alianz",
-      location: "Kigali, Nyarugenge",
-      priority: "High",
-    },
-    {
-      id: "ASS-2025-002",
-      claimId: "CL-2025-002",
-      vehicle: "Suzuki Swift",
-      date: "2025-02-28",
-      status: "Scheduled",
-      customer: "Uwase Marie",
-      insurer: "Sanlam Alianz",
-      location: "Kigali, Kicukiro",
-      priority: "Medium",
-      scheduledDate: "2025-04-02",
-    },
-    {
-      id: "ASS-2025-003",
-      claimId: "CL-2025-003",
-      vehicle: "Honda Civic",
-      date: "2025-01-05",
-      status: "Completed",
-      customer: "Kamanzi Eric",
-      insurer: "Sanlam Alianz",
-      location: "Kigali, Gasabo",
-      estimatedAmount: 320000,
-    },
-    {
-      id: "ASS-2025-004",
-      claimId: "CL-2025-004",
-      vehicle: "Nissan X-Trail",
-      date: "2025-03-10",
-      status: "Pending",
-      customer: "Ishimwe David",
-      insurer: "Radiant Insurance",
-      location: "Kigali, Gasabo",
-      priority: "Medium",
-    },
-    {
-      id: "ASS-2025-005",
-      claimId: "CL-2025-005",
-      vehicle: "Hyundai Tucson",
-      date: "2025-03-25",
-      status: "Scheduled",
-      customer: "Mutesi Sarah",
-      insurer: "Sanlam Alianz",
-      location: "Kigali, Nyarugenge",
-      priority: "Low",
-      scheduledDate: "2025-04-05",
-    },
-    {
-      id: "ASS-2024-006",
-      claimId: "CL-2024-006",
-      vehicle: "Kia Sportage",
-      date: "2024-11-15",
-      status: "Completed",
-      customer: "Niyonzima Jean",
-      insurer: "Radiant Insurance",
-      location: "Kigali, Kicukiro",
-      estimatedAmount: 450000,
-    },
-  ])
+  const fetchAndProcessAssignments = async () => {
+    try {
+      const response = await apiRequest(`${API_URL}assignment-by-user/${user?.id}`, "GET");
+      const assignmentsData = response?.data || response || []; 
 
+      setAssignments(assignmentsData);
+
+      const processedAssessments = assignmentsData.map((assign: any) => {
+        const claim = assign.claim;
+        const vehicle = claim?.vehicles?.[0]; 
+
+        return {
+          ...claim,
+          ...assign,
+          id: assign.id,
+          code: assign.code,
+          claimId: claim?.code || 'N/A',
+          vehicle: vehicle ? `${vehicle.model} ${vehicle.make} ${vehicle.year}` : 'No vehicle info',
+          date: claim?.accident_date,
+          customer: claim?.user?.name || 'Unknown',
+          insurer: claim?.tenant?.name || 'Unknown',
+          location: claim?.location,
+          scheduled_date: assign.scheduled_date,
+          status: assign.status,
+        };
+      });
+
+      console.log('Processed Assessments:', processedAssessments);
+      setAssessments(processedAssessments);
+
+    } catch (error: any) {
+      if (Array.isArray(error.errors)) {
+        error.errors.forEach((er: string) => {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: er,
+          });
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch assignments data",
+        });
+      }
+      console.error("Error fetching assignments:", error);
+      setAssignments([]);
+      setAssessments([]);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchAndProcessAssignments();
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You have to sign in to use this panel",
+      });
+      router.push("/login");
+    }
+  }, [user, router, toast]);
   const filteredAssessments = assessments.filter((assessment) => {
     const matchesSearch =
       assessment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -117,7 +122,7 @@ export default function AssessorAssessments() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Habimana Jean",
+        name: user?.name ? `${user.name} ` : "No username",
         role: "Assessor",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -128,8 +133,8 @@ export default function AssessorAssessments() {
         { name: "Schedule", href: "/dashboard/assessor/schedule", icon: <Calendar className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/assessor/notifications", icon: <Bell className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/assessor/profile", icon: <User className="h-5 w-5" /> },
+        { name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }
       ]}
-      actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -174,8 +179,8 @@ export default function AssessorAssessments() {
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            {filteredAssessments.length > 0 ? (
-              filteredAssessments.map((assessment) => <AssessmentCard key={assessment.id} assessment={assessment} />)
+            {assessments.length > 0 ? (
+              assessments.map((assessment) => <AssessmentCard key={assessment.id} assessment={assessment} />)
             ) : (
               <EmptyState
                 icon={<Clock />}
@@ -186,9 +191,9 @@ export default function AssessorAssessments() {
           </TabsContent>
 
           <TabsContent value="pending" className="space-y-4">
-            {filteredAssessments.filter((a) => a.status === "Pending").length > 0 ? (
+            {filteredAssessments.filter((a) => a.status === "pending").length > 0 ? (
               filteredAssessments
-                .filter((a) => a.status === "Pending")
+                .filter((a) => a.status === "pending")
                 .map((assessment) => <AssessmentCard key={assessment.id} assessment={assessment} />)
             ) : (
               <EmptyState
@@ -200,9 +205,9 @@ export default function AssessorAssessments() {
           </TabsContent>
 
           <TabsContent value="scheduled" className="space-y-4">
-            {filteredAssessments.filter((a) => a.status === "Scheduled").length > 0 ? (
+            {filteredAssessments.filter((a) => a.status === "scheduled").length > 0 ? (
               filteredAssessments
-                .filter((a) => a.status === "Scheduled")
+                .filter((a) => a.status === "scheduled")
                 .map((assessment) => <AssessmentCard key={assessment.id} assessment={assessment} />)
             ) : (
               <EmptyState
@@ -214,9 +219,9 @@ export default function AssessorAssessments() {
           </TabsContent>
 
           <TabsContent value="completed" className="space-y-4">
-            {filteredAssessments.filter((a) => a.status === "Completed").length > 0 ? (
+            {filteredAssessments.filter((a) => a.status === "completed").length > 0 ? (
               filteredAssessments
-                .filter((a) => a.status === "Completed")
+                .filter((a) => a.status === "completed")
                 .map((assessment) => <AssessmentCard key={assessment.id} assessment={assessment} />)
             ) : (
               <EmptyState
@@ -238,33 +243,33 @@ function AssessmentCard({ assessment }) {
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold">Assessment #{assessment.id}</h3>
+            <h3 className="text-lg font-semibold">Assessment #{assessment.code}</h3>
             <p className="text-sm text-muted-foreground">
-              Claim #{assessment.claimId} • {assessment.date}
+              Claim #{assessment.claimId} • { format(assessment.date, 'yyyy-MM-dd')}
             </p>
           </div>
           <div className="flex items-center mt-2 md:mt-0 space-x-2">
             <Badge
               className="w-fit"
               variant={
-                assessment.status === "Pending"
+                assessment.status === "pending"
                   ? "secondary"
-                  : assessment.status === "Scheduled"
+                  : assessment.status === "scheduled"
                     ? "default"
                     : "outline"
               }
             >
-              {assessment.status === "Scheduled" && <Calendar className="h-3 w-3 mr-1" />}
-              {assessment.status === "Completed" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+              {assessment.status === "scheduled" && <Calendar className="h-3 w-3 mr-1" />}
+              {assessment.status === "completed" && <CheckCircle2 className="h-3 w-3 mr-1" />}
               {assessment.status}
             </Badge>
             {assessment.priority && (
               <Badge
                 className="w-fit"
                 variant={
-                  assessment.priority === "High"
+                  assessment.priority === "high"
                     ? "destructive"
-                    : assessment.priority === "Medium"
+                    : assessment.priority === "medium"
                       ? "default"
                       : "outline"
                 }
@@ -290,7 +295,7 @@ function AssessmentCard({ assessment }) {
               </>
             ) : assessment.status === "Scheduled" ? (
               <>
-                <span className="text-muted-foreground">Scheduled Date:</span> {assessment.scheduledDate}
+                <span className="text-muted-foreground">Scheduled Date:</span> {assessment.scheduled_date}
               </>
             ) : (
               <>
@@ -305,12 +310,12 @@ function AssessmentCard({ assessment }) {
         </div>
 
         <div className="mt-4 flex justify-end space-x-2">
-          {assessment.status === "Pending" && (
+          {assessment.status === "pending" && (
             <Button size="sm" asChild>
               <Link href={`/dashboard/assessor/assessments/${assessment.id}/schedule`}>Schedule Assessment</Link>
             </Button>
           )}
-          {assessment.status === "Scheduled" && (
+          {assessment.status === "scheduled" && (
             <Button size="sm" asChild>
               <Link href={`/dashboard/assessor/assessments/${assessment.id}/submit`}>Complete Assessment</Link>
             </Button>
