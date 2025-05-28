@@ -53,6 +53,9 @@ interface Assessment {
   vehicle: Vehicle;
   report?: {
     partsToReplace: { id: number; name: string; cost: string; category: string; selected: boolean }[];
+    selectedParts: { id: number; name: string; cost: string; category: string; selected: boolean }[];
+    photos: string[];
+    totalCost: number;
     [key: string]: any;
   };
 }
@@ -192,6 +195,7 @@ export default function NewBidPage() {
   // Handle claim selection
   const handleClaimSelect = (claimId: string) => {
     if (!claimId) {
+      // Reset form fields if no claim is selected
       form.setValue("vehicleInfo", {
         make: "",
         model: "",
@@ -200,40 +204,68 @@ export default function NewBidPage() {
         vin: "",
       });
       form.setValue("scopeOfWork", []);
+      form.setValue("photos", []);
+      form.setValue("uploadedPhotos", []);
       form.setValue("estimatedCost", 0);
       setScopeItems([]);
+      setUploadedPhotos([]);
       return;
     }
 
     const selectedClaim = claims.find(cl => cl.id === claimId);
     if (selectedClaim) {
+      // Update vehicle info
       form.setValue("vehicleInfo", {
         make: selectedClaim.vehicle.make,
         model: selectedClaim.vehicle.model,
-        year: selectedClaim.vehicle.year.toString(),
+        year: selectedClaim.vehicle.year.toString(), // Convert to string for form
         licensePlate: selectedClaim.vehicle.license_plate,
         vin: selectedClaim.vehicle.vin,
       });
 
+      // Find corresponding assessment and populate scopeOfWork and photos
       const selectedAssessment = assessments.find(ass => ass.claim_id === claimId);
       if (selectedAssessment) {
         const reportData = selectedAssessment.report;
-        const report = (typeof reportData === 'string' ? JSON.parse(reportData) : reportData)
-        if (report.partsToReplace) {
-          console.log('partsToReplace', selectedAssessment?.report?.partsToReplace);
-
-          const newScopeItems = report.partsToReplace.map(
+        const report = typeof reportData === 'string' ? JSON.parse(reportData) : reportData;
+        if (report) {
+          // Combine partsToReplace and selectedParts
+          const partsToReplace = report.partsToReplace || [];
+          const selectedParts = report.selectedParts || [];
+          const combinedParts = [...partsToReplace, ...selectedParts];
+          const newScopeItems = combinedParts.map(
             (part: { name: string; cost: string }) => `${part.name} (${part.cost} RWF)`
           );
           setScopeItems(newScopeItems);
           form.setValue("scopeOfWork", newScopeItems);
+
+          // Pre-populate photos
+          const reportPhotos = report.photos || [];
+          setUploadedPhotos(reportPhotos);
+          form.setValue("photos", reportPhotos);
+          form.setValue("uploadedPhotos", reportPhotos);
+
+          // Set estimated cost
           form.setValue("estimatedCost", report.totalCost || 0);
+          // damageDescription preset
+          form.setValue("damageDescription", report.damageDescription + "\n" + report.repairRecommendation)
         } else {
-          console.log('No partsToReplace', selectedAssessment?.report);
+          // Clear fields if no report
           setScopeItems([]);
           form.setValue("scopeOfWork", []);
+          form.setValue("photos", []);
+          form.setValue("uploadedPhotos", []);
+          setUploadedPhotos([]);
           form.setValue("estimatedCost", 0);
         }
+      } else {
+        // Clear fields if no assessment
+        setScopeItems([]);
+        form.setValue("scopeOfWork", []);
+        form.setValue("photos", []);
+        form.setValue("uploadedPhotos", []);
+        setUploadedPhotos([]);
+        form.setValue("estimatedCost", 0);
       }
     }
   };
@@ -694,7 +726,7 @@ export default function NewBidPage() {
                             {uploadedPhotos.map((photo, index) => (
                               <div key={index} className="relative">
                                 <img
-                                  src={photo || "/placeholder.svg"}
+                                  src={STORAGES_URL + photo || "/placeholder.svg"}
                                   alt={`Damage photo ${index + 1}`}
                                   className="w-full h-24 object-cover rounded-md"
                                 />
