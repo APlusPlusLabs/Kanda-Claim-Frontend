@@ -16,67 +16,7 @@ import { useLanguage } from "@/lib/language-context"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/";
 // Mock data for notifications
-const initialNotifications = [
-  {
-    id: "1",
-    title: "Claim Status Update",
-    description: "Your claim #CL-2023-0042 has been approved and is now in processing.",
-    timestamp: "2 hours ago",
-    type: "info",
-    read: false,
-  },
-  {
-    id: "2",
-    title: "Assessment Scheduled",
-    description: "An assessor has been assigned to your claim and will visit on 15th May at 10:00 AM.",
-    timestamp: "Yesterday",
-    type: "success",
-    read: false,
-  },
-  {
-    id: "3",
-    title: "Document Request",
-    description: "Please provide additional photos of the vehicle damage for your claim #CL-2023-0042.",
-    timestamp: "2 days ago",
-    type: "warning",
-    read: true,
-  },
-  {
-    id: "4",
-    title: "Payment Processed",
-    description: "A payment of RWF 450,000 has been processed for your claim #CL-2023-0039.",
-    timestamp: "1 week ago",
-    type: "success",
-    read: true,
-  },
-  {
-    id: "5",
-    title: "Claim Submission Confirmation",
-    description: "Your new claim #CL-2023-0042 has been successfully submitted.",
-    timestamp: "2 weeks ago",
-    type: "info",
-    read: true,
-  },
-  {
-    id: "6",
-    title: "Vehicle Ready for Pickup",
-    description:
-      "Your Toyota RAV4 (RAA 123A) is ready for pickup from Kigali Auto Services. Please collect your vehicle at your earliest convenience.",
-    timestamp: "3 hours ago",
-    type: "pickup",
-    read: false,
-    vehicle: {
-      make: "Toyota",
-      model: "RAV4",
-      plateNumber: "RAA 123A",
-      garage: "Kigali Auto Services",
-    },
-    garage: {
-      name: "Kigali Auto Services",
-      address: "KK 123 St, Kigali",
-    },
-  },
-]
+
 interface Notification {
   id: string | number;
   title: string;

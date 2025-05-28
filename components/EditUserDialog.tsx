@@ -10,6 +10,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -22,6 +23,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/components/ui/use-toast";
+import { Role, User } from "@/lib/types/users";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
@@ -31,32 +33,13 @@ const editUserFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
   phone: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
   role_id: z.string(),
+  department_id: z.string().optional(),
   new_password: z.string().optional(),
   status: z.enum(["active", "inactive"]),
   tenant_id: z.string().optional(),
 })
 
-type Role = {
-  id: string;
-  name: string;
-  tenant_id: string;
-};
 
-interface User {
-    id: string;
-    email: string;
-    name: string;
-    first_name: string;
-    last_name: string;
-    phone: string;
-    role: any;
-    role_id: string;
-    tenant_id: string;
-    tenant: any;
-    avatar: string;
-    status: string;
-    last_login: string;
-}
 
 type EditUserDialogProps = {
   user: User;
@@ -80,6 +63,7 @@ export function EditUserDialog({
 }: EditUserDialogProps) {
   const [showPasswordField, setShowPasswordField] = useState(false)
   const { toast } = useToast();
+  const [departments, setDepartments] = useState(user.tenant.departments ? user.tenant.departments : []);
   const form = useForm<z.infer<typeof editUserFormSchema>>({
     resolver: zodResolver(editUserFormSchema),
     defaultValues: {
@@ -96,19 +80,20 @@ export function EditUserDialog({
 
   useEffect(() => {
     form.reset({
-        first_name: user.first_name,
-        last_name: user.last_name,
-        email: user.email,
-        phone: user.phone,
-        status: user.status ? "active" : "inactive",
-        role_id: user.role_id,
-        tenant_id: user.tenant_id
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      phone: user.phone,
+      status: user.status ? "active" : "inactive",
+      role_id: user.role_id,
+      department_id: user.department_id,
+      tenant_id: user.tenant_id
     });
   }, [user, roles, form]);
 
   const onSubmit = async (values: z.infer<typeof editUserFormSchema>) => {
     try {
-      
+
 
       const updatedUser = await apiRequest(`${API_URL}users/${user.id}`, "PATCH", {
         first_name: values.first_name,
@@ -117,7 +102,8 @@ export function EditUserDialog({
         phone: values.phone,
         new_password: values.new_password,
         role_id: values.role_id,
-        tenant_id: tenant_id ,
+        department_id: values.department_id,
+        tenant_id: tenant_id,
         is_active: values.status === "active",
       });
 
@@ -183,45 +169,48 @@ export function EditUserDialog({
                 )}
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+250788123456" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              /><FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="john.doe@example.com" type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="email"
+              name="new_password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>New Password / Change Password (optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="john.doe@example.com" type="email" {...field} />
+                    <Input type="password" placeholder="********" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
-                    control={form.control}
-                    name="new_password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password / Change Password (optional)</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="********" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
-                  <FormControl>
-                    <Input placeholder="+250788123456" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
             <FormField
               control={form.control}
               name="role_id"
@@ -243,6 +232,35 @@ export function EditUserDialog({
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                </FormItem>
+              )}
+            /> <FormField
+              control={form.control}
+              name="department_id"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="space-y-2">
+                    <FormLabel htmlFor="department_id">Department</FormLabel>
+                    <Select
+                      name="department_id"
+                      defaultValue={departments?.[0]?.id?.toString()}
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments?.map((department) => (
+                          <SelectItem key={department.id} value={department.id.toString()}>
+                            {department.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>department is required for agents/assessors, optional for the rest.</FormDescription>
+                    <FormMessage />
+                  </div>
                 </FormItem>
               )}
             />
@@ -267,19 +285,19 @@ export function EditUserDialog({
                 </FormItem>
               )}
             />
-              <FormField
-                control={form.control}
-                name="tenant_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tenant/Company</FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled value={tenant_id} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="tenant_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tenant/Company</FormLabel>
+                  <FormControl>
+                    <Input {...field} disabled value={tenant_id} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <DialogFooter>
               <Button type="submit">Save Changes</Button>
             </DialogFooter>

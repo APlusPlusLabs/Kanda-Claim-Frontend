@@ -12,18 +12,64 @@ export interface Vehicle {
   created_at?: string;
   updated_at?: string;
 }
-interface DocCategory {
-  id: string; name: string;
+export interface DocumentCategory {
+  id?: string; name: string;
 };
+// export interface Document {
+//   id: string;
+//   category: any;
+//   category_id?: any;
+//   tenant_id?: any; 
+//   user_id?: any; 
+//   claim_id?: any; 
+//   file_name: string;
+//   mime_type: string;
+//   file_path: string;
+//   created_at: string;
+// }
 export interface Document {
-  category: any;
   id: string;
+  tenant_id: string;
+  category_id: string;
+  claim_id: string;
+  user_id: string;
+  file_path: string;
   file_name: string;
   mime_type: string;
-  file_path: string;
-  created_at: string;
+  created_at?: string;
+  updated_at?: string;
+  // Relationships
+  category?: {
+    id: string;
+    name: string;
+  };
+  claim?: {
+    id: string;
+    code: string;
+  };
+  user?: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
 }
-
+export interface ReportPart {
+  id: string;
+  cost: number;
+  name: string;
+  category?: string;
+  selected: boolean;
+}
+export interface AssignmentReport {
+  "photos": any[],
+  "laborCost": number,
+  "totalCost": number,
+  "submittedAt": string,
+  "selectedParts": ReportPart[],
+  "partsToReplace": ReportPart[],
+  "damageDescription": string,
+  "repairRecommendation": string
+}
 export interface Activity {
   id: string;
   event: string;

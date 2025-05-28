@@ -415,8 +415,8 @@ export default function InsurerClaimsPage() {
         claim_id: selectedClaim?.id,
         content: newNote
       }
-      const response = await apiRequest(`${API_URL}notes/${selectedClaim?.id}`, "POST", newNoteData)
-      const noteFromRsponse = response.data
+      const response = await apiRequest(`${API_URL}notes`, "POST", newNoteData)
+      const noteFromRsponse = response
       const updatedClaim = {
         ...selectedClaim,
         notes: [
@@ -457,7 +457,7 @@ export default function InsurerClaimsPage() {
 
 
 
-  const handleUpdateStatus = (newStatus: string) => {
+  const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedClaim) return
 
     const updatedClaim = {
@@ -467,21 +467,40 @@ export default function InsurerClaimsPage() {
       notes: [
         ...selectedClaim.notes,
         {
-          date: format(new Date(), "yyyy-MM-dd HH:mm"),
-          author: user?.first_name ? `${user.first_name} ${user.last_name}` : "Claims Agent",
+          tenant_id: user?.tenant_id,
+          user_id: user?.id,
+          claim_id: selectedClaim?.id,
           content: `Claim status updated to ${newStatus}.`,
         },
       ],
     }
+    try {
+      const response = await apiRequest(`${API_URL}claims/${selectedClaim.id}`, "PUT", updatedClaim)
+      setSelectedClaim(updatedClaim)
+      setClaims([...claims, updatedClaim])
 
-    // In a real app, this would call an API to update the claim
-    // For now, we'll just update the local state
-    setSelectedClaim(updatedClaim)
-
-    toast({
-      title: "Status updated",
-      description: `Claim status has been updated to ${newStatus}.`,
-    })
+      toast({
+        title: "Status updated",
+        description: `Claim status has been updated to ${newStatus}.`,
+      })
+    } catch (error: any) {
+      if (Array.isArray(error.errors)) {
+        error.errors.forEach((er: string) => {
+          toast({
+            variant: "destructive",
+            title: "Error while sending new status",
+            description: er,
+          });
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to send claim status data",
+        });
+      }
+      console.error("Error sendin status:", error);
+    }
   }
 
   const handleAIAnalysis = () => {
@@ -1385,9 +1404,9 @@ export default function InsurerClaimsPage() {
                           <span className="text-muted-foreground mr-1">{selectedClaim.status} :</span>
                           <Badge variant="outline" className="flex items-center gap-1">
                             {getResponsibleIcon(selectedClaim.department?.name)}
-                            <span>
+                           
                               {selectedClaim.department?.name} ({selectedClaim.assignment?.assessor?.name})
-                            </span>
+                           
                           </Badge>
                         </span>
                       )}

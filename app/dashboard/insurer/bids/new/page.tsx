@@ -16,7 +16,7 @@ import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { ChevronLeft, Plus, Trash2, Upload } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import {
@@ -27,6 +27,35 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
+
+const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
+interface Vehicle {
+  make: string;
+  model: string;
+  year: number;
+  license_plate: string;
+  vin: string;
+}
+
+interface Claim {
+  id: string;
+  code: string;
+  customer: string;
+  vehicle_info: string;
+  vehicle: Vehicle;
+}
+
+interface Assessment {
+  id: string;
+  claim_id: string;
+  claim: { id: string; code: string; user: { name: string } };
+  vehicle: Vehicle;
+  report?: {
+    partsToReplace: { id: number; name: string; cost: string; category: string; selected: boolean }[];
+    [key: string]: any;
+  };
+}
 // Form schema
 const formSchema = z.object({
   claimId: z.string().min(1, "Claim ID is required"),
@@ -49,22 +78,62 @@ const formSchema = z.object({
   uploadedDocuments: z.array(z.string()).optional(),
 })
 
-// Mock claims data
-const mockClaims = [
-  { id: "CL-2025-001", customer: "Mugisha Nkusi", vehicle: "Toyota RAV4" },
-  { id: "CL-2025-002", customer: "Uwase Marie", vehicle: "Suzuki Swift" },
-  { id: "CL-2025-003", customer: "Kamanzi Eric", vehicle: "Honda Civic" },
-]
-
 export default function NewBidPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, apiRequest } = useAuth()
   const { toast } = useToast()
   const [scopeItems, setScopeItems] = useState<string[]>([])
   const [newScopeItem, setNewScopeItem] = useState("")
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([])
   const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [claims, setClaims] = useState<Claim[]>([]);
+  useEffect(() => {
+    const loadAssessments = async () => {
+      setIsLoading(true);
+      try {
+        const response = await apiRequest(`${API_URL}assessments-completed/${user.tenant_id}`, "GET");
+        if (!Array.isArray(response.data)) {
+          throw new Error("Invalid response format: Expected an array");
+        }
+        const clmz: Claim[] = response.data
+          .filter((ass: any) => ass.claim && ass.vehicle) // Ensure claim and vehicle exist
+          .map((ass: any) => {
+            const clm = ass.claim;
+            const veh = ass.vehicle;
+            const vehInfo = `${veh.model} ${veh.make} ${veh.year} (${veh.license_plate})`; // Fix typo
+            return {
+              id: clm.id,
+              code: clm.code,
+              customer: clm.user?.name || "Unknown",
+              vehicle_info: vehInfo,
+              vehicle: {
+                make: veh.make,
+                model: veh.model,
+                year: veh.year,
+                license_plate: veh.license_plate, // Fix typo
+                vin: veh.vin,
+              },
+            };
+          });
+        setClaims(clmz);
+        setAssessments(response.data);
+      } catch (error) {
+        console.error("Error loading assessments:", error);
+        toast({
+          title: "Error Loading Assessments",
+          description: "There was an error loading the assessments. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAssessments();
+  }, [apiRequest, user.tenant_id, toast]);
 
   // Initialize form with empty values and ensure resolver is applied
   const form = useForm<z.infer<typeof formSchema>>({
@@ -123,61 +192,62 @@ export default function NewBidPage() {
   // Handle claim selection
   const handleClaimSelect = (claimId: string) => {
     if (!claimId) {
-      // If no claim is selected, reset vehicle info
       form.setValue("vehicleInfo", {
         make: "",
         model: "",
         year: "",
         licensePlate: "",
         vin: "",
-      })
-      return
+      });
+      form.setValue("scopeOfWork", []);
+      form.setValue("estimatedCost", 0);
+      setScopeItems([]);
+      return;
     }
 
-    const claim = mockClaims.find((c) => c.id === claimId)
-    if (claim) {
-      // In a real app, you would fetch the claim details from the API
-      form.setValue("claimId", claimId)
+    const selectedClaim = claims.find(cl => cl.id === claimId);
+    if (selectedClaim) {
+      form.setValue("vehicleInfo", {
+        make: selectedClaim.vehicle.make,
+        model: selectedClaim.vehicle.model,
+        year: selectedClaim.vehicle.year.toString(),
+        licensePlate: selectedClaim.vehicle.license_plate,
+        vin: selectedClaim.vehicle.vin,
+      });
 
-      // Mock vehicle info for demo purposes
-      if (claim.vehicle === "Toyota RAV4") {
-        form.setValue("vehicleInfo", {
-          make: "Toyota",
-          model: "RAV4",
-          year: "2020",
-          licensePlate: "RAC 123A",
-          vin: "1HGCM82633A123456",
-        })
-      } else if (claim.vehicle === "Suzuki Swift") {
-        form.setValue("vehicleInfo", {
-          make: "Suzuki",
-          model: "Swift",
-          year: "2019",
-          licensePlate: "RAB 456B",
-          vin: "2FMDK48C13BA54321",
-        })
-      } else if (claim.vehicle === "Honda Civic") {
-        form.setValue("vehicleInfo", {
-          make: "Honda",
-          model: "Civic",
-          year: "2019",
-          licensePlate: "RAD 789C",
-          vin: "3VWFE21C04M123789",
-        })
+      const selectedAssessment = assessments.find(ass => ass.claim_id === claimId);
+      if (selectedAssessment) {
+        const reportData = selectedAssessment.report;
+        const report = (typeof reportData === 'string' ? JSON.parse(reportData) : reportData)
+        if (report.partsToReplace) {
+          console.log('partsToReplace', selectedAssessment?.report?.partsToReplace);
+
+          const newScopeItems = report.partsToReplace.map(
+            (part: { name: string; cost: string }) => `${part.name} (${part.cost} RWF)`
+          );
+          setScopeItems(newScopeItems);
+          form.setValue("scopeOfWork", newScopeItems);
+          form.setValue("estimatedCost", report.totalCost || 0);
+        } else {
+          console.log('No partsToReplace', selectedAssessment?.report);
+          setScopeItems([]);
+          form.setValue("scopeOfWork", []);
+          form.setValue("estimatedCost", 0);
+        }
       }
     }
-  }
-
+  };
   // Handle adding scope item
+
   const handleAddScopeItem = () => {
     if (newScopeItem.trim() !== "") {
-      const updatedItems = [...scopeItems, newScopeItem.trim()]
-      setScopeItems(updatedItems)
-      form.setValue("scopeOfWork", updatedItems)
-      setNewScopeItem("")
-      form.setValue("newScopeItem", "")
+      const updatedItems = [...scopeItems, newScopeItem.trim()];
+      setScopeItems(updatedItems);
+      form.setValue("scopeOfWork", updatedItems);
+      setNewScopeItem("");
+      form.setValue("newScopeItem", "");
     }
-  }
+  };
 
   // Handle removing scope item
   const handleRemoveScopeItem = (index: number) => {
@@ -185,37 +255,49 @@ export default function NewBidPage() {
     setScopeItems(updatedItems)
     form.setValue("scopeOfWork", updatedItems)
   }
-
   // Handle photo upload
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      // In a real app, you would upload the files to a server
-      // For now, we'll just create URLs for the files
-      const newPhotos = Array.from(e.target.files).map((file) => {
-        // Create a placeholder URL for demo purposes
-        return `/placeholder.svg?height=200&width=300&text=Photo ${uploadedPhotos.length + 1}`
-      })
-      const updatedPhotos = [...uploadedPhotos, ...newPhotos]
-      setUploadedPhotos(updatedPhotos)
-      form.setValue("photos", updatedPhotos)
-      form.setValue("uploadedPhotos", updatedPhotos)
+      const formData = new FormData();
+      Array.from(e.target.files).forEach(file => formData.append("photos", file));
+      try {
+        const response = await apiRequest(`${API_URL}upload/photos`, "POST", formData);
+        const newPhotos = response.data.urls;
+        const updatedPhotos = [...uploadedPhotos, ...newPhotos];
+        setUploadedPhotos(updatedPhotos);
+        form.setValue("photos", updatedPhotos);
+        form.setValue("uploadedPhotos", updatedPhotos);
+      } catch (error) {
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload photos. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
-  }
+  };
 
   // Handle document upload
-  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      // In a real app, you would upload the files to a server
-      const newDocs = Array.from(e.target.files).map((file) => {
-        // Create a placeholder name for demo purposes
-        return `document_${uploadedDocuments.length + 1}.${file.name.split(".").pop()}`
-      })
-      const updatedDocs = [...uploadedDocuments, ...newDocs]
-      setUploadedDocuments(updatedDocs)
-      form.setValue("documents", updatedDocs)
-      form.setValue("uploadedDocuments", updatedDocs)
+      const formData = new FormData();
+      Array.from(e.target.files).forEach(file => formData.append("photos", file));
+      try {
+        const response = await apiRequest(`${API_URL}upload/photos`, "POST", formData);
+        const newPhotos = response.data.urls; // Assuming API returns an array of URLs
+        const updatedPhotos = [...uploadedPhotos, ...newPhotos];
+        setUploadedPhotos(updatedPhotos);
+        form.setValue("photos", updatedPhotos);
+        form.setValue("uploadedPhotos", updatedPhotos);
+      } catch (error) {
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload photos. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
-  }
+  };
 
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -280,7 +362,7 @@ export default function NewBidPage() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Sanlam Alianz",
+        name: user.name,
         role: "Insurance Company",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -290,7 +372,6 @@ export default function NewBidPage() {
         { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
         { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
       ]}
-      actions={[]}
     >
       <div className="space-y-6">
         <Breadcrumb>
@@ -331,39 +412,43 @@ export default function NewBidPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4">
-                  <FormField
-                    control={form.control}
-                    name="claimId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Claim</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value)
-                            handleClaimSelect(value)
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a claim" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {mockClaims.map((claim) => (
-                              <SelectItem key={claim.id} value={claim.id}>
-                                {claim.id} - {claim.customer} ({claim.vehicle})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Selecting a claim will automatically populate vehicle information
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {isLoading ? (
+                    <div className="text-center">Loading claims...</div>
+                  ) : (
+                    <FormField
+                      control={form.control}
+                      name="claimId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Claim</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              handleClaimSelect(value);
+                            }}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a claim" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {claims.map((claim) => (
+                                <SelectItem key={claim.id} value={claim.id}>
+                                  {claim.code} - {claim.customer} ({claim.vehicle_info})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Selecting a claim will automatically populate vehicle information
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -486,13 +571,13 @@ export default function NewBidPage() {
                               {...field}
                               value={newScopeItem}
                               onChange={(e) => {
-                                setNewScopeItem(e.target.value)
-                                field.onChange(e)
+                                setNewScopeItem(e.target.value);
+                                field.onChange(e);
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
-                                  e.preventDefault()
-                                  handleAddScopeItem()
+                                  e.preventDefault();
+                                  handleAddScopeItem();
                                 }
                               }}
                             />
@@ -519,12 +604,12 @@ export default function NewBidPage() {
                           </ul>
                         ) : (
                           <p className="text-sm text-muted-foreground mt-2">
-                            No scope items added yet. Add at least one item.
+                            No scope items added yet. Add at least one item or select a claim to auto-populate.
                           </p>
                         )}
                         {form.formState.errors.scopeOfWork && (
                           <p className="text-sm font-medium text-destructive mt-2">
-                            {form.formState.errors.scopeOfWork.message}
+                            {form.formState.errors.scopeOfWork?.root?.message || "At least one scope item is required"}
                           </p>
                         )}
                       </FormItem>

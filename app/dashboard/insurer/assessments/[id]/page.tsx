@@ -24,7 +24,6 @@ import {
 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/lib/auth-provider"
-import { Assignment, defaultClaim } from "@/lib/types/claims"
 import { Message } from "ai"
 import router from "next/router"
 import { use, useCallback, useEffect, useState } from "react"
@@ -43,7 +42,7 @@ const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
 interface Props {
   params: Promise<{ id: string }>;
 }
-export default function AssessmentDetails({ params }: Props) {
+export default function AssessmentDetailsPage({ params }: Props) {
   const router = useRouter()
   const { id } = use(params);
   const { user, apiRequest } = useAuth()
@@ -51,21 +50,19 @@ export default function AssessmentDetails({ params }: Props) {
   const [loading, setLoading] = useState(true);
 
   const [assessment, setAssessment] = useState<any>(null);
-  const [assignment, setAssignment] = useState<any>(null);
-  const fetchAssignment = useCallback(async () => {
+  const fetchAssessment = useCallback(async () => {
 
     try {
       setLoading(true);
-      const response = await apiRequest(`${API_URL}claim-assignment-assessments/${id}`, "GET");
+      const response = await apiRequest(`${API_URL}assessment/${id}`, "GET");
 
-      if (response) {
+      if (response.data) {
         const assign = response.data
         const claim = assign.claim
-        const vehicle = claim.vehicles[0]
+        const vehicle = assign.vehicle
         const assessment = {
           ...claim,
           ...assign,
-          assessementInfo: claim.assessments,
           claimId: claim.code,
           vehicle: vehicle?.model + ' ' + vehicle?.make + ' ' + vehicle?.year,
           vehicleDetails: vehicle,
@@ -80,7 +77,6 @@ export default function AssessmentDetails({ params }: Props) {
           tenant: assign.tenant,
           photos: assign.claim.documents,
         }
-        setAssignment(assessment)
         setAssessment(assessment)
       }
     } catch (error: any) {
@@ -96,11 +92,11 @@ export default function AssessmentDetails({ params }: Props) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to fetch assignment data",
+          description: "Failed to fetch assessment data",
         });
       }
-      console.error("Error fetching assignment:", error);
-      setAssignment(null);
+      console.error("Error fetching assessment:", error);
+      setAssessment(null);
     } finally {
       setLoading(false);
     }
@@ -108,7 +104,7 @@ export default function AssessmentDetails({ params }: Props) {
 
   useEffect(() => {
     if (user) {
-      fetchAssignment();
+      fetchAssessment();
     } else {
       toast({
         variant: "destructive",
@@ -117,7 +113,7 @@ export default function AssessmentDetails({ params }: Props) {
       });
       router.push("/login");
     }
-  }, [user, fetchAssignment, router, toast]);
+  }, [user, fetchAssessment, router, toast]);
 
   if (loading) {
     return (
@@ -128,7 +124,7 @@ export default function AssessmentDetails({ params }: Props) {
     );
   }
 
-  if (!assignment) {
+  if (!assessment) {
     return (
       <div className="text-center py-8">
         <h3 className="text-lg font-semibold mb-2">Error</h3>
@@ -144,26 +140,26 @@ export default function AssessmentDetails({ params }: Props) {
     <DashboardLayout
       user={{
         name: user.name,
-        role: "Assessor",
+        role: "Insurer",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
-        { name: "Dashboard", href: "/dashboard/assessor", icon: <ClipboardCheck className="h-5 w-5" /> },
-        { name: "Assessments", href: "/dashboard/assessor/assessments", icon: <FileText className="h-5 w-5" /> },
-        { name: "Messages", href: "/dashboard/assessor/messages", icon: <MessageSquare className="h-5 w-5" /> },
-        { name: "Schedule", href: "/dashboard/assessor/schedule", icon: <Calendar className="h-5 w-5" /> },
-        { name: "Notifications", href: "/dashboard/assessor/notifications", icon: <Bell className="h-5 w-5" /> },
-        { name: "Profile", href: "/dashboard/assessor/profile", icon: <User className="h-5 w-5" /> },
+        { name: "Dashboard", href: "/dashboard/insurer", icon: <ClipboardCheck className="h-5 w-5" /> },
+        { name: "Assessments", href: "/dashboard/insurer/assessments", icon: <FileText className="h-5 w-5" /> },
+        { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
+        { name: "Schedule", href: "/dashboard/insurer/schedule", icon: <Calendar className="h-5 w-5" /> },
+        { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
+        { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
       ]}
     >
       <div className="space-y-6">
         <Breadcrumb>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/dashboard/assessor">Dashboard</BreadcrumbLink>
+            <BreadcrumbLink href="/dashboard/insurer">Dashboard</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href="/dashboard/assessor/assessments">Assessments</BreadcrumbLink>
+            <BreadcrumbLink href="/dashboard/insurer/assessments">Assessments</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
@@ -301,16 +297,15 @@ export default function AssessmentDetails({ params }: Props) {
             </CardContent>
           </Card>
           <Card>
-          <CardHeader>
-            <CardTitle>Damage Description</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{assessment.description}</p>
-          </CardContent>
-        </Card>
+            <CardHeader>
+              <CardTitle>Damage Description</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>{assessment.description}</p>
+            </CardContent>
+          </Card>
         </div>
 
-      
 
         <Tabs defaultValue="report">
           <TabsList>
@@ -332,15 +327,16 @@ export default function AssessmentDetails({ params }: Props) {
           </TabsList>
 
           <TabsContent value="report" className="space-y-4">
-            {assessment.assessementInfo?.map((asss: any) => (
-              <div key={asss.id}>
-                <p className="space-x-2 space-y-2 ">Assessment Notes: <strong>{asss.notes}</strong> </p>
-                <p className="space-x-2 space-y-2 ">Severity: <strong>{asss.severity}</strong> </p>
-                <AssessmentReportCard reportData={asss.report} />
-              </div>
-            ))}
+            <p className="space-x-2">Assessment Notes: <strong>{assessment.notes}</strong> </p>
+            <p className="space-x-2">Severity: <strong>{assessment.severity}</strong> </p>
+            {assessment.report ? (
+              <>
+                <AssessmentReportCard reportData={assessment.report} />
+              </>
+            ) : (
+              <h3 className="text-center align-center">No Report Yet</h3>
+            )}
           </TabsContent>
-
           <TabsContent value="photos" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {assessment.photos?.map((photo) => (
@@ -434,16 +430,16 @@ export default function AssessmentDetails({ params }: Props) {
         <div className="flex justify-end space-x-2">
           {assessment.status === "pending" && (
             <Button asChild>
-              <Link href={`/dashboard/assessor/assessments/${assessment.id}/schedule`}>Schedule Assessment</Link>
+              <Link href={`/dashboard/insurer/assessments/${assessment.id}/schedule`}>Schedule Assessment</Link>
             </Button>
           )}
           {assessment.status === "scheduled" && (
             <Button asChild>
-              <Link href={`/dashboard/assessor/assessments/${assessment.id}/submit`}>Complete Assessment</Link>
+              <Link href={`/dashboard/insurer/assessments/${assessment.id}/submit`}>Complete Assessment</Link>
             </Button>
           )}
           <Button variant="outline" asChild>
-            <Link href="/dashboard/assessor/assessments">Back to Assessments</Link>
+            <Link href="/dashboard/insurer/assessments">Back to Assessments</Link>
           </Button>
         </div>
       </div>

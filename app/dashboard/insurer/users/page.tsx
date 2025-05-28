@@ -36,13 +36,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Building2, Search, UserPlus, UserCog, Shield, Users, UserCheck, UserX } from "lucide-react";
+import { Building2, Search, UserPlus, UserCog, Shield, Users, UserCheck, UserX, HousePlus } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/components/ui/use-toast";
 
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { Role, User } from "@/lib/types/users";
+import { Description } from "@radix-ui/react-toast";
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const userFormSchema = z.object({
@@ -52,6 +53,7 @@ const userFormSchema = z.object({
   phone: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
   role: z.string().uuid(),
+  department_id: z.string().uuid(),
   // role: z.enum(["driver", "garage", "assessor", "insurer"]),
   tenant_id: z.string().optional(),
   insuranceCompanyName: z.string().optional(),
@@ -70,6 +72,10 @@ const userFormSchema = z.object({
     path: ["tenant_id", "insuranceCompanyName"],
   }
 );
+const departmentFormSchema = z.object({
+  name: z.string().min(2, { message: "Department name must be at least 2 characters." }),
+  description: z.string().min(2, { message: "description must be at least 2 characters." }),
+});
 
 
 export default function UsersManagementPage() {
@@ -78,11 +84,13 @@ export default function UsersManagementPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [isAddDepartmentOpen, setIsAddDepartmentOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [userLoadStatus, setUserLoadStatus] = useState<"loading" | "loaded" | "failed">("loading");
+  const [departments, setDepartments] = useState<any[]>([]);
   // Fetch users and roles from backend
   useEffect(() => {
     async function fetchData() {
@@ -96,6 +104,7 @@ export default function UsersManagementPage() {
             email: u.email,
             phone: u.phone,
             role_id: u.role_id,
+            department_id: u.department_id,
             tenant_id: u.tenant_id,
             status: u.is_active ? "active" : "inactive",
             last_login: u.last_login || undefined,
@@ -116,6 +125,7 @@ export default function UsersManagementPage() {
       }
     }
     fetchData();
+    setDepartments(user.tenant.departments ? user.tenant.departments : [])
   }, [apiRequest, toast]);
 
   // Form setup
@@ -128,8 +138,16 @@ export default function UsersManagementPage() {
       phone: "",
       password: "",
       role: "driver",
+      department_id: "",
       tenant_id: user?.tenant_id || "",
       insuranceCompanyName: "",
+    },
+  });
+  const departform = useForm<z.infer<typeof departmentFormSchema>>({
+    resolver: zodResolver(departmentFormSchema),
+    defaultValues: {
+      name: "",
+      description: ""
     },
   });
 
@@ -144,6 +162,7 @@ export default function UsersManagementPage() {
         phone: values.phone,
         password: values.password,
         role_id: values.role,
+        department_id: values.department_id,
         tenant_id: user?.tenant_id
       });
 
@@ -157,6 +176,7 @@ export default function UsersManagementPage() {
           email: newUser.user.email,
           phone: newUser.user.phone,
           role_id: newUser.user.role_id,
+          department_id: newUser.user.department_id,
           tenant_id: newUser.user.tenant_id,
           status: newUser.user.is_active ? "active" : "inactive",
           last_login: newUser.user.last_login,
@@ -178,6 +198,39 @@ export default function UsersManagementPage() {
         variant: "destructive",
         title: "Error",
         description: error.message || "Failed to add user.",
+      });
+    }
+  };
+  const onSubmitNewDepartment = async (values: z.infer<typeof departmentFormSchema>) => {
+    try {
+
+      const newDescription = await apiRequest(`${API_URL}departments/store`, "POST", {
+        name: values.name,
+        description: values.description,
+        tenant_id: user.tenant_id
+      });
+
+      setDepartments([
+        ...departments,
+        {
+          id: newDescription.id,
+          first_name: newDescription.description,
+          description: newDescription.description,
+        },
+      ]);
+
+      setIsAddDepartmentOpen(false);
+      departform.reset();
+
+      toast({
+        title: "Department added successfully",
+        description: `${values.name} has been added.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to add Department. ",
       });
     }
   };
@@ -317,32 +370,33 @@ export default function UsersManagementPage() {
                       )}
                     />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="john.doe@example.com" type="email" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="+250788123456" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="+250788123456" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="john.doe@example.com" type="email" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    /></div>
                   <FormField
                     control={form.control}
                     name="password"
@@ -381,9 +435,89 @@ export default function UsersManagementPage() {
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="department_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="space-y-2">
+                          <FormLabel htmlFor="department_id">Department</FormLabel>
+                          <Select
+                            name="department_id"
+                            defaultValue={departments?.[0]?.id?.toString()}
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {departments?.map((department) => (
+                                <SelectItem key={department.id} value={department.id.toString()}>
+                                  {department.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>department is required for agents/assessors, optional for the rest.</FormDescription>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
 
                   <DialogFooter>
                     <Button type="submit">Add User</Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isAddDepartmentOpen} onOpenChange={setIsAddDepartmentOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <HousePlus className="mr-2 h-4 w-4" /> Add Department
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[525px]">
+              <DialogHeader>
+                <DialogTitle>Add New Department</DialogTitle>
+                <DialogDescription>Create a new department for company users.</DialogDescription>
+              </DialogHeader>
+              <Form {...departform}>
+                <form onSubmit={departform.handleSubmit(onSubmitNewDepartment)} className="space-y-4 py-4">
+                  <FormField
+                    control={departform.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Department Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Finance, Garage, Claims..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={departform.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Explain a bit" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+
+
+                  <DialogFooter>
+                    <Button type="submit">Add Department</Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -409,6 +543,9 @@ export default function UsersManagementPage() {
             </TabsTrigger>
             <TabsTrigger value="inactive">
               Inactive ({users.filter((user) => user.status === "inactive").length})
+            </TabsTrigger>
+            <TabsTrigger value="departments">
+              Departments ({departments.length})
             </TabsTrigger>
           </TabsList>
 
@@ -694,6 +831,59 @@ export default function UsersManagementPage() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+          <TabsContent value="departments" className="space-y-4">
+            {departments.length > 0 ? (
+
+              <Card>
+                <CardContent className="p-6 space-y-2">
+                  {departments.map((depart, index) => (
+                    <Card key={index}>
+                      <CardContent className="p-6">
+                      <div className="grid grid-cols-2">
+                        <div className="space-x-4">
+                          <h2>{depart.name}  info</h2>
+                          <div className="space-y-3">
+                            <span>Department name</span> : {depart.name} <br />
+                            <span>Description</span>: {depart.description}
+                          </div>
+                        </div>
+                        <div className="space-x-4">
+                          <h2>{depart.name}  users</h2>
+                          <div className="space-y-3">
+                            {depart.users?.map((ussa, i) => (
+                              <div key={i}>
+                                <span>user</span> {ussa.info} < br />
+                                <Button variant="outline" size="sm" asChild>
+                                  <Link href={`/dashboard/insurer/users/${ussa.id}`}>View Details</Link>
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                    </Card>
+                  ))}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Departments Found</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      No Departments yet
+                    </p>
+                    <Button onClick={() => setIsAddDepartmentOpen(true)}>
+                      <HousePlus className="mr-2 h-4 w-4" /> Add Department
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+            }
           </TabsContent>
         </Tabs>
       </div>

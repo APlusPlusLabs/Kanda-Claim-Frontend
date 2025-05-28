@@ -207,6 +207,7 @@ export default function InsurerDashboard() {
       navigation={[
         { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
         { name: "Claims", href: "/dashboard/insurer/claims", icon: <FileText className="h-5 w-5" /> },
+        { name: "Assessments", href: "/dashboard/insurer/assessments", icon: <FileText className="h-5 w-5" /> },
         {
           name: "Multi-Signature Claims",
           href: "/dashboard/insurer/multi-signature-claims",
