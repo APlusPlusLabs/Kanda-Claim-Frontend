@@ -240,7 +240,9 @@ export default function NewBidPage() {
           form.setValue("scopeOfWork", newScopeItems);
 
           // Pre-populate photos
-          const reportPhotos = report.photos || [];
+          const reportPhotos = (report.photos || []).map((photo: string) =>
+            photo.startsWith("http") ? photo : `${STORAGES_URL}${photo}`
+          );
           setUploadedPhotos(reportPhotos);
           form.setValue("photos", reportPhotos);
           form.setValue("uploadedPhotos", reportPhotos);
@@ -726,7 +728,7 @@ export default function NewBidPage() {
                             {uploadedPhotos.map((photo, index) => (
                               <div key={index} className="relative">
                                 <img
-                                  src={STORAGES_URL + photo || "/placeholder.svg"}
+                                  src={photo || "/placeholder.svg"}
                                   alt={`Damage photo ${index + 1}`}
                                   className="w-full h-24 object-cover rounded-md"
                                 />
