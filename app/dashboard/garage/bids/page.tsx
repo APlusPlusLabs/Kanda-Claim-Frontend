@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "@/Next.js/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -12,204 +12,68 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FileText, Search, Calendar, Car, Clock, DollarSign, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { DateRangePicker } from "@/components/date-range-picker"
 import type { Bid } from "@/lib/types/bidding"
+import { toast } from "@/components/ui/use-toast"
 
-// Mock data for bids
-const mockBids: Bid[] = [
-  {
-    id: "BID-2025-001",
-    claimId: "CL-2025-001",
-    vehicleInfo: {
-      make: "Toyota",
-      model: "RAV4",
-      year: "2020",
-      licensePlate: "RAC 123A",
-      vin: "1HGCM82633A123456",
-    },
-    damageDescription: "Front bumper damage and headlight broken due to collision",
-    scopeOfWork: ["Replace front bumper", "Replace left headlight", "Paint matching"],
-    estimatedCost: 450000,
-    photos: ["/placeholder.svg?height=200&width=300"],
-    documents: ["/damage-report.pdf"],
-    status: "open",
-    createdAt: "2025-03-15T10:30:00Z",
-    updatedAt: "2025-03-15T10:30:00Z",
-    createdBy: "John Doe",
-    interestedGarages: [],
-    submissions: [],
-    activities: [],
-  },
-  {
-    id: "BID-2025-002",
-    claimId: "CL-2025-002",
-    vehicleInfo: {
-      make: "Honda",
-      model: "Civic",
-      year: "2019",
-      licensePlate: "RAB 456B",
-      vin: "2FMDK48C13BA54321",
-    },
-    damageDescription: "Side panel dents and scratches from parking incident",
-    scopeOfWork: ["Repair side panel dents", "Repaint affected areas"],
-    estimatedCost: 280000,
-    photos: ["/placeholder.svg?height=200&width=300"],
-    documents: ["/damage-report.pdf"],
-    status: "in-progress",
-    createdAt: "2025-02-28T14:15:00Z",
-    updatedAt: "2025-03-01T09:45:00Z",
-    createdBy: "Jane Smith",
-    interestedGarages: ["Garage-001"],
-    submissions: [],
-    activities: [],
-  },
-  {
-    id: "BID-2025-003",
-    claimId: "CL-2025-003",
-    vehicleInfo: {
-      make: "Nissan",
-      model: "X-Trail",
-      year: "2021",
-      licensePlate: "RAD 789C",
-      vin: "3VWFE21C04M123789",
-    },
-    damageDescription: "Rear bumper damage and broken taillight from rear-end collision",
-    scopeOfWork: ["Replace rear bumper", "Replace right taillight", "Paint matching"],
-    estimatedCost: 380000,
-    photos: ["/placeholder.svg?height=200&width=300"],
-    documents: ["/damage-report.pdf"],
-    status: "awarded",
-    createdAt: "2025-01-05T11:20:00Z",
-    updatedAt: "2025-01-10T15:30:00Z",
-    createdBy: "Robert Johnson",
-    interestedGarages: ["Garage-001"],
-    awardedTo: "Garage-001",
-    submissions: [
-      {
-        id: "SUB-2025-002",
-        bidId: "BID-2025-003",
-        garageId: "Garage-001",
-        garageName: "Kigali Auto Services",
-        costBreakdown: [
-          {
-            item: "Rear bumper replacement",
-            cost: 200000,
-            description: "OEM rear bumper replacement",
-          },
-          {
-            item: "Taillight replacement",
-            cost: 80000,
-            description: "OEM right taillight assembly",
-          },
-          {
-            item: "Painting",
-            cost: 70000,
-            description: "Paint matching and blending",
-          },
-          {
-            item: "Labor",
-            cost: 60000,
-            description: "Labor costs",
-          },
-        ],
-        totalCost: 410000,
-        estimatedCompletionTime: {
-          value: 1,
-          unit: "weeks",
-        },
-        notes: "We have all parts in stock and can begin immediately",
-        submittedAt: "2025-01-08T14:25:00Z",
-        status: "accepted",
-      },
-    ],
-    activities: [],
-  },
-  {
-    id: "BID-2024-004",
-    claimId: "CL-2024-004",
-    vehicleInfo: {
-      make: "Mazda",
-      model: "CX-5",
-      year: "2023",
-      licensePlate: "RAE 234D",
-      vin: "4S3BK675XW6987654",
-    },
-    damageDescription: "Windshield cracked due to stone impact",
-    scopeOfWork: ["Replace windshield"],
-    estimatedCost: 180000,
-    photos: ["/placeholder.svg?height=200&width=300"],
-    documents: ["/damage-report.pdf"],
-    status: "completed",
-    createdAt: "2024-12-20T09:10:00Z",
-    updatedAt: "2024-12-25T16:45:00Z",
-    createdBy: "Sarah Williams",
-    interestedGarages: ["Garage-001"],
-    awardedTo: "Garage-001",
-    completedAt: "2024-12-25T16:45:00Z",
-    submissions: [
-      {
-        id: "SUB-2024-003",
-        garageId: "Garage-001",
-        garageName: "Kigali Auto Services",
-        costBreakdown: [
-          {
-            item: "Windshield replacement",
-            cost: 150000,
-            description: "OEM windshield with installation",
-          },
-          {
-            item: "Labor",
-            cost: 30000,
-            description: "Labor costs",
-          },
-        ],
-        totalCost: 180000,
-        estimatedCompletionTime: {
-          value: 2,
-          unit: "days",
-        },
-        notes: "Same day service available",
-        submittedAt: "2024-12-21T10:15:00Z",
-        status: "accepted",
-      },
-    ],
-    activities: [],
-  },
-]
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
+
+const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
 
 export default function GarageBidsPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, apiRequest } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>(undefined)
 
+  const [bids, setBids] = useState<Bid[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  useEffect(() => {
+    const loadBids = async () => {
+      setIsLoading(true)
+      try {
+        const response = await apiRequest(`${API_URL}bids/${user.tenant_id}`, "GET");
+        setBids(response)
+      } catch (error) {
+        console.error("Error loading bids:", error)
+        toast({
+          title: "Error Loading Bids",
+          description: "There was an error loading the bids. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadBids()
+  }, [toast])
   // Filter bids based on search term, status, and date range
-  const filteredBids = mockBids.filter((bid) => {
+  const filteredBids = bids.filter((bid) => {
     const matchesSearch =
       searchTerm === "" ||
       bid.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.claimId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.vehicleInfo.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.vehicleInfo.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.vehicleInfo.licensePlate.toLowerCase().includes(searchTerm.toLowerCase())
+      bid.claim_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bid.vehicle_info.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bid.vehicle_info.model.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesStatus = statusFilter === "all" || bid.status === statusFilter
 
     const matchesDateRange =
-      !dateRange || (new Date(bid.createdAt) >= dateRange.from && new Date(bid.createdAt) <= dateRange.to)
+      !dateRange || (new Date(bid.created_at) >= dateRange.from && new Date(bid.created_at) <= dateRange.to)
 
     return matchesSearch && matchesStatus && matchesDateRange
   })
 
   // Group bids by status and interest
-  const openBids = filteredBids.filter((bid) => bid.status === "open" && !bid.interestedGarages.includes("Garage-001"))
+  const openBids = filteredBids.filter((bid) => bid.status === "open" && !bid.interested_garages?.includes("Garage-001"))
   const interestedBids = filteredBids.filter(
-    (bid) => bid.interestedGarages.includes("Garage-001") && bid.status !== "awarded" && bid.status !== "completed",
+    (bid) => bid.interested_garages?.includes("Garage-001") && bid.status !== "awarded" && bid.status !== "completed",
   )
-  const awardedBids = filteredBids.filter((bid) => bid.awardedTo === "Garage-001" && bid.status !== "completed")
-  const completedBids = filteredBids.filter((bid) => bid.awardedTo === "Garage-001" && bid.status === "completed")
+  const awardedBids = filteredBids.filter((bid) => bid.awarded_to === "Garage-001" && bid.status !== "completed")
+  const completedBids = filteredBids.filter((bid) => bid.awarded_to === "Garage-001" && bid.status === "completed")
 
   // Get status badge variant
   const getStatusBadge = (status: string) => {
@@ -232,7 +96,7 @@ export default function GarageBidsPage() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Kigali Auto Services",
+        name: user?.name,
         role: "Garage",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -242,7 +106,6 @@ export default function GarageBidsPage() {
         { name: "Bids", href: "/dashboard/garage/bids", icon: null },
         { name: "Schedule", href: "/dashboard/garage/schedule", icon: null },
       ]}
-      actions={[]}
     >
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -309,14 +172,14 @@ export default function GarageBidsPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold">Bid #{bid.id}</h3>
+                          <h3 className="text-lg font-semibold">Bid #{bid.code}</h3>
                           <Badge variant={getStatusBadge(bid.status).variant} className="capitalize">
                             {getStatusBadge(bid.status).icon}
                             {bid.status.replace("-", " ")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Created on {new Date(bid.createdAt).toLocaleDateString()}
+                          Created on {new Date(bid.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <Button asChild>
@@ -328,17 +191,16 @@ export default function GarageBidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-sm">Estimated: {bid.estimatedCost.toLocaleString()} RWF</div>
+                        <div className="text-sm">Estimated: {bid.estimated_cost.toLocaleString()} RWF</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-sm">{bid.scopeOfWork.length} repair items</div>
+                        <div className="text-sm">{bid.scope_of_work.length} repair items</div>
                       </div>
                     </div>
                   </CardContent>
@@ -358,8 +220,8 @@ export default function GarageBidsPage() {
           </TabsContent>
 
           <TabsContent value="interested" className="space-y-4">
-            {interestedBids.length > 0 ? (
-              interestedBids.map((bid) => (
+            {interestedBids?.length > 0 ? (
+              interestedBids?.map((bid) => (
                 <Card key={bid.id} className="hover:bg-muted/50 transition-colors">
                   <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -370,7 +232,7 @@ export default function GarageBidsPage() {
                             {getStatusBadge(bid.status).icon}
                             {bid.status.replace("-", " ")}
                           </Badge>
-                          {bid.submissions.some((s) => s.garageId === "Garage-001") ? (
+                          {bid.submissions?.some((s) => s.garage_id === "Garage-001") ? (
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                               Bid Submitted
                             </Badge>
@@ -381,11 +243,11 @@ export default function GarageBidsPage() {
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Created on {new Date(bid.createdAt).toLocaleDateString()}
+                          Created on {new Date(bid.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        {!bid.submissions.some((s) => s.garageId === "Garage-001") && (
+                        {!bid.submissions?.some((s) => s.garage_id === "Garage-001") && (
                           <Button asChild>
                             <Link href={`/dashboard/garage/bids/${bid.id}/submit`}>Submit Bid</Link>
                           </Button>
@@ -400,17 +262,17 @@ export default function GarageBidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
+                          <div className="text-xs text-muted-foreground">{bid.vehicle_info.license_plate}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-sm">Estimated: {bid.estimatedCost.toLocaleString()} RWF</div>
+                        <div className="text-sm">Estimated: {bid.estimated_cost.toLocaleString()} RWF</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-sm">{bid.scopeOfWork.length} repair items</div>
+                        <div className="text-sm">{bid.scope_of_work.length} repair items</div>
                       </div>
                     </div>
                   </CardContent>
@@ -432,8 +294,8 @@ export default function GarageBidsPage() {
           </TabsContent>
 
           <TabsContent value="awarded" className="space-y-4">
-            {awardedBids.length > 0 ? (
-              awardedBids.map((bid) => (
+            {awardedBids?.length > 0 ? (
+              awardedBids?.map((bid) => (
                 <Card key={bid.id} className="hover:bg-muted/50 transition-colors">
                   <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -449,7 +311,7 @@ export default function GarageBidsPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Awarded on {new Date(bid.updatedAt).toLocaleDateString()}
+                          Awarded on {new Date(bid.updated_at).toLocaleDateString()}
                         </p>
                       </div>
                       <Button variant="outline" asChild>
@@ -461,23 +323,22 @@ export default function GarageBidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
+                          <div className="text-xs text-muted-foreground">{bid.vehicle_info.license_plate}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
                           Your bid:{" "}
-                          {bid.submissions.find((s) => s.garageId === "Garage-001")?.totalCost.toLocaleString()} RWF
+                          {bid.submissions?.find((s) => s.garage_id === "Garage-001")?.proposed_cost.toLocaleString()} RWF
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
                           Estimated completion:{" "}
-                          {bid.submissions.find((s) => s.garageId === "Garage-001")?.estimatedCompletionTime.value}{" "}
-                          {bid.submissions.find((s) => s.garageId === "Garage-001")?.estimatedCompletionTime.unit}
+                          {bid.submissions?.find((s) => s.garage_id === "Garage-001")?.estimated_completion_time}{" "}
                         </div>
                       </div>
                     </div>
@@ -500,8 +361,8 @@ export default function GarageBidsPage() {
           </TabsContent>
 
           <TabsContent value="completed" className="space-y-4">
-            {completedBids.length > 0 ? (
-              completedBids.map((bid) => (
+            {completedBids?.length > 0 ? (
+              completedBids?.map((bid) => (
                 <Card key={bid.id} className="hover:bg-muted/50 transition-colors">
                   <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -514,7 +375,7 @@ export default function GarageBidsPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Completed on {new Date(bid.completedAt!).toLocaleDateString()}
+                          Completed on {new Date(bid.completed_at!).toLocaleDateString()}
                         </p>
                       </div>
                       <Button variant="outline" asChild>
@@ -526,26 +387,26 @@ export default function GarageBidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
+                          <div className="text-xs text-muted-foreground">{bid.vehicle_info.license_plate}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
                           Final amount:{" "}
-                          {bid.submissions.find((s) => s.garageId === "Garage-001")?.totalCost.toLocaleString()} RWF
+                          {bid.submissions?.find((s) => s.garage_id === "Garage-001")?.proposed_cost.toLocaleString()} RWF
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
                           Duration:{" "}
-                          {new Date(bid.completedAt!).getTime() - new Date(bid.updatedAt).getTime() > 0
+                          {new Date(bid.completed_at!).getTime() - new Date(bid.updated_at).getTime() > 0
                             ? Math.ceil(
-                                (new Date(bid.completedAt!).getTime() - new Date(bid.updatedAt).getTime()) /
-                                  (1000 * 60 * 60 * 24),
-                              )
+                              (new Date(bid.completed_at!).getTime() - new Date(bid.updated_at).getTime()) /
+                              (1000 * 60 * 60 * 24),
+                            )
                             : 1}{" "}
                           days
                         </div>

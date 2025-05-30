@@ -60,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               last_login: parsedUser.last_login,
               department_id: parsedUser.department_id,
               department: parsedUser.department,
+              garage_id: parsedUser.garage_id,
+              garage: parsedUser.garage,
             });
           }
         }
@@ -148,6 +150,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         last_login: uzer.last_login,
         department_id: uzer.department_id,
         department: uzer.department,
+        garage_id: uzer.garage_id,
+        garage: uzer.garage,
       });
       setToken(JSON.stringify(result.token))
       setTenantId(JSON.stringify(uzer.tenant_id))

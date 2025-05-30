@@ -37,8 +37,6 @@ export default function BidsPage() {
   const router = useRouter()
   const { user, apiRequest } = useAuth()
   const { toast } = useToast()
-
-  // State
   const [bids, setBids] = useState<Bid[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -50,8 +48,15 @@ export default function BidsPage() {
     const loadBids = async () => {
       setIsLoading(true)
       try {
-        const response = await apiRequest(`${API_URL}bids/by-tenant/${user.tenant_id}`, "GET");
-        setBids(response)
+        const response = await apiRequest(`${API_URL}bids/${user.tenant_id}`, "GET");
+        const processedBids = response.map((bid: Bid) => ({
+          ...bid,
+          interested_garages: Array.from(
+            new Set(bid.submissions?.map((sub: { garage_id: string }) => sub.garage_id) || [])
+          ),
+        }));
+
+        setBids(processedBids);
       } catch (error) {
         console.error("Error loading bids:", error)
         toast({
@@ -72,15 +77,14 @@ export default function BidsPage() {
     const matchesSearch =
       searchTerm === "" ||
       bid.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.claimId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.vehicleInfo.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.vehicleInfo.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.vehicleInfo.licensePlate.toLowerCase().includes(searchTerm.toLowerCase())
+      bid.claim_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bid.vehicle_info.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bid.vehicle_info.model.toLowerCase().includes(searchTerm.toLowerCase()) 
 
     const matchesStatus = statusFilter === "all" || bid.status === statusFilter
 
     const matchesDateRange =
-      !dateRange || (new Date(bid.createdAt) >= dateRange.from && new Date(bid.createdAt) <= dateRange.to)
+      !dateRange || (new Date(bid.created_at) >= dateRange.from && new Date(bid.created_at) <= dateRange.to)
 
     return matchesSearch && matchesStatus && matchesDateRange
   })
@@ -133,7 +137,7 @@ export default function BidsPage() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Sanlam Alianz",
+        name: user.name,
         role: "Insurance Company",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -143,7 +147,6 @@ export default function BidsPage() {
         { name: "Bids", href: "/dashboard/insurer/bids", icon: <FileText className="h-5 w-5" /> },
         { name: "Documents", href: "/dashboard/insurer/documents", icon: <FileText className="h-5 w-5" /> },
       ]}
-      actions={[]}
     >
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -220,14 +223,14 @@ export default function BidsPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold">Bid #{bid.id}</h3>
+                          <h3 className="text-lg font-semibold">Bid #{bid.code}</h3>
                           <Badge variant={getStatusBadge(bid.status).variant} className="capitalize">
                             {getStatusBadge(bid.status).icon}
                             {bid.status.replace("-", " ")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Claim #{bid.claimId} • Created on {new Date(bid.createdAt).toLocaleDateString()}
+                          Claim #{bid.claim.code} • Created on {new Date(bid.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <Button variant="outline" asChild>
@@ -239,17 +242,17 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
+                          <div className="text-xs text-muted-foreground">{bid.vehicle_info.licensePlate}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          Estimated: {bid.estimatedCost.toLocaleString()} RWF
-                          {bid.submissions.length > 0 && (
+                          Estimated: {bid.estimated_cost.toLocaleString()} RWF
+                          {bid.submissions?.length > 0 && (
                             <div className="text-xs text-muted-foreground">
-                              {bid.submissions.length} bid submission(s)
+                              {bid.submissions?.length} bid submission(s)
                             </div>
                           )}
                         </div>
@@ -257,11 +260,11 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Building className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.interestedGarages.length} interested garage(s)
-                          {bid.awardedTo && (
+                          {bid.interested_garages?.length} interested garage(s)
+                          {bid.awarded_to && (
                             <div className="text-xs text-muted-foreground">
                               Awarded to:{" "}
-                              {bid.submissions.find((s) => s.garageId === bid.awardedTo)?.garageName || "Unknown"}
+                              {bid.submissions?.find((s) => s.garage_id === bid.awarded_to)?.garage?.name || "Unknown"}
                             </div>
                           )}
                         </div>
@@ -306,14 +309,14 @@ export default function BidsPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold">Bid #{bid.id}</h3>
+                          <h3 className="text-lg font-semibold">Bid #{bid.code}</h3>
                           <Badge variant={getStatusBadge(bid.status).variant} className="capitalize">
                             {getStatusBadge(bid.status).icon}
                             {bid.status.replace("-", " ")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Claim #{bid.claimId} • Created on {new Date(bid.createdAt).toLocaleDateString()}
+                          Claim #{bid.claim.code} • Created on {new Date(bid.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <Button variant="outline" asChild>
@@ -325,24 +328,24 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
+                          <div className="text-xs text-muted-foreground">{bid.vehicle_info.licensePlate}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          Estimated: {bid.estimatedCost.toLocaleString()} RWF
-                          {bid.submissions.length > 0 && (
+                          Estimated: {bid.estimated_cost.toLocaleString()} RWF
+                          {bid.submissions?.length > 0 && (
                             <div className="text-xs text-muted-foreground">
-                              {bid.submissions.length} bid submission(s)
+                              {bid.submissions?.length} bid submission(s)
                             </div>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Building className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-sm">{bid.interestedGarages.length} interested garage(s)</div>
+                        <div className="text-sm">{bid.interested_garages?.length} interested garage(s)</div>
                       </div>
                     </div>
                   </CardContent>
@@ -379,14 +382,14 @@ export default function BidsPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold">Bid #{bid.id}</h3>
+                          <h3 className="text-lg font-semibold">Bid #{bid.code}</h3>
                           <Badge variant={getStatusBadge(bid.status).variant} className="capitalize">
                             {getStatusBadge(bid.status).icon}
                             {bid.status.replace("-", " ")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Claim #{bid.claimId} • Created on {new Date(bid.createdAt).toLocaleDateString()}
+                          Claim #{bid.claim.code} • Created on {new Date(bid.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <Button variant="outline" asChild>
@@ -398,24 +401,23 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          Estimated: {bid.estimatedCost.toLocaleString()} RWF
-                          {bid.submissions.length > 0 && (
+                          Estimated: {bid.estimated_cost.toLocaleString()} RWF
+                          {bid.submissions?.length > 0 && (
                             <div className="text-xs text-muted-foreground">
-                              {bid.submissions.length} bid submission(s)
+                              {bid.submissions?.length} bid submission(s)
                             </div>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Building className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-sm">{bid.interestedGarages.length} interested garage(s)</div>
+                        <div className="text-sm">{bid.interested_garages?.length} interested garage(s)</div>
                       </div>
                     </div>
                   </CardContent>
@@ -448,14 +450,14 @@ export default function BidsPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold">Bid #{bid.id}</h3>
+                          <h3 className="text-lg font-semibold">Bid #{bid.code}</h3>
                           <Badge variant={getStatusBadge(bid.status).variant} className="capitalize">
                             {getStatusBadge(bid.status).icon}
                             {bid.status.replace("-", " ")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Claim #{bid.claimId} • Created on {new Date(bid.createdAt).toLocaleDateString()}
+                          Claim #{bid.claim.code} • Created on {new Date(bid.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <Button variant="outline" asChild>
@@ -467,17 +469,16 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          Estimated: {bid.estimatedCost.toLocaleString()} RWF
-                          {bid.submissions.length > 0 && (
+                          Estimated: {bid.estimated_cost.toLocaleString()} RWF
+                          {bid.submissions?.length > 0 && (
                             <div className="text-xs text-muted-foreground">
-                              {bid.submissions.length} bid submission(s)
+                              {bid.submissions?.length} bid submission(s)
                             </div>
                           )}
                         </div>
@@ -485,11 +486,11 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Building className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.interestedGarages.length} interested garage(s)
-                          {bid.awardedTo && (
+                          {bid.interested_garages?.length} interested garage(s)
+                          {bid.awarded_to && (
                             <div className="text-xs text-muted-foreground">
                               Awarded to:{" "}
-                              {bid.submissions.find((s) => s.garageId === bid.awardedTo)?.garageName || "Unknown"}
+                              {bid.submissions?.find((s) => s.garage_id === bid.awarded_to)?.garage?.name || "Unknown"}
                             </div>
                           )}
                         </div>
@@ -524,14 +525,14 @@ export default function BidsPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold">Bid #{bid.id}</h3>
+                          <h3 className="text-lg font-semibold">Bid #{bid.code}</h3>
                           <Badge variant={getStatusBadge(bid.status).variant} className="capitalize">
                             {getStatusBadge(bid.status).icon}
                             {bid.status.replace("-", " ")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Claim #{bid.claimId} • Created on {new Date(bid.createdAt).toLocaleDateString()}
+                          Claim #{bid.claim.code} • Created on {new Date(bid.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <Button variant="outline" asChild>
@@ -543,17 +544,17 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
+                          <div className="text-xs text-muted-foreground">{bid.vehicle_info.licensePlate}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          Estimated: {bid.estimatedCost.toLocaleString()} RWF
-                          {bid.submissions.length > 0 && (
+                          Estimated: {bid.estimated_cost.toLocaleString()} RWF
+                          {bid.submissions?.length > 0 && (
                             <div className="text-xs text-muted-foreground">
-                              {bid.submissions.length} bid submission(s)
+                              {bid.submissions?.length} bid submission(s)
                             </div>
                           )}
                         </div>
@@ -561,11 +562,11 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Building className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.interestedGarages.length} interested garage(s)
-                          {bid.awardedTo && (
+                          {bid.interested_garages?.length} interested garage(s)
+                          {bid.awarded_to && (
                             <div className="text-xs text-muted-foreground">
                               Awarded to:{" "}
-                              {bid.submissions.find((s) => s.garageId === bid.awardedTo)?.garageName || "Unknown"}
+                              {bid.submissions?.find((s) => s.garage_id === bid.awarded_to)?.garage?.name || "Unknown"}
                             </div>
                           )}
                         </div>
@@ -600,14 +601,14 @@ export default function BidsPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold">Bid #{bid.id}</h3>
+                          <h3 className="text-lg font-semibold">Bid #{bid.code}</h3>
                           <Badge variant={getStatusBadge(bid.status).variant} className="capitalize">
                             {getStatusBadge(bid.status).icon}
                             {bid.status.replace("-", " ")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Claim #{bid.claimId} • Created on {new Date(bid.createdAt).toLocaleDateString()}
+                          Claim #{bid.claim.code} • Created on {new Date(bid.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <Button variant="outline" asChild>
@@ -619,17 +620,17 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Car className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.vehicleInfo.make} {bid.vehicleInfo.model} ({bid.vehicleInfo.year})
-                          <div className="text-xs text-muted-foreground">{bid.vehicleInfo.licensePlate}</div>
+                          {bid.vehicle_info.make} {bid.vehicle_info.model} ({bid.vehicle_info.year})
+                          <div className="text-xs text-muted-foreground">{bid.vehicle_info.licensePlate}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          Estimated: {bid.estimatedCost.toLocaleString()} RWF
-                          {bid.submissions.length > 0 && (
+                          Estimated: {bid.estimated_cost.toLocaleString()} RWF
+                          {bid.submissions?.length > 0 && (
                             <div className="text-xs text-muted-foreground">
-                              {bid.submissions.length} bid submission(s)
+                              {bid.submissions?.length} bid submission(s)
                             </div>
                           )}
                         </div>
@@ -637,11 +638,11 @@ export default function BidsPage() {
                       <div className="flex items-center gap-2">
                         <Building className="h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {bid.interestedGarages.length} interested garage(s)
-                          {bid.awardedTo && (
+                          {bid.interested_garages?.length} interested garage(s)
+                          {bid.awarded_to && (
                             <div className="text-xs text-muted-foreground">
                               Awarded to:{" "}
-                              {bid.submissions.find((s) => s.garageId === bid.awardedTo)?.garageName || "Unknown"}
+                              {bid.submissions?.find((s) => s.garage_id === bid.awarded_to)?.garage?.name || "Unknown"}
                             </div>
                           )}
                         </div>

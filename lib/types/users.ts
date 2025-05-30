@@ -4,6 +4,7 @@ export interface User {
     name: string;
     first_name: string;
     last_name: string;
+    info: string;
     phone: string;
     role: any;
     role_id: string;
@@ -14,6 +15,8 @@ export interface User {
     last_login: string;
     department_id?: string;
     department?: Department;
+    garage_id: string;
+    garage?: { name: string, phone: string; address: string; latitude?: number; longitude?: number, openHous?: string; description?: string; }
 }
 export interface Role {
     id: string;

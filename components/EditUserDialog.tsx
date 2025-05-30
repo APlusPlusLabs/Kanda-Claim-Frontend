@@ -23,7 +23,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/components/ui/use-toast";
-import { Role, User } from "@/lib/types/users";
+import { Department, Role, User } from "@/lib/types/users";
+import { Garage } from "@/lib/types/claims";
+import { Link, Plus } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
@@ -34,6 +36,7 @@ const editUserFormSchema = z.object({
   phone: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
   role_id: z.string(),
   department_id: z.string().optional(),
+  garage_id: z.string().optional(),
   new_password: z.string().optional(),
   status: z.enum(["active", "inactive"]),
   tenant_id: z.string().optional(),
@@ -43,6 +46,8 @@ const editUserFormSchema = z.object({
 
 type EditUserDialogProps = {
   user: User;
+  departments: Department[],
+  garages: Garage[],
   roles: Role[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,6 +59,8 @@ type EditUserDialogProps = {
 
 export function EditUserDialog({
   user,
+  departments,
+  garages,
   roles,
   open,
   onOpenChange,
@@ -63,7 +70,7 @@ export function EditUserDialog({
 }: EditUserDialogProps) {
   const [showPasswordField, setShowPasswordField] = useState(false)
   const { toast } = useToast();
-  const [departments, setDepartments] = useState(user.tenant.departments ? user.tenant.departments : []);
+  //const [departments, setDepartments] = useState<Department[]>([]);
   const form = useForm<z.infer<typeof editUserFormSchema>>({
     resolver: zodResolver(editUserFormSchema),
     defaultValues: {
@@ -73,12 +80,15 @@ export function EditUserDialog({
       phone: user.phone,
       new_password: "",
       role_id: user.role_id,
+      department_id: user.department_id,
+      garage_id: user.garage_id,
       status: user.status ? "active" : "inactive",
       tenant_id: user.tenant_id,
     },
   });
 
   useEffect(() => {
+  //  setDepartments(user.tenant.departments ? user.tenant.departments : [])
     form.reset({
       first_name: user.first_name,
       last_name: user.last_name,
@@ -95,7 +105,7 @@ export function EditUserDialog({
     try {
 
 
-      const updatedUser = await apiRequest(`${API_URL}users/${user.id}`, "PATCH", {
+      const updatedUser = await apiRequest(`${API_URL}users/${user.id}`, "PUT", {
         first_name: values.first_name,
         last_name: values.last_name,
         email: values.email,
@@ -103,6 +113,7 @@ export function EditUserDialog({
         new_password: values.new_password,
         role_id: values.role_id,
         department_id: values.department_id,
+        garage_id: values.garage_id,
         tenant_id: tenant_id,
         is_active: values.status === "active",
       });
@@ -114,6 +125,7 @@ export function EditUserDialog({
         email: updatedUser.email,
         phone: updatedUser.phone,
         role_id: updatedUser.role_id,
+        garage_id: updatedUser.garage_id,
         tenant_id: updatedUser.tenant_id,
         status: updatedUser.is_active ? "active" : "inactive",
       });
@@ -211,7 +223,7 @@ export function EditUserDialog({
               )}
             />
 
-            <FormField
+            {/* <FormField
               control={form.control}
               name="role_id"
               render={({ field }) => (
@@ -234,7 +246,80 @@ export function EditUserDialog({
                   <FormMessage />
                 </FormItem>
               )}
-            /> <FormField
+            />  */}
+            
+            <FormField
+                    control={form.control}
+                    name="role_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Role</FormLabel>
+                        <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          form.setValue("garage_id", "");
+                        }} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {roles.map((role) => (
+                              <SelectItem key={role.id} value={role.id}>
+                                {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>This determines what permissions the user will have.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {form.watch("role_id") && roles.find((r) => r.id === form.watch("role_id"))?.name.toLowerCase() === "garage" && (
+                    <FormField
+                      control={form.control}
+                      name="garage_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Garage</FormLabel>
+                          {garages?.length > 0 ? (
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value || ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select garage" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {garages.map((garage) => (
+                                  <SelectItem key={garage.id} value={garage.id}>
+                                    {garage.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-sm text-muted-foreground">No garages available.</p>
+                              <Button asChild>
+                                <Link href="/dashboard/insurer/garages">
+                                  <Plus className="h-4 w-4 mr-2" /> Add Garage
+                                </Link>
+                              </Button>
+                            </div>
+                          )}
+                          <FormDescription>Garage is required for garage role users.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+            
+            
+            <FormField
               control={form.control}
               name="department_id"
               render={({ field }) => (

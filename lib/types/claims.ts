@@ -75,6 +75,7 @@ export interface Activity {
   event: string;
   status: string;
   created_at: string;
+  user?: { info: string }
 }
 
 export interface Message {
@@ -107,6 +108,9 @@ export interface Garage {
   address: string;
   phone: string;
   repair_estimate: number;
+  rating?: number,
+  latitude?: number,
+  longitude?: number,
 }
 export interface PoliceReport {
   id: string;
@@ -199,7 +203,8 @@ export const defaultClaim: Claim = {
     },
     avatar: "",
     status: "",
-    last_login: ""
+    last_login: "",
+    garage_id: ""
   },
   department: {},
   created_at: "",

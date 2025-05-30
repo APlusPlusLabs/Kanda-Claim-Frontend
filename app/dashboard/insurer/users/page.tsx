@@ -36,7 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Building2, Search, UserPlus, UserCog, Shield, Users, UserCheck, UserX, HousePlus } from "lucide-react";
+import { Building2, Search, UserPlus, UserCog, Shield, Users, UserCheck, UserX, HousePlus, FileText, Wrench, Plus } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/components/ui/use-toast";
@@ -44,6 +44,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { Role, User } from "@/lib/types/users";
 import { Description } from "@radix-ui/react-toast";
+import { Garage } from "@/lib/types/claims";
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const userFormSchema = z.object({
@@ -52,14 +53,30 @@ const userFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
   phone: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
-  role: z.string().uuid(),
+
   department_id: z.string().uuid(),
-  // role: z.enum(["driver", "garage", "assessor", "insurer"]),
+  // role: z.string().min(1, "Role is required"),
+  // garage_id: z.string().optional().refine(
+  //   (value, ctx) => {
+  //     const roleId = ctx.parent.role;
+  //     const role = roles.find((r) => r.id === roleId);
+  //     if (role?.name.toLowerCase() === "garage" && !value) {
+  //       return false;
+  //     }
+  //     return true;
+  //   },
+  //   { message: "Garage is required for garage role" }
+  // ),
+  role: z.string().min(1, "Role is required"),
+  garage_id: z.string().optional(), // No refine here
   tenant_id: z.string().optional(),
   insuranceCompanyName: z.string().optional(),
 }).refine(
   (data) => {
     if (data.role !== "insurer" && !data.tenant_id) {
+      return false;
+    }
+    if (data.role === "garage" && !data.garage_id) {
       return false;
     }
     if (data.role === "insurer" && !data.insuranceCompanyName) {
@@ -91,6 +108,7 @@ export default function UsersManagementPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [userLoadStatus, setUserLoadStatus] = useState<"loading" | "loaded" | "failed">("loading");
   const [departments, setDepartments] = useState<any[]>([]);
+  const [garages, setGarages] = useState<any[]>([]);
   // Fetch users and roles from backend
   useEffect(() => {
     async function fetchData() {
@@ -105,15 +123,25 @@ export default function UsersManagementPage() {
             phone: u.phone,
             role_id: u.role_id,
             department_id: u.department_id,
+            garage_id: u.garage_id,
             tenant_id: u.tenant_id,
             status: u.is_active ? "active" : "inactive",
             last_login: u.last_login || undefined,
           }))
         );
-
+        //ddepartments-by-tenant/
+        const ddepartments = await apiRequest(`${API_URL}departments-by-tenant/${user.tenant_id}`, "GET");
+        setDepartments(ddepartments)
         // Fetch roles
         const rolesData = await apiRequest(`${API_URL}roles`, "GET");
         setRoles(rolesData);
+        const garagesReq = await apiRequest(`${API_URL}garages/${user.tenant_id}`, "GET");
+        setGarages(garagesReq.map((garage: Garage) => ({
+          ...garage,
+          rating: garage.rating !== null ? Number(garage.rating) : null,
+          latitude: garage.latitude !== null ? Number(garage.latitude) : null,
+          longitude: garage.longitude !== null ? Number(garage.longitude) : null,
+        })));
       } catch (error: any) {
         toast({
           variant: "destructive",
@@ -124,8 +152,8 @@ export default function UsersManagementPage() {
         setLoading(false);
       }
     }
+
     fetchData();
-    setDepartments(user.tenant.departments ? user.tenant.departments : [])
   }, [apiRequest, toast]);
 
   // Form setup
@@ -139,6 +167,7 @@ export default function UsersManagementPage() {
       password: "",
       role: "driver",
       department_id: "",
+      garage_id: "",
       tenant_id: user?.tenant_id || "",
       insuranceCompanyName: "",
     },
@@ -153,6 +182,11 @@ export default function UsersManagementPage() {
 
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof userFormSchema>) => {
+    const selectedRole = roles.find((r) => r.id === values.role);
+    if (selectedRole?.name.toLowerCase() === "garage" && !values.garage_id) {
+      form.setError("garage_id", { message: "Garage is required for garage role" });
+      return;
+    }
     try {
 
       const newUser = await apiRequest(`${API_URL}users/store`, "POST", {
@@ -163,6 +197,7 @@ export default function UsersManagementPage() {
         password: values.password,
         role_id: values.role,
         department_id: values.department_id,
+        garage_id: values.garage_id,
         tenant_id: user?.tenant_id
       });
 
@@ -182,7 +217,9 @@ export default function UsersManagementPage() {
           last_login: newUser.user.last_login,
           tenant: newUser.tenant,
           role: newUser.role,
-          avatar: ""
+          avatar: "",
+          info: newUser.info,
+          garage_id: newUser.garage_id
         },
       ]);
 
@@ -321,6 +358,8 @@ export default function UsersManagementPage() {
       navigation={[
         { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
         { name: "Users", href: "/dashboard/insurer/users", icon: <Users className="h-5 w-5" /> },
+        { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
+        { name: "Bids", href: "/dashboard/insurer/bids", icon: <FileText className="h-5 w-5" /> },
       ]}
     >
       <div className="space-y-6">
@@ -416,7 +455,10 @@ export default function UsersManagementPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Role</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          form.setValue("garage_id", "");
+                        }} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select role" />
@@ -435,6 +477,47 @@ export default function UsersManagementPage() {
                       </FormItem>
                     )}
                   />
+                  {form.watch("role") && roles.find((r) => r.id === form.watch("role"))?.name.toLowerCase() === "garage" && (
+                    <FormField
+                      control={form.control}
+                      name="garage_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Garage</FormLabel>
+                          {garages?.length > 0 ? (
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value || ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select garage" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {garages.map((garage) => (
+                                  <SelectItem key={garage.id} value={garage.id}>
+                                    {garage.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-sm text-muted-foreground">No garages available.</p>
+                              <Button asChild>
+                                <Link href="/dashboard/insurer/garages">
+                                  <Plus className="h-4 w-4 mr-2" /> Add Garage
+                                </Link>
+                              </Button>
+                            </div>
+                          )}
+                          <FormDescription>Garage is required for garage role users.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                   <FormField
                     control={form.control}
                     name="department_id"
@@ -598,14 +681,14 @@ export default function UsersManagementPage() {
                         {editUser && (
                           <EditUserDialog
                             user={editUser}
+                            departments={departments}
                             roles={roles}
                             open={!!editUser}
                             onOpenChange={() => setEditUser(null)}
                             onSuccess={handleUserUpdate}
                             apiRequest={apiRequest}
                             role_id={user.role_id}
-                            tenant_id={user.tenant_id}
-                          />
+                            tenant_id={user.tenant_id} garages={garages}                          />
                         )}
                       </Dialog>
                       <Button
@@ -840,29 +923,29 @@ export default function UsersManagementPage() {
                   {departments.map((depart, index) => (
                     <Card key={index}>
                       <CardContent className="p-6">
-                      <div className="grid grid-cols-2">
-                        <div className="space-x-4">
-                          <h2>{depart.name}  info</h2>
-                          <div className="space-y-3">
-                            <span>Department name</span> : {depart.name} <br />
-                            <span>Description</span>: {depart.description}
+                        <div className="grid grid-cols-2">
+                          <div className="space-x-4">
+                            <h2>{depart.name}  info</h2>
+                            <div className="space-y-3">
+                              <span>Department name</span> : {depart.name} <br />
+                              <span>Description</span>: {depart.description}
+                            </div>
+                          </div>
+                          <div className="space-x-4">
+                            <h2>{depart.name}  users</h2>
+                            <div className="space-y-3">
+                              {depart.users?.map((ussa, i) => (
+                                <div key={i}>
+                                  <span>user</span> {ussa.info} < br />
+                                  <Button variant="outline" size="sm" asChild>
+                                    <Link href={`/dashboard/insurer/users/${ussa.id}`}>View Details</Link>
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                        <div className="space-x-4">
-                          <h2>{depart.name}  users</h2>
-                          <div className="space-y-3">
-                            {depart.users?.map((ussa, i) => (
-                              <div key={i}>
-                                <span>user</span> {ussa.info} < br />
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link href={`/dashboard/insurer/users/${ussa.id}`}>View Details</Link>
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
+                      </CardContent>
                     </Card>
                   ))}
                 </CardContent>

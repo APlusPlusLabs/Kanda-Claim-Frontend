@@ -1,52 +1,55 @@
+import { Activity } from "./claims"
+import { User } from "./users"
+
 export interface Bid {
   id: string
-  claimId: string
-  vehicleInfo: {
+  code: string
+  claim_id: string
+  claim: any
+  vehicle_info: {
     make: string
     model: string
     year: string
-    licensePlate: string
+    license_plate: string
     vin: string
   }
-  damageDescription: string
-  scopeOfWork: string[]
-  estimatedCost: number
+  damage_description: string
+  scope_of_work: string[]
+  estimated_cost: number
   photos: string[]
   documents: string[]
   status: "open" | "in-progress" | "awarded" | "completed" | "cancelled"
-  createdAt: string
-  updatedAt: string
-  createdBy: string
-  interestedGarages: string[]
+  created_at: string
+  updated_at: string
+  created_by: string
+  interested_garages: string[]
   submissions: BidSubmission[]
-  awardedTo?: string
-  completedAt?: string
-  activities: BidActivity[]
+  awarded_to?: string
+  completed_at?: string
+  activities: Activity[],
+  user: User
 }
-
+export interface CostBreakdown{
+  item: string
+  cost: number
+  description: string
+}
 export interface BidSubmission {
   id: string
-  bidId: string
-  garageId: string
-  garageName: string
-  costBreakdown: {
-    item: string
-    cost: number
-    description: string
-  }[]
-  totalCost: number
-  estimatedCompletionTime: {
-    value: number
-    unit: "days" | "weeks"
-  }
+  bid_id: string
+  garage_id: string
+  garage: any
+  cost_breakdown: CostBreakdown []
+  proposed_cost: number
+  estimated_completion_time: string
   notes: string
-  submittedAt: string
+  created_at: string
   status: "pending" | "accepted" | "rejected"
 }
 
 export interface BidActivity {
   id: string
-  bidId: string
+  bid_id: string
   activityType:
     | "bid_created"
     | "bid_updated"
@@ -57,10 +60,10 @@ export interface BidActivity {
     | "bid_completed"
     | "bid_cancelled"
   description: string
-  performedBy: {
+  user?: {
     id: string
     name: string
-    role: string
+    role_name: string
   }
   timestamp: string
   metadata?: Record<string, any>
@@ -68,11 +71,11 @@ export interface BidActivity {
 
 export interface InspectionSchedule {
   id: string
-  bidId: string
-  garageId: string
-  scheduledDate: string
-  scheduledTime: string
+  bid_id: string
+  garage_id: string
+  scheduled_date: string
+  scheduled_time: string
   status: "scheduled" | "completed" | "cancelled"
   notes?: string
-  createdAt: string
+  created_at: string
 }

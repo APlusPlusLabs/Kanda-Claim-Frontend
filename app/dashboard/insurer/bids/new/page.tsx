@@ -61,17 +61,17 @@ interface Assessment {
 }
 // Form schema
 const formSchema = z.object({
-  claimId: z.string().min(1, "Claim ID is required"),
-  vehicleInfo: z.object({
+  claim_id: z.string().min(1, "Claim ID is required"),
+  vehicle_info: z.object({
     make: z.string().min(1, "Make is required"),
     model: z.string().min(1, "Model is required"),
     year: z.string().min(1, "Year is required"),
-    licensePlate: z.string().min(1, "License plate is required"),
+    license_plate: z.string().min(1, "License plate is required"),
     vin: z.string().min(1, "VIN is required"),
   }),
-  damageDescription: z.string().min(1, "Damage description is required"),
-  scopeOfWork: z.array(z.string()).min(1, "At least one scope of work item is required"),
-  estimatedCost: z.number().min(0, "Estimated cost must be a positive number"),
+  damage_description: z.string().min(1, "Damage description is required"),
+  scope_of_work: z.array(z.string()).min(1, "At least one scope of work item is required"),
+  estimated_cost: z.number().min(0, "Estimated cost must be a positive number"),
   requestMultipleQuotations: z.boolean().default(true),
   photos: z.array(z.string()).optional(),
   documents: z.array(z.string()).optional(),
@@ -102,11 +102,11 @@ export default function NewBidPage() {
           throw new Error("Invalid response format: Expected an array");
         }
         const clmz: Claim[] = response.data
-          .filter((ass: any) => ass.claim && ass.vehicle) // Ensure claim and vehicle exist
+          .filter((ass: any) => ass.claim && ass.vehicle)
           .map((ass: any) => {
             const clm = ass.claim;
             const veh = ass.vehicle;
-            const vehInfo = `${veh.model} ${veh.make} ${veh.year} (${veh.license_plate})`; // Fix typo
+            const vehInfo = `${veh.model} ${veh.make} ${veh.year} (${veh.license_plate})`; 
             return {
               id: clm.id,
               code: clm.code,
@@ -116,7 +116,7 @@ export default function NewBidPage() {
                 make: veh.make,
                 model: veh.model,
                 year: veh.year,
-                license_plate: veh.license_plate, // Fix typo
+                license_plate: veh.license_plate, 
                 vin: veh.vin,
               },
             };
@@ -138,21 +138,20 @@ export default function NewBidPage() {
     loadAssessments();
   }, [apiRequest, user.tenant_id, toast]);
 
-  // Initialize form with empty values and ensure resolver is applied
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      claimId: "",
-      vehicleInfo: {
+      claim_id: "",
+      vehicle_info: {
         make: "",
         model: "",
         year: "",
-        licensePlate: "",
+        license_plate: "",
         vin: "",
       },
-      damageDescription: "",
-      scopeOfWork: [],
-      estimatedCost: 0,
+      damage_description: "",
+      scope_of_work: [],
+      estimated_cost: 0,
       requestMultipleQuotations: true,
       photos: [],
       documents: [],
@@ -164,19 +163,18 @@ export default function NewBidPage() {
 
   // Reset form when page loads
   useEffect(() => {
-    // Reset all form fields to default values
     form.reset({
-      claimId: "",
-      vehicleInfo: {
+      claim_id: "",
+      vehicle_info: {
         make: "",
         model: "",
         year: "",
-        licensePlate: "",
+        license_plate: "",
         vin: "",
       },
-      damageDescription: "",
-      scopeOfWork: [],
-      estimatedCost: 0,
+      damage_description: "",
+      scope_of_work: [],
+      estimated_cost: 0,
       requestMultipleQuotations: true,
       photos: [],
       documents: [],
@@ -185,7 +183,6 @@ export default function NewBidPage() {
       uploadedDocuments: [],
     })
 
-    // Clear any local state
     setScopeItems([])
     setNewScopeItem("")
     setUploadedPhotos([])
@@ -193,43 +190,39 @@ export default function NewBidPage() {
   }, [form])
 
   // Handle claim selection
-  const handleClaimSelect = (claimId: string) => {
-    if (!claimId) {
-      // Reset form fields if no claim is selected
-      form.setValue("vehicleInfo", {
+  const handleClaimSelect = (claim_id: string) => {
+    if (!claim_id) {
+      form.setValue("vehicle_info", {
         make: "",
         model: "",
         year: "",
-        licensePlate: "",
+        license_plate: "",
         vin: "",
       });
-      form.setValue("scopeOfWork", []);
+      form.setValue("scope_of_work", []);
       form.setValue("photos", []);
       form.setValue("uploadedPhotos", []);
-      form.setValue("estimatedCost", 0);
+      form.setValue("estimated_cost", 0);
       setScopeItems([]);
       setUploadedPhotos([]);
       return;
     }
 
-    const selectedClaim = claims.find(cl => cl.id === claimId);
+    const selectedClaim = claims.find(cl => cl.id === claim_id);
     if (selectedClaim) {
-      // Update vehicle info
-      form.setValue("vehicleInfo", {
+      form.setValue("vehicle_info", {
         make: selectedClaim.vehicle.make,
         model: selectedClaim.vehicle.model,
-        year: selectedClaim.vehicle.year.toString(), // Convert to string for form
-        licensePlate: selectedClaim.vehicle.license_plate,
+        year: selectedClaim.vehicle.year.toString(), 
+        license_plate: selectedClaim.vehicle.license_plate,
         vin: selectedClaim.vehicle.vin,
       });
 
-      // Find corresponding assessment and populate scopeOfWork and photos
-      const selectedAssessment = assessments.find(ass => ass.claim_id === claimId);
+      const selectedAssessment = assessments.find(ass => ass.claim_id === claim_id);
       if (selectedAssessment) {
         const reportData = selectedAssessment.report;
         const report = typeof reportData === 'string' ? JSON.parse(reportData) : reportData;
         if (report) {
-          // Combine partsToReplace and selectedParts
           const partsToReplace = report.partsToReplace || [];
           const selectedParts = report.selectedParts || [];
           const combinedParts = [...partsToReplace, ...selectedParts];
@@ -237,7 +230,7 @@ export default function NewBidPage() {
             (part: { name: string; cost: string }) => `${part.name} (${part.cost} RWF)`
           );
           setScopeItems(newScopeItems);
-          form.setValue("scopeOfWork", newScopeItems);
+          form.setValue("scope_of_work", newScopeItems);
 
           // Pre-populate photos
           const reportPhotos = (report.photos || []).map((photo: string) =>
@@ -248,26 +241,24 @@ export default function NewBidPage() {
           form.setValue("uploadedPhotos", reportPhotos);
 
           // Set estimated cost
-          form.setValue("estimatedCost", report.totalCost || 0);
-          // damageDescription preset
-          form.setValue("damageDescription", report.damageDescription + "\n" + report.repairRecommendation)
+          form.setValue("estimated_cost", report.totalCost || 0);
+          // damage_description preset
+          form.setValue("damage_description", report.damage_description + "\n" + report.repairRecommendation)
         } else {
-          // Clear fields if no report
           setScopeItems([]);
-          form.setValue("scopeOfWork", []);
+          form.setValue("scope_of_work", []);
           form.setValue("photos", []);
           form.setValue("uploadedPhotos", []);
           setUploadedPhotos([]);
-          form.setValue("estimatedCost", 0);
+          form.setValue("estimated_cost", 0);
         }
       } else {
-        // Clear fields if no assessment
         setScopeItems([]);
-        form.setValue("scopeOfWork", []);
+        form.setValue("scope_of_work", []);
         form.setValue("photos", []);
         form.setValue("uploadedPhotos", []);
         setUploadedPhotos([]);
-        form.setValue("estimatedCost", 0);
+        form.setValue("estimated_cost", 0);
       }
     }
   };
@@ -277,7 +268,7 @@ export default function NewBidPage() {
     if (newScopeItem.trim() !== "") {
       const updatedItems = [...scopeItems, newScopeItem.trim()];
       setScopeItems(updatedItems);
-      form.setValue("scopeOfWork", updatedItems);
+      form.setValue("scope_of_work", updatedItems);
       setNewScopeItem("");
       form.setValue("newScopeItem", "");
     }
@@ -287,7 +278,7 @@ export default function NewBidPage() {
   const handleRemoveScopeItem = (index: number) => {
     const updatedItems = scopeItems.filter((_, i) => i !== index)
     setScopeItems(updatedItems)
-    form.setValue("scopeOfWork", updatedItems)
+    form.setValue("scope_of_work", updatedItems)
   }
   // Handle photo upload
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -335,63 +326,107 @@ export default function NewBidPage() {
 
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setIsSubmitting(true)
-
+    setIsSubmitting(true);
+  
     try {
-      // In a real app, you would send the data to the server
-      console.log("Creating new bid with values:", values)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Generate a new bid ID
-      const newBidId = `BID-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, "0")}`
-
+      const payload = {
+        claim_id: values.claim_id,
+        tenant_id: user.tenant_id,
+        user_id: user.id,
+        vehicle_info: {
+          make: values.vehicle_info.make,
+          model: values.vehicle_info.model,
+          year: values.vehicle_info.year,
+          license_plate: values.vehicle_info.license_plate,
+          vin: values.vehicle_info.vin,
+        },
+        damage_description: values.damage_description,
+        scope_of_work: values.scope_of_work,
+        estimated_cost: values.estimated_cost,
+        request_multiple_quotations: values.requestMultipleQuotations,
+        photos: values.photos ?? [],
+        documents: values.documents ?? [],
+        status: 'open',
+      };
+  
+      const response = await apiRequest(`${API_URL}bids`, 'POST', payload);
+  
       toast({
-        title: "Bid Created Successfully",
-        description: `Bid ${newBidId} has been created.`,
-      })
-
-      // Redirect to the bids page
-      router.push("/dashboard/insurer/bids")
-    } catch (error) {
-      console.error("Error creating bid:", error)
+        title: 'Bid Created Successfully',
+        description: `Bid ${response.bid.code} has been created.`,
+      });
+  
+      router.push('/dashboard/insurer/bids');
+    } catch (error: any) {
+      console.error('Error creating bid:', error);
+  
+      let errorMessage = 'There was an error creating the bid. Please try again.';
+      if (error.response?.status === 422) {
+        const errors = error.response.data.errors;
+        errorMessage = Object.values(errors).flat().join(' ');
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+  
       toast({
-        title: "Error Creating Bid",
-        description: "There was an error creating the bid. Please try again.",
-        variant: "destructive",
-      })
+        title: 'Error Creating Bid',
+        description: errorMessage,
+        variant: 'destructive',
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   // Handle saving as draft
   const handleSaveDraft = async () => {
     try {
-      const formValues = form.getValues()
-      console.log("Saving draft with values:", formValues)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 800))
-
+      const values = form.getValues();
+      const payload = {
+        claim_id: values.claim_id,
+        tenant_id: user.tenant_id,
+        user_id: user.id,
+        vehicle_info: {
+          make: values.vehicle_info.make,
+          model: values.vehicle_info.model,
+          year: values.vehicle_info.year,
+          license_plate: values.vehicle_info.license_plate,
+        },
+        damage_description: values.damage_description,
+        scope_of_work: values.scope_of_work,
+        estimated_cost: values.estimated_cost,
+        request_multiple_quotations: values.requestMultipleQuotations,
+        photos: values.photos ?? [],
+        documents: values.documents ?? [],
+        status: 'draft',
+      };
+  
+      const response = await apiRequest(`${API_URL}bids/draft`, 'POST', payload);
+  
       toast({
-        title: "Draft Saved",
-        description: "Your bid draft has been saved.",
-      })
-
-      router.push("/dashboard/insurer/bids")
-    } catch (error) {
-      console.error("Error saving draft:", error)
+        title: 'Draft Saved',
+        description: `Bid ${response.bid.code} has been saved as draft.`,
+      });
+  
+      router.push('/dashboard/insurer/bids');
+    } catch (error: any) {
+      console.error('Error saving draft:', error);
+  
+      let errorMessage = 'There was an error saving the draft. Please try again.';
+      if (error.response?.status === 422) {
+        const errors = error.response.data.errors;
+        errorMessage = Object.values(errors).flat().join(' ');
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+  
       toast({
-        title: "Error Saving Draft",
-        description: "There was an error saving the draft. Please try again.",
-        variant: "destructive",
-      })
+        title: 'Error Saving Draft',
+        description: errorMessage,
+        variant: 'destructive',
+      });
     }
-  }
+  };
 
   return (
     <DashboardLayout
@@ -451,7 +486,7 @@ export default function NewBidPage() {
                   ) : (
                     <FormField
                       control={form.control}
-                      name="claimId"
+                      name="claim_id"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Claim</FormLabel>
@@ -497,7 +532,7 @@ export default function NewBidPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="vehicleInfo.make"
+                    name="vehicle_info.make"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Make</FormLabel>
@@ -510,7 +545,7 @@ export default function NewBidPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="vehicleInfo.model"
+                    name="vehicle_info.model"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Model</FormLabel>
@@ -523,7 +558,7 @@ export default function NewBidPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="vehicleInfo.year"
+                    name="vehicle_info.year"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Year</FormLabel>
@@ -536,7 +571,7 @@ export default function NewBidPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="vehicleInfo.licensePlate"
+                    name="vehicle_info.license_plate"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>License Plate</FormLabel>
@@ -549,7 +584,7 @@ export default function NewBidPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="vehicleInfo.vin"
+                    name="vehicle_info.vin"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
                         <FormLabel>VIN</FormLabel>
@@ -574,7 +609,7 @@ export default function NewBidPage() {
                 <div className="grid gap-6">
                   <FormField
                     control={form.control}
-                    name="damageDescription"
+                    name="damage_description"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Damage Description</FormLabel>
@@ -641,9 +676,9 @@ export default function NewBidPage() {
                             No scope items added yet. Add at least one item or select a claim to auto-populate.
                           </p>
                         )}
-                        {form.formState.errors.scopeOfWork && (
+                        {form.formState.errors.scope_of_work && (
                           <p className="text-sm font-medium text-destructive mt-2">
-                            {form.formState.errors.scopeOfWork?.root?.message || "At least one scope item is required"}
+                            {form.formState.errors.scope_of_work?.root?.message || "At least one scope item is required"}
                           </p>
                         )}
                       </FormItem>
@@ -652,7 +687,7 @@ export default function NewBidPage() {
 
                   <FormField
                     control={form.control}
-                    name="estimatedCost"
+                    name="estimated_cost"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Estimated Cost (RWF)</FormLabel>
@@ -756,7 +791,7 @@ export default function NewBidPage() {
                     )}
                   />
 
-                  {/* Documents Section - Properly wrapped in FormField */}
+                  {/* Documents Section */}
                   <FormField
                     control={form.control}
                     name="uploadedDocuments"

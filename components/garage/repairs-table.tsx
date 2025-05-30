@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Search,
   Filter,
@@ -27,220 +27,290 @@ import {
   Bell,
   User,
   LogOut,
-} from "lucide-react"
-import { format } from "date-fns"
-import { useAuth } from "@/lib/auth-hooks"
+} from "lucide-react";
+import { format } from "date-fns";
+import { useAuth } from "@/lib/auth-provider";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
+
+interface RepairJob {
+  id: string;
+  code: string;
+  claim_id: string;
+  vehicle: {
+    make: string;
+    model: string;
+    year: string;
+    license_plate: string;
+  };
+  customer: {
+    name: string;
+  };
+  insurer: string;
+  status: string;
+  start_date: string | null;
+  estimated_amount: number;
+  progress?: number;
+  final_amount?: number;
+  payment_status?: string;
+}
+
+const estimateSchema = z.object({
+  proposed_cost: z.coerce.number().min(0, "Proposed cost must be non-negative"),
+});
+
+const progressSchema = z.object({
+  progress: z.coerce.number().min(0, "Progress must be between 0 and 100").max(100, "Progress must be between 0 and 100"),
+});
+
+type EstimateFormValues = z.infer<typeof estimateSchema>;
+type ProgressFormValues = z.infer<typeof progressSchema>;
 
 export function RepairsTable() {
-  const router = useRouter()
-  const { user } = useAuth()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [sortField, setSortField] = useState("startDate")
-  const [sortDirection, setSortDirection] = useState("desc")
-  const [repairs, setRepairs] = useState([])
-  const [loading, setLoading] = useState(true)
+  const router = useRouter();
+  const { user, apiRequest } = useAuth();
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortField, setSortField] = useState("start_date");
+  const [sortDirection, setSortDirection] = useState("desc");
+  const [repairs, setRepairs] = useState<RepairJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [estimateDialogOpen, setEstimateDialogOpen] = useState(false);
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const [selectedRepair, setSelectedRepair] = useState<RepairJob | null>(null);
 
-  // Simulate data fetching
+  const estimateForm = useForm<EstimateFormValues>({
+    resolver: zodResolver(estimateSchema),
+    defaultValues: {
+      proposed_cost: 0,
+    },
+  });
+
+  const progressForm = useForm<ProgressFormValues>({
+    resolver: zodResolver(progressSchema),
+    defaultValues: {
+      progress: 0,
+    },
+  });
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
-        // Mock data for repairs
-        const mockRepairs = [
-          {
-            id: "REP-2025-001",
-            claimId: "CL-2025-001",
-            vehicle: {
-              make: "Toyota",
-              model: "RAV4",
-              year: "2023",
-              plateNumber: "RAA 123A",
-            },
-            customer: {
-              name: "Mugisha Nkusi",
-              phone: "+250 788 123 456",
-            },
-            insurer: "Sanlam Alianz",
-            damages: "Front bumper damaged, headlight broken",
-            status: "In Progress",
-            startDate: "2025-03-25",
-            estimatedCompletionDate: "2025-03-30",
-            actualCompletionDate: null,
-            estimatedCost: 350000,
-            approvedCost: 350000,
-            partsOrdered: true,
-            partsReceived: false,
-            assignedTechnicians: ["Kamanzi Eric", "Uwase Marie"],
-            notes: "Parts ordered on March 23, expected delivery on March 26",
-          },
-          {
-            id: "REP-2025-002",
-            claimId: "CL-2025-002",
-            vehicle: {
-              make: "Suzuki",
-              model: "Swift",
-              year: "2022",
-              plateNumber: "RAC 789C",
-            },
-            customer: {
-              name: "Uwimana Jean",
-              phone: "+250 788 234 567",
-            },
-            insurer: "Sanlam Alianz",
-            damages: "Side mirror broken, driver's door scratched",
-            status: "Scheduled",
-            startDate: "2025-04-02",
-            estimatedCompletionDate: "2025-04-05",
-            actualCompletionDate: null,
-            estimatedCost: 280000,
-            approvedCost: 280000,
-            partsOrdered: true,
-            partsReceived: false,
-            assignedTechnicians: ["Nkusi Emmanuel"],
-            notes: "Parts ordered, waiting for customer to bring in vehicle",
-          },
-          {
-            id: "REP-2025-003",
-            claimId: "CL-2025-003",
-            vehicle: {
-              make: "Honda",
-              model: "Civic",
-              year: "2024",
-              plateNumber: "RAD 456D",
-            },
-            customer: {
-              name: "Mutoni Sarah",
-              phone: "+250 788 345 678",
-            },
-            insurer: "Sanlam Alianz",
-            damages: "Rear bumper dented, tail light broken",
-            status: "Completed",
-            startDate: "2025-03-15",
-            estimatedCompletionDate: "2025-03-20",
-            actualCompletionDate: "2025-03-19",
-            estimatedCost: 320000,
-            approvedCost: 320000,
-            partsOrdered: true,
-            partsReceived: true,
-            assignedTechnicians: ["Kamanzi Eric", "Mugabo Jean"],
-            notes: "Repairs completed ahead of schedule. Customer notified for pickup.",
-          },
-          {
-            id: "REP-2025-004",
-            claimId: "CL-2025-005",
-            vehicle: {
-              make: "Nissan",
-              model: "X-Trail",
-              year: "2023",
-              plateNumber: "RAG 789G",
-            },
-            customer: {
-              name: "Gasana Robert",
-              phone: "+250 788 567 890",
-            },
-            insurer: "Sanlam Alianz",
-            damages: "Multiple dents on roof, hood, and trunk from hail",
-            status: "Completed",
-            startDate: "2025-01-04",
-            estimatedCompletionDate: "2025-01-09",
-            actualCompletionDate: "2025-01-09",
-            estimatedCost: 520000,
-            approvedCost: 520000,
-            partsOrdered: false,
-            partsReceived: false,
-            assignedTechnicians: ["Uwase Marie", "Nkusi Emmanuel", "Mugabo Jean"],
-            notes: "Extensive dent repair work completed. Vehicle ready for pickup.",
-          },
-          {
-            id: "REP-2025-005",
-            claimId: "CL-2025-007",
-            vehicle: {
-              make: "Toyota",
-              model: "Corolla",
-              year: "2023",
-              plateNumber: "RAF 678F",
-            },
-            customer: {
-              name: "Hakizimana Jean",
-              phone: "+250 788 456 789",
-            },
-            insurer: "Radiant Insurance",
-            damages: "Front and rear bumper damage, broken headlight",
-            status: "Pending Approval",
-            startDate: null,
-            estimatedCompletionDate: null,
-            actualCompletionDate: null,
-            estimatedCost: 420000,
-            approvedCost: null,
-            partsOrdered: false,
-            partsReceived: false,
-            assignedTechnicians: [],
-            notes: "Waiting for repair approval from insurer",
-          },
-        ]
-
-        setRepairs(mockRepairs)
-      } catch (error) {
-        console.error("Error fetching repairs:", error)
-      } finally {
-        setLoading(false)
+    const fetchRepairs = async () => {
+      if (!user?.tenant_id || !user?.garage_id ) {
+        console.error("Missing user data:", { tenant_id: user?.tenant_id, garage_id: user?.garage_id});
+        toast({
+          title: "Authentication Error",
+          description: "User or garage information is missing.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
       }
-    }
 
-    fetchData()
-  }, [])
+      setLoading(true);
+      try {
+        console.log("Fetching repairs from:", `${API_URL}/repair-jobs/${user.tenant_id}/${user.garage_id}`);
+        const response = await apiRequest(
+          `${API_URL}/repair-jobs/${user.tenant_id}/${user.garage_id}`,
+          "GET");
+        console.log("Repairs response:", response);
+        setRepairs(response);
+      } catch (error: any) {
+        console.error("Error fetching repairs:", error);
+        toast({
+          title: "Error Loading Repairs",
+          description: error.response?.data?.message || "Failed to load repairs. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) fetchRepairs();
+  }, [user, toast]);
+
+  const handleUpdateEstimate = async (values: EstimateFormValues) => {
+    if (!selectedRepair || !user?.tenant_id) return;
+
+    try {
+      const response = await apiRequest(
+        `${API_URL}/repair-jobs/${selectedRepair.id}/estimate`,
+        "PUT",
+        {
+          tenant_id: user.tenant_id,
+          proposed_cost: values.proposed_cost,
+        });
+
+      setRepairs((prev) =>
+        prev.map((job) =>
+          job.id === selectedRepair.id
+            ? { ...job, estimated_amount: response.repair_job.estimated_amount }
+            : job
+        )
+      );
+
+      toast({
+        title: "Estimate Updated",
+        description: "The repair estimate has been updated successfully.",
+      });
+      setEstimateDialogOpen(false);
+      estimateForm.reset();
+      setSelectedRepair(null);
+    } catch (error: any) {
+      console.error("Error updating estimate:", error);
+      toast({
+        title: "Error Updating Estimate",
+        description: error.response?.data?.message || "Failed to update estimate.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleStartRepair = async (repair: RepairJob) => {
+    if (!user?.tenant_id) return;
+
+    try {
+      const response = await apiRequest(
+        `${API_URL}/repair-jobs/${repair.id}/status`,
+        "PUT",
+        {
+          tenant_id: user.tenant_id,
+          status: "in_progress",
+        });
+
+      setRepairs((prev) =>
+        prev.map((job) =>
+          job.id === repair.id
+            ? {
+                ...job,
+                status: response.repair_job.status,
+                start_date: response.repair_job.start_date,
+                progress: response.repair_job.progress,
+              }
+            : job
+        )
+      );
+
+      toast({
+        title: "Repair Started",
+        description: "The repair job has been started successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error starting repair:", error);
+      toast({
+        title: "Error Starting Repair",
+        description: error.response?.data?.message || "Failed to start repair.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateProgress = async (values: ProgressFormValues) => {
+    if (!selectedRepair || !user?.tenant_id) return;
+
+    try {
+      const response = await apiRequest(
+        `${API_URL}/repair-jobs/${selectedRepair.id}/progress`,
+        "PUT",
+        {
+          tenant_id: user.tenant_id,
+          progress: values.progress,
+        });
+
+      setRepairs((prev) =>
+        prev.map((job) =>
+          job.id === selectedRepair.id
+            ? {
+                ...job,
+                status: response.repair_job.status,
+                progress: response.repair_job.progress,
+                final_amount: response.repair_job.final_amount,
+                payment_status: response.repair_job.payment_status,
+              }
+            : job
+        )
+      );
+
+      toast({
+        title: "Progress Updated",
+        description: "The repair progress has been updated successfully.",
+      });
+      setProgressDialogOpen(false);
+      progressForm.reset();
+      setSelectedRepair(null);
+    } catch (error: any) {
+      console.error("Error updating progress:", error);
+      toast({
+        title: "Error Updating Progress",
+        description: error.response?.data?.message || "Failed to update progress.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const filteredRepairs = repairs.filter((repair) => {
     const matchesSearch =
-      repair.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      repair.claimId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      repair.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      repair.claim_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       `${repair.vehicle.make} ${repair.vehicle.model}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      repair.vehicle.plateNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      repair.vehicle.license_plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
       repair.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      repair.insurer.toLowerCase().includes(searchQuery.toLowerCase())
+      repair.insurer.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "scheduled" && repair.status === "Scheduled") ||
-      (statusFilter === "in_progress" && repair.status === "In Progress") ||
-      (statusFilter === "completed" && repair.status === "Completed") ||
-      (statusFilter === "pending" && repair.status === "Pending Approval")
+      (statusFilter === "awaiting_approval" && repair.status === "awaiting_approval") ||
+      (statusFilter === "approved" && repair.status === "approved") ||
+      (statusFilter === "in_progress" && repair.status === "in_progress") ||
+      (statusFilter === "completed" && repair.status === "completed");
 
-    return matchesSearch && matchesStatus
-  })
+    return matchesSearch && matchesStatus;
+  });
 
   const sortedRepairs = [...filteredRepairs].sort((a, b) => {
-    let aValue, bValue
+    let aValue, bValue;
 
-    // Determine the values to compare based on the sort field
     switch (sortField) {
-      case "startDate":
-        aValue = a.startDate ? new Date(a.startDate).getTime() : 0
-        bValue = b.startDate ? new Date(b.startDate).getTime() : 0
-        break
+      case "start_date":
+        aValue = a.start_date ? new Date(a.start_date).getTime() : 0;
+        bValue = b.start_date ? new Date(b.start_date).getTime() : 0;
+        break;
+      case "code":
+        aValue = a.code;
+        bValue = b.code;
+        break;
+      case "claim_id":
+        aValue = a.claim_id;
+        bValue = b.claim_id;
+        break;
       default:
-        aValue = a[sortField]
-        bValue = b[sortField]
+        aValue = a[sortField];
+        bValue = b[sortField];
     }
 
-    // Handle null or undefined values
-    if (aValue == null) return -1
-    if (bValue == null) return 1
+    if (aValue == null) return -1;
+    if (bValue == null) return 1;
 
-    // Compare the values based on the sort direction
     if (sortDirection === "asc") {
-      if (aValue < bValue) return -1
-      if (aValue > bValue) return 1
-      return 0
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
     } else {
-      if (aValue < bValue) return 1
-      if (aValue > bValue) return -1
-      return 0
+      return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
     }
-  })
+  });
 
   return (
     <>
@@ -261,10 +331,10 @@ export function RepairsTable() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
-              <SelectItem value="scheduled">Scheduled</SelectItem>
+              <SelectItem value="awaiting_approval">Awaiting Approval</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="pending">Pending Approval</SelectItem>
             </SelectContent>
           </Select>
           <Filter className="h-4 w-4 text-gray-500 ml-4" />
@@ -280,30 +350,28 @@ export function RepairsTable() {
             <DropdownMenuLabel>Sort</DropdownMenuLabel>
             <DropdownMenuItem
               onClick={() => {
-                setSortField("startDate")
-                setSortDirection(sortField === "startDate" && sortDirection === "asc" ? "desc" : "asc")
+                setSortField("start_date");
+                setSortDirection(sortField === "start_date" && sortDirection === "asc" ? "desc" : "asc");
               }}
             >
-              Start Date {sortField === "startDate" && (sortDirection === "asc" ? "▲" : "▼")}
+              Start Date {sortField === "start_date" && (sortDirection === "asc" ? "▲" : "▼")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                setSortField("id")
-                setSortDirection(sortField === "id" && sortDirection === "asc" ? "desc" : "asc")
+                setSortField("code");
+                setSortDirection(sortField === "code" && sortDirection === "asc" ? "desc" : "asc");
               }}
             >
-              Repair ID {sortField === "id" && (sortDirection === "asc" ? "▲" : "▼")}
+              Repair Code {sortField === "code" && (sortDirection === "asc" ? "▲" : "▼")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                setSortField("claimId")
-                setSortDirection(sortField === "claimId" && sortDirection === "asc" ? "desc" : "asc")
+                setSortField("claim_id");
+                setSortDirection(sortField === "claim_id" && sortDirection === "asc" ? "desc" : "asc");
               }}
             >
-              Claim ID {sortField === "claimId" && (sortDirection === "asc" ? "▲" : "▼")}
+              Claim ID {sortField === "claim_id" && (sortDirection === "asc" ? "▲" : "▼")}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>View All</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -312,7 +380,7 @@ export function RepairsTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Repair ID</TableHead>
+              <TableHead>Repair Code</TableHead>
               <TableHead>Claim ID</TableHead>
               <TableHead>Vehicle</TableHead>
               <TableHead>Customer</TableHead>
@@ -324,66 +392,43 @@ export function RepairsTable() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              // Show loading skeletons during client-side data fetching
               Array(5)
                 .fill(0)
                 .map((_, index) => (
                   <TableRow key={`loading-client-${index}`}>
-                    <TableCell>
-                      <Skeleton className="h-4 w-20" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-20" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-40" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-6 w-20" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Skeleton className="h-8 w-8 ml-auto" />
-                    </TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
                 ))
             ) : sortedRepairs.length > 0 ? (
-              // Show actual data
               sortedRepairs.map((repair) => (
                 <TableRow key={repair.id}>
-                  <TableCell>{repair.id}</TableCell>
-                  <TableCell>{repair.claimId}</TableCell>
+                  <TableCell>{repair.code}</TableCell>
+                  <TableCell>{repair.claim_id}</TableCell>
                   <TableCell>
-                    {repair.vehicle.make} {repair.vehicle.model} ({repair.vehicle.plateNumber})
+                    {repair.vehicle.make} {repair.vehicle.model} ({repair.vehicle.license_plate})
                   </TableCell>
                   <TableCell>{repair.customer.name}</TableCell>
                   <TableCell>{repair.insurer}</TableCell>
                   <TableCell>
                     <Badge
                       variant={
-                        repair.status === "Scheduled"
-                          ? "secondary"
-                          : repair.status === "In Progress"
-                            ? "warning"
-                            : repair.status === "Completed"
-                              ? "success"
-                              : repair.status === "Pending Approval"
-                                ? "destructive"
-                                : "default"
+                        repair.status === "awaiting_approval" ? "destructive" :
+                        repair.status === "approved" ? "secondary" :
+                        repair.status === "in_progress" ? "warning" :
+                        repair.status === "completed" ? "success" : "default"
                       }
                     >
-                      {repair.status}
+                      {repair.status.charAt(0).toUpperCase() + repair.status.replace("_", " ").slice(1)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{repair.startDate ? format(new Date(repair.startDate), "PPP") : "N/A"}</TableCell>
+                  <TableCell>{repair.start_date ? format(new Date(repair.start_date), "yyyy-MM-dd") : "N/A"}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -395,32 +440,41 @@ export function RepairsTable() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => router.push(`/dashboard/garage/repairs/${repair.id}`)}>
-                          <Eye className="h-4 w-4 mr-2" /> View
+                          <Eye className="h-4 w-4 mr-2" /> View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <FileText className="h-4 w-4 mr-2" /> View Claim
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <MessageSquare className="h-4 w-4 mr-2" /> Add Note
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Bell className="h-4 w-4 mr-2" /> Send Notification
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <User className="h-4 w-4 mr-2" /> Assign Technician
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">
-                          <LogOut className="h-4 w-4 mr-2" /> Delete
-                        </DropdownMenuItem>
+                        {repair.status === "awaiting_approval" && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedRepair(repair);
+                              estimateForm.setValue("proposed_cost", repair.estimated_amount);
+                              setEstimateDialogOpen(true);
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" /> Update Estimate
+                          </DropdownMenuItem>
+                        )}
+                        {repair.status === "approved" && (
+                          <DropdownMenuItem onClick={() => handleStartRepair(repair)}>
+                            <User className="h-4 w-4 mr-2" /> Start Repair
+                          </DropdownMenuItem>
+                        )}
+                        {repair.status === "in_progress" && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedRepair(repair);
+                              progressForm.setValue("progress", repair.progress || 0);
+                              setProgressDialogOpen(true);
+                            }}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-2" /> Update Progress
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
-              // Show empty state
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-6">
                   No repairs found. Try adjusting your filters.
@@ -430,6 +484,72 @@ export function RepairsTable() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Estimate Dialog */}
+      <Dialog open={estimateDialogOpen} onOpenChange={setEstimateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Estimate</DialogTitle>
+            <DialogDescription>Enter the new estimated cost for the repair job.</DialogDescription>
+          </DialogHeader>
+          <Form {...estimateForm}>
+            <form onSubmit={estimateForm.handleSubmit(handleUpdateEstimate)} className="space-y-4">
+              <FormField
+                control={estimateForm.control}
+                name="proposed_cost"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Proposed Cost (RWF)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" min="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEstimateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Update</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Progress Dialog */}
+      <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Progress</DialogTitle>
+            <DialogDescription>Enter the current progress percentage for the repair job.</DialogDescription>
+          </DialogHeader>
+          <Form {...progressForm}>
+            <form onSubmit={progressForm.handleSubmit(handleUpdateProgress)} className="space-y-4">
+              <FormField
+                control={progressForm.control}
+                name="progress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Progress (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" max="100" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setProgressDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Update</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </>
-  )
+  );
 }

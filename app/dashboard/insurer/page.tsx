@@ -26,6 +26,7 @@ import {
   Calendar,
   ArrowRight,
   FileSignature,
+  Wrench,
 } from "lucide-react"
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts"
 import DashboardLayout from "@/components/dashboard-layout"
@@ -217,6 +218,8 @@ export default function InsurerDashboard() {
         { name: "Documents", href: "/dashboard/insurer/documents", icon: <FileText className="h-5 w-5" /> },
         { name: "Analytics", href: "/dashboard/insurer/analytics", icon: <BarChart3 className="h-5 w-5" /> },
         { name: "Users", href: "/dashboard/insurer/users", icon: <Users className="h-5 w-5" /> },
+        
+        { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
         { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
