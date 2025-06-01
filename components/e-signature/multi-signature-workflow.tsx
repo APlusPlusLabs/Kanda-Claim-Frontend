@@ -9,7 +9,10 @@ import { SignaturePad } from "./signature-pad"
 import { SignatureDisplay, type SignatureInfo } from "./signature-display"
 import { CheckCircle2, XCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/lib/auth-provider"
 
+
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 interface MultiSignatureWorkflowProps {
   claimId: string
   claimTitle: string
@@ -26,6 +29,7 @@ export function MultiSignatureWorkflow({
   sequential,
 }: MultiSignatureWorkflowProps) {
   const { toast } = useToast()
+  const { user, apiRequest } = useAuth()
   const [workflowApprovers, setWorkflowApprovers] = useState<SignatureInfo[]>([])
   const [currentApproverIndex, setCurrentApproverIndex] = useState(0)
   const [signature, setSignature] = useState<string | null>(null)
@@ -34,23 +38,19 @@ export function MultiSignatureWorkflow({
   const [workflowComplete, setWorkflowComplete] = useState(false)
   const [userCanAct, setUserCanAct] = useState(false)
 
-  // Initialize approvers safely
   useEffect(() => {
     if (approvers && approvers.length > 0) {
       setWorkflowApprovers(approvers)
     }
   }, [approvers])
 
-  // Determine if current user can act - do this in an effect, not during render
   useEffect(() => {
     let canAct = false
 
     if (!workflowComplete && workflowApprovers.length > 0 && currentApproverIndex < workflowApprovers.length) {
       if (sequential) {
-        // In sequential, only the current approver can act
         canAct = workflowApprovers[currentApproverIndex].status === "pending"
       } else {
-        // In parallel, any pending approver can act
         canAct = workflowApprovers[currentApproverIndex].status === "pending"
       }
     }
@@ -62,109 +62,50 @@ export function MultiSignatureWorkflow({
     setSignature(newSignature)
   }, [])
 
-  const handleApprove = useCallback(() => {
+  const handleApprove = useCallback(async () => {
     if (!signature) {
-      toast({
-        title: "Signature Required",
-        description: "Please draw your signature to approve this claim",
-        variant: "destructive",
-      })
-      return
+      toast({ title: "Signature Required", description: "Please draw your signature", variant: "destructive" });
+      return;
     }
 
-    if (workflowApprovers.length === 0 || currentApproverIndex >= workflowApprovers.length) {
-      toast({
-        title: "No Approvers",
-        description: "There are no approvers configured for this workflow",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setWorkflowApprovers((prevApprovers) => {
-      const updatedApprovers = [...prevApprovers]
-      updatedApprovers[currentApproverIndex] = {
-        ...updatedApprovers[currentApproverIndex],
+    try {
+      const response = await apiRequest(`${API_URL}claims/${user.tenant_id}/approve/${claimId}/${workflowApprovers[currentApproverIndex].id}`, "POST", {
         status: "approved",
-        signature: signature,
-        timestamp: new Date(),
-      }
-
-      // Check if this was the last approver
-      if (currentApproverIndex === prevApprovers.length - 1) {
-        setWorkflowComplete(true)
-        setTimeout(() => onComplete(updatedApprovers), 0)
+        signature,
+      });
+      setWorkflowApprovers(response.data.claim.approvers);
+      if (response.data.claim.status !== "pending_approval") {
+        setWorkflowComplete(true);
+        onComplete(response.data.claim.approvers);
       } else if (sequential) {
-        // Move to next approver in sequential workflow
-        setCurrentApproverIndex((prev) => prev + 1)
-        setSignature(null)
+        setCurrentApproverIndex(prev => prev + 1);
+        setSignature(null);
       }
+      toast({ title: "Success", description: "Claim approved" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  }, [currentApproverIndex, signature, claimId, sequential, onComplete, workflowApprovers]);
 
-      // Check if all approvers have signed in parallel workflow
-      if (!sequential) {
-        const allSigned = updatedApprovers.every((a) => a.status !== "pending")
-        if (allSigned) {
-          setWorkflowComplete(true)
-          setTimeout(() => onComplete(updatedApprovers), 0)
-        }
-      }
-
-      // Show toast after state update
-      setTimeout(() => {
-        toast({
-          title: "Signature Recorded",
-          description: `${updatedApprovers[currentApproverIndex].name} has approved the claim`,
-        })
-      }, 0)
-
-      return updatedApprovers
-    })
-  }, [currentApproverIndex, onComplete, sequential, signature, toast, workflowApprovers])
-
-  const handleReject = useCallback(() => {
+  const handleReject = useCallback(async () => {
     if (!rejectReason.trim()) {
-      toast({
-        title: "Reason Required",
-        description: "Please provide a reason for rejecting this claim",
-        variant: "destructive",
-      })
-      return
+      toast({ title: "Reason Required", description: "Please provide a reason", variant: "destructive" });
+      return;
     }
 
-    if (workflowApprovers.length === 0 || currentApproverIndex >= workflowApprovers.length) {
-      toast({
-        title: "No Approvers",
-        description: "There are no approvers configured for this workflow",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setWorkflowApprovers((prevApprovers) => {
-      const updatedApprovers = [...prevApprovers]
-      updatedApprovers[currentApproverIndex] = {
-        ...updatedApprovers[currentApproverIndex],
+    try {
+      const response = await apiRequest(`${API_URL}claims/${user.tenant_id}/approve/${claimId}/${workflowApprovers[currentApproverIndex].id}`, "POST", {
         status: "rejected",
-        rejectReason: rejectReason,
-        timestamp: new Date(),
-      }
-
-      setWorkflowComplete(true)
-
-      // Use setTimeout to ensure state updates complete before callback
-      setTimeout(() => {
-        onComplete(updatedApprovers)
-
-        toast({
-          title: "Claim Rejected",
-          description: `The claim has been rejected by ${updatedApprovers[currentApproverIndex].name}`,
-          variant: "destructive",
-        })
-      }, 0)
-
-      return updatedApprovers
-    })
-  }, [currentApproverIndex, onComplete, rejectReason, toast, workflowApprovers])
+        rejectReason,
+      });
+      setWorkflowApprovers(response.data.claim.approvers);
+      setWorkflowComplete(true);
+      onComplete(response.data.claim.approvers);
+      toast({ title: "Claim Rejected", description: "Rejection recorded", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  }, [currentApproverIndex, rejectReason, claimId, onComplete, workflowApprovers]);
 
   const handleSelectApprover = useCallback(
     (index: number) => {

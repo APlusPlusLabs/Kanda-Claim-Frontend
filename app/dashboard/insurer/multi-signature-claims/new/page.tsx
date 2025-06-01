@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,71 +15,96 @@ import { InviteSignersForm } from "@/components/e-signature/invite-signers-form"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Send } from "lucide-react"
 import { Stepper } from "@/components/stepper"
+import { Role, User } from "@/lib/types/users"
 
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 export default function NewMultiSignatureClaimPage() {
   const router = useRouter()
-  const { user } = useAuth()
-  const { toast } = useToast()
-  const [currentStep, setCurrentStep] = useState(0)
+  const { user, apiRequest } = useAuth();
+  const { toast } = useToast();
+  const [currentStep, setCurrentStep] = useState(0);
   const [claimData, setClaimData] = useState({
     title: "",
     claimId: "",
     amount: "",
-    customer: "",
+    customerEmail: "",
     description: "",
     workflowType: "sequential",
-  })
-  const [signers, setSigners] = useState<Array<{ name: string; email: string; role: string }>>([])
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  });
+  const [signers, setSigners] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const usersResponse = await apiRequest(`${API_URL}users/${user.tenant_id}`, "GET");
+        const rolesResponse = await apiRequest(`${API_URL}roles/${user.tenant_id}`, "GET");
+        setUsers(usersResponse.data);
+        setRoles(rolesResponse.data);
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to load users/roles", variant: "destructive" });
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleClaimDataChange = (field: string, value: string) => {
-    setClaimData((prev) => ({ ...prev, [field]: value }))
-  }
+    setClaimData((prev) => ({ ...prev, [field]: value }));
+  };
 
-  const handleAddSigner = (signer: { name: string; email: string; role: string }) => {
-    setSigners((prev) => [...prev, signer])
-  }
+  const handleAddSigner = (signer: any) => {
+    setSigners((prev) => [...prev, signer]);
+  };
 
   const handleRemoveSigner = (index: number) => {
-    setSigners((prev) => prev.filter((_, i) => i !== index))
-  }
+    setSigners((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async () => {
-    setIsSubmitting(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
-      toast({
-        title: "Multi-signature claim created",
-        description: "The claim has been created and invitations have been sent to all signers.",
-      })
-      router.push("/dashboard/insurer/multi-signature-claims")
-    }, 1500)
-  }
+    setIsSubmitting(true);
+    try {
+      await apiRequest(`/claims/${user.tenant_id}/multi-signature`,"POST", {
+        title: claimData.title,
+        claimId: claimData.claimId,
+        amount: parseFloat(claimData.amount),
+        customerEmail: claimData.customerEmail,
+        description: claimData.description,
+        workflowType: claimData.workflowType,
+        signers,
+      });
+      toast({ title: "Success", description: "Multi-signature claim created" });
+      router.push("/dashboard/insurer/multi-signature-claims");
+    } catch (error:any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const steps = [
     { title: "Claim Details", description: "Enter basic claim information" },
     { title: "Add Signers", description: "Invite people to sign the claim" },
     { title: "Review & Submit", description: "Review and create the claim" },
-  ]
+  ];
 
   const isStepComplete = (step: number) => {
     if (step === 0) {
-      return claimData.title && claimData.claimId && claimData.amount && claimData.customer
+      return claimData.title && claimData.claimId && claimData.amount && claimData.customerEmail;
     }
     if (step === 1) {
-      return signers.length > 0
+      return signers.length > 0;
     }
-    return true
-  }
+    return true;
+  };
 
-  const canProceed = isStepComplete(currentStep)
+  const canProceed = isStepComplete(currentStep);
 
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Sanlam Alianz",
+        name: user.name,
         role: "Insurance Company",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -124,7 +149,7 @@ export default function NewMultiSignatureClaimPage() {
             <CardDescription>{steps[currentStep].description}</CardDescription>
           </CardHeader>
           <CardContent>
-            {currentStep === 0 && (
+          {currentStep === 0 && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -146,7 +171,6 @@ export default function NewMultiSignatureClaimPage() {
                     />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="amount">Claim Amount (RWF)</Label>
@@ -159,16 +183,24 @@ export default function NewMultiSignatureClaimPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="customer">Customer Name</Label>
-                    <Input
-                      id="customer"
-                      placeholder="Enter customer name"
-                      value={claimData.customer}
-                      onChange={(e) => handleClaimDataChange("customer", e.target.value)}
-                    />
+                    <Label htmlFor="customerEmail">Customer Email</Label>
+                    <Select
+                      value={claimData.customerEmail}
+                      onValueChange={(value) => handleClaimDataChange("customerEmail", value)}
+                    >
+                      <SelectTrigger id="customerEmail">
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.email} value={user.email}>
+                            {user.first_name} {user.last_name} ({user.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="description">Claim Description</Label>
                   <Textarea
@@ -179,7 +211,6 @@ export default function NewMultiSignatureClaimPage() {
                     onChange={(e) => handleClaimDataChange("description", e.target.value)}
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="workflowType">Workflow Type</Label>
                   <Select
@@ -204,11 +235,14 @@ export default function NewMultiSignatureClaimPage() {
             )}
 
             {currentStep === 1 && (
+
               <InviteSignersForm
                 onAddSigner={handleAddSigner}
                 onRemoveSigner={handleRemoveSigner}
                 signers={signers}
-                workflowType={claimData.workflowType as "sequential" | "parallel"}
+                workflowType={claimData.workflowType}
+                users={users}
+                roles={roles}
               />
             )}
 
@@ -233,7 +267,7 @@ export default function NewMultiSignatureClaimPage() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Customer</p>
-                      <p className="text-sm">{claimData.customer}</p>
+                      <p className="text-sm">{claimData.customerEmail}</p>
                     </div>
                     <div className="sm:col-span-2">
                       <p className="text-sm font-medium text-muted-foreground">Description</p>
@@ -293,7 +327,7 @@ export default function NewMultiSignatureClaimPage() {
                         <div>
                           <p className="text-sm">Dear {signers[0]?.name || "Signer"},</p>
                           <p className="text-sm mt-2">
-                            You have been invited to sign a claim document for {claimData.customer || "Customer Name"}.
+                            You have been invited to sign a claim document for {claimData.customerEmail || "Customer Name"}.
                           </p>
                           <p className="text-sm mt-2">
                             <strong>Claim Details:</strong>
@@ -337,7 +371,7 @@ export default function NewMultiSignatureClaimPage() {
                           <p className="text-sm">Dear {signers[0]?.name || "Signer"},</p>
                           <p className="text-sm mt-2">
                             This is a friendly reminder that your signature is still required on a claim document for{" "}
-                            {claimData.customer || "Customer Name"}.
+                            {claimData.customerEmail || "Customer Name"}.
                           </p>
                           <div className="mt-4 bg-yellow-50 p-3 rounded-md text-center">
                             <p className="text-sm font-medium text-yellow-800">

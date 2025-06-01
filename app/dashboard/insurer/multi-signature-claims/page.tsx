@@ -128,25 +128,32 @@ const mockClaims = [
 
 export default function MultiSignatureClaimsPage() {
   const router = useRouter()
-  const { user, apiRequest } = useAuth()
-  const { toast } = useToast()
-  const [claims, setClaims] = useState<typeof mockClaims>([])
-  const [loading, setLoading] = useState(true)
+
+  const { user, apiRequest } = useAuth();
+  const { toast } = useToast();
+  const [claims, setClaims] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+
   const [selectedClaim, setSelectedClaim] = useState<(typeof mockClaims)[0] | null>(null)
   const [showWorkflow, setShowWorkflow] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [dateFilter, setDateFilter] = useState<string>("all")
-
-  // Simulate loading data
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setClaims(mockClaims)
-      setLoading(false)
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [])
-
+    const fetchClaims = async () => {
+      setLoading(true);
+      try {
+        const response = await apiRequest('GET', `/claims/${user.tenant_id}/multi-signature`, {
+          params: { status: statusFilter, date: dateFilter },
+        });
+        setClaims(response.data);
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to load claims", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClaims();
+  }, [statusFilter, dateFilter]);
   const handleViewClaim = (claim: (typeof mockClaims)[0]) => {
     setSelectedClaim(claim)
     setShowWorkflow(true)
