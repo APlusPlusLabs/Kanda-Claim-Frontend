@@ -289,6 +289,7 @@ export default function SubmitAssessment({ params }: Props) {
       formdata.set('severity', severity)
       formdata.set('notes', `Assessment completed. Total estimated cost: ${calculateTotalCost().toLocaleString()} RWF`)
       formdata.set('assessor_id', user.id)
+      formdata.set('estimated_amount', calculateTotalCost().toLocaleString())
       const response = await apiRequest(`${API_URL}assessments/${assessment.id}`, 'PUT', updateData)
 
       if (response.success) {

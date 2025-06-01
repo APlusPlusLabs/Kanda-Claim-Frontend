@@ -102,8 +102,8 @@ export default function GarageDashboard() {
   
       setIsLoading(true);
       try {
-        console.log("Fetching repair jobs from:", `${API_URL}/repair-jobs/${user.tenant_id}/${user.garage_id}`);
-        const response = await apiRequest(`${API_URL}/repair-jobs/${user.tenant_id}/${user.garage_id}`,"GET");
+        console.log("Fetching repair jobs from:", `${API_URL}repair-jobs/${user.tenant_id}/${user.garage_id}`);
+        const response = await apiRequest(`${API_URL}repair-jobs/${user.tenant_id}/${user.garage_id}`,"GET");
         console.log("API response:", response);
   
         const pending = response.filter((job: RepairJob) =>
@@ -135,7 +135,7 @@ export default function GarageDashboard() {
 
     try {
       const response = await apiRequest(
-        `${API_URL}/repair-jobs/${selectedRepairId}/estimate`,
+        `${API_URL}repair-jobs/${selectedRepairId}/estimate`,
         "PUT",
         {
           tenant_id: user.tenant_id,
@@ -172,7 +172,7 @@ export default function GarageDashboard() {
 
     try {
       const response = await apiRequest(
-        `${API_URL}/repair-jobs/${repairId}/status`,
+        `${API_URL}repair-jobs/${repairId}/status`,
         "PUT",
         {
           tenant_id: user.tenant_id,
@@ -208,7 +208,7 @@ export default function GarageDashboard() {
 
     try {
       const response = await apiRequest(
-        `${API_URL}/repair-jobs/${selectedRepairId}/progress`,
+        `${API_URL}repair-jobs/${selectedRepairId}/progress`,
         "PUT",
         {
           tenant_id: user.tenant_id,

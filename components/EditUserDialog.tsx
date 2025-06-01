@@ -36,7 +36,6 @@ const editUserFormSchema = z.object({
   phone: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
   role_id: z.string(),
   department_id: z.string().optional(),
-  garage_id: z.string().optional(),
   new_password: z.string().optional(),
   status: z.enum(["active", "inactive"]),
   tenant_id: z.string().optional(),
@@ -47,7 +46,6 @@ const editUserFormSchema = z.object({
 type EditUserDialogProps = {
   user: User;
   departments: Department[],
-  garages: Garage[],
   roles: Role[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -60,7 +58,6 @@ type EditUserDialogProps = {
 export function EditUserDialog({
   user,
   departments,
-  garages,
   roles,
   open,
   onOpenChange,
@@ -80,23 +77,21 @@ export function EditUserDialog({
       phone: user.phone,
       new_password: "",
       role_id: user.role_id,
-      department_id: user.department_id,
-      garage_id: user.garage_id,
       status: user.status ? "active" : "inactive",
       tenant_id: user.tenant_id,
     },
   });
 
   useEffect(() => {
-  //  setDepartments(user.tenant.departments ? user.tenant.departments : [])
+    //  setDepartments(user.tenant.departments ? user.tenant.departments : [])
     form.reset({
       first_name: user.first_name,
       last_name: user.last_name,
       email: user.email,
       phone: user.phone,
+      new_password: "",
       status: user.status ? "active" : "inactive",
       role_id: user.role_id,
-      department_id: user.department_id,
       tenant_id: user.tenant_id
     });
   }, [user, roles, form]);
@@ -110,10 +105,9 @@ export function EditUserDialog({
         last_name: values.last_name,
         email: values.email,
         phone: values.phone,
-        new_password: values.new_password,
+        new_password: values.new_password ? values.new_password : '',
         role_id: values.role_id,
         department_id: values.department_id,
-        garage_id: values.garage_id,
         tenant_id: tenant_id,
         is_active: values.status === "active",
       });
@@ -125,7 +119,6 @@ export function EditUserDialog({
         email: updatedUser.email,
         phone: updatedUser.phone,
         role_id: updatedUser.role_id,
-        garage_id: updatedUser.garage_id,
         tenant_id: updatedUser.tenant_id,
         status: updatedUser.is_active ? "active" : "inactive",
       });
@@ -149,7 +142,6 @@ export function EditUserDialog({
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>Update user details and Role.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -247,78 +239,34 @@ export function EditUserDialog({
                 </FormItem>
               )}
             />  */}
-            
+
             <FormField
-                    control={form.control}
-                    name="role_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Role</FormLabel>
-                        <Select onValueChange={(value) => {
-                          field.onChange(value);
-                          form.setValue("garage_id", "");
-                        }} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {roles.map((role) => (
-                              <SelectItem key={role.id} value={role.id}>
-                                {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>This determines what permissions the user will have.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {form.watch("role_id") && roles.find((r) => r.id === form.watch("role_id"))?.name.toLowerCase() === "garage" && (
-                    <FormField
-                      control={form.control}
-                      name="garage_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Garage</FormLabel>
-                          {garages?.length > 0 ? (
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value || ""}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select garage" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {garages.map((garage) => (
-                                  <SelectItem key={garage.id} value={garage.id}>
-                                    {garage.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <div className="space-y-2">
-                              <p className="text-sm text-muted-foreground">No garages available.</p>
-                              <Button asChild>
-                                <Link href="/dashboard/insurer/garages">
-                                  <Plus className="h-4 w-4 mr-2" /> Add Garage
-                                </Link>
-                              </Button>
-                            </div>
-                          )}
-                          <FormDescription>Garage is required for garage role users.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-            
-            
+              control={form.control}
+              name="role_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Role</FormLabel>
+                  <Select onValueChange={(value) => {
+                    field.onChange(value);
+                  }} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="department_id"
@@ -366,19 +314,6 @@ export function EditUserDialog({
                       <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="tenant_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tenant/Company</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled value={tenant_id} />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

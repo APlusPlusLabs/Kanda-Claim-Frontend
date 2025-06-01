@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { SetStateAction, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -34,98 +34,111 @@ import { useAuth } from "@/lib/auth-provider"
 import { AssignAssessorDialog } from "@/components/assign-assessor-dialog"
 import { RequestInfoDialog } from "@/components/request-info-dialog"
 import { useToast } from "@/components/ui/use-toast"
+import { Claim } from "@/lib/types/claims"
 
-// Mock data for charts and analytics
-const claimsOverTimeData = [
-  { month: "Jan", claims: 45 },
-  { month: "Feb", claims: 52 },
-  { month: "Mar", claims: 48 },
-  { month: "Apr", claims: 61 },
-  { month: "May", claims: 55 },
-  { month: "Jun", claims: 67 },
-  { month: "Jul", claims: 72 },
-]
 
-const claimsByTypeData = [
-  { name: "Collision", value: 42 },
-  { name: "Theft", value: 12 },
-  { name: "Natural Disaster", value: 6 },
-  { name: "Fire", value: 8 },
-  { name: "Vandalism", value: 14 },
-  { name: "Other", value: 18 },
-]
 
-const claimsByStatusData = [
-  { name: "Approved", value: 55 },
-  { name: "Rejected", value: 12 },
-  { name: "Pending", value: 23 },
-  { name: "In Review", value: 10 },
-]
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"]
 
 export default function InsurerDashboard() {
   const router = useRouter()
-  const { user } = useAuth()
-  const [newClaims, setNewClaims] = useState([
-    {
-      id: "CL-2023-001",
-      vehicle: "Toyota RAV4",
-      date: "2025-12-15",
-      status: "New",
-      customer: "Mugisha Nkusi",
-      estimatedAmount: 450000,
-    },
-    {
-      id: "CL-2023-002",
-      vehicle: "Suzuki Swift",
-      date: "2025-11-28",
-      status: "New",
-      customer: "Uwase Marie",
-      estimatedAmount: 280000,
-    },
-  ])
+  const { user, apiRequest } = useAuth()
 
-  const [inProgressClaims, setInProgressClaims] = useState([
-    {
-      id: "CL-2023-003",
-      vehicle: "Honda Civic",
-      date: "2025-10-05",
-      status: "Assessment",
-      customer: "Kamanzi Eric",
-      estimatedAmount: 320000,
-      assessor: "Habimana Jean",
-    },
-    {
-      id: "CL-2023-004",
-      vehicle: "Nissan X-Trail",
-      date: "2025-09-20",
-      status: "Repair",
-      customer: "Mutesi Sarah",
-      estimatedAmount: 520000,
-      garage: "Kigali Auto Services",
-    },
-  ])
-
-  const [completedClaims, setCompletedClaims] = useState([
-    {
-      id: "CL-2023-005",
-      vehicle: "Mazda CX-5",
-      date: "2025-08-15",
-      status: "Completed",
-      customer: "Nshimiyimana Claude",
-      finalAmount: 380000,
-      paymentStatus: "Paid",
-    },
-  ])
+  const [claimsOverTime, setClaimsOverTime] = useState([])
+  const [claimsByType, setClaimsByType] = useState([])
+  const [claimsByStatus, setClaimsByStatus] = useState({
+    New: [],
+    InProgress: [],
+    Completed: [],
+  })
+  const [loading, setLoading] = useState(true)
+  const [year, setYear] = useState(new Date().getFullYear())
 
   const { toast } = useToast()
   const [assignAssessorOpen, setAssignAssessorOpen] = useState(false)
   const [requestInfoOpen, setRequestInfoOpen] = useState(false)
-  const [selectedClaim, setSelectedClaim] = useState<{
-    id: string
-    customer: string
-  } | null>(null)
+  const [selectedClaim, setSelectedClaim] = useState<Claim>()
+  const [newClaims, setNewClaims] = useState<any[]>([])
+
+  const [inProgressClaims, setInProgressClaims] = useState<any[]>([])
+
+  const [completedClaims, setCompletedClaims] = useState<any[]>([])
+
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [upcomingActivities, setUpcomingActivities] = useState<any[]>([]);
+  // Fetch claims data
+  useEffect(() => {
+    const fetchClaimsData = async () => {
+      if (!user?.tenant_id) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "user and tenant required",
+        });
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        //  setError(null)
+
+        // get claims over time
+        const overTimeData = await apiRequest(
+          `${API_URL}claims/${user.tenant_id}/over-time?year=${year}`,
+          "GET"
+        )
+        setClaimsOverTime(overTimeData)
+
+        // get claims by type
+        const byTypeData = await apiRequest(
+          `${API_URL}claims/${user.tenant_id}/by-type?year=${year}`,
+          "GET"
+        )
+        setClaimsByType(byTypeData)
+        // get claims by status
+        const byStatusData = await apiRequest(
+          `${API_URL}claims/${user.tenant_id}/by-status?year=${year}`,
+          "GET"
+        )
+        setClaimsByStatus({
+          New: byStatusData.New || [],
+          InProgress: byStatusData.InProgress || [],
+          Completed: byStatusData.Completed || [],
+        })
+        setNewClaims(byStatusData.New || [])
+        setInProgressClaims(byStatusData.InProgress || [])
+        setCompletedClaims(byStatusData.Completed || [])
+        // Fetch recent activities
+        const recentActivitiesData = await apiRequest(
+          `${API_URL}recent-activities-by-tenant/${user.tenant_id}`,
+          "GET"
+        );
+        setRecentActivities(recentActivitiesData);
+
+        // Fetch upcoming activities
+        const upcomingActivitiesData = await apiRequest(
+          `${API_URL}upcoming-activities-by-tenant/${user.tenant_id}`,
+          "GET"
+        );
+        setUpcomingActivities(upcomingActivitiesData);
+      } catch (err) {
+        console.error("Error fetching claims:", err)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch claims data: " + err,
+        });
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchClaimsData()
+  }, [user?.tenant_id, year])
+
 
   // Calculate key metrics
   const totalClaims = newClaims.length + inProgressClaims.length + completedClaims.length
@@ -138,47 +151,14 @@ export default function InsurerDashboard() {
     router.push(`/dashboard/insurer/claims/${claimId}`)
   }
 
-  const handleAssignAssessor = (claimId: string, customer: string) => {
-    setSelectedClaim({ id: claimId, customer })
+  const handleAssignAssessor = (claim: Claim) => {
+    setSelectedClaim(claim)
     setAssignAssessorOpen(true)
   }
 
-  const handleRequestInfo = (claimId: string, customer: string) => {
-    setSelectedClaim({ id: claimId, customer })
+  const handleRequestInfo = (claim: Claim) => {
+    setSelectedClaim(claim)
     setRequestInfoOpen(true)
-  }
-
-  const handleAssignAssessorSubmit = (assessorId: string, date: Date, notes: string) => {
-    // In a real app, this would call an API to assign the assessor
-    console.log("Assigning assessor", { assessorId, date, notes, claimId: selectedClaim?.id })
-
-    // Update the UI to reflect the change
-    setNewClaims(
-      (prevClaims) =>
-        prevClaims
-          .map((claim) => {
-            if (claim.id === selectedClaim?.id) {
-              // Move the claim to in-progress
-              setInProgressClaims((prev) => [
-                ...prev,
-                {
-                  ...claim,
-                  status: "Assessment",
-                  assessor: assessors.find((a) => a.id === assessorId)?.name || "Unknown",
-                },
-              ])
-              // Return null to filter it out from newClaims in the next step
-              return null
-            }
-            return claim
-          })
-          .filter(Boolean) as typeof newClaims,
-    )
-
-    toast({
-      title: "Assessor assigned",
-      description: `An assessor has been assigned to claim #${selectedClaim?.id}`,
-    })
   }
 
   const handleRequestInfoSubmit = (message: string, documents: string[]) => {
@@ -190,19 +170,33 @@ export default function InsurerDashboard() {
       description: `Additional information has been requested for claim #${selectedClaim?.id}`,
     })
   }
-
-  const assessors = [
-    { id: "1", name: "Habimana Jean", specialization: "Vehicle Damage", availability: "High" },
-    { id: "2", name: "Uwase Marie", specialization: "Theft Claims", availability: "Medium" },
-    { id: "3", name: "Mugisha Eric", specialization: "Accident Investigation", availability: "Low" },
-    { id: "4", name: "Nkusi David", specialization: "Vehicle Damage", availability: "High" },
-  ]
-
+  const refreshClaimsData = async () => {
+    try {
+      const byStatusData = await apiRequest(
+        `${API_URL}claims/${user?.tenant_id}/by-status?year=${year}`,
+        "GET"
+      );
+      setClaimsByStatus({
+        New: byStatusData.New || [],
+        InProgress: byStatusData.InProgress || [],
+        Completed: byStatusData.Completed || [],
+      });
+      setNewClaims(byStatusData.New || []);
+      setInProgressClaims(byStatusData.InProgress || []);
+      setCompletedClaims(byStatusData.Completed || []);
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to refresh claims data.",
+      });
+    }
+  };
   return (
     <DashboardLayout
       user={{
         name: user?.name ? `${user.name} ` : "user name",
-        role: user?.role?.name+" @ "+ user?.tenant?.name,
+        role: user?.role?.name + " @ " + user?.tenant?.name,
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
@@ -218,14 +212,13 @@ export default function InsurerDashboard() {
         { name: "Documents", href: "/dashboard/insurer/documents", icon: <FileText className="h-5 w-5" /> },
         { name: "Analytics", href: "/dashboard/insurer/analytics", icon: <BarChart3 className="h-5 w-5" /> },
         { name: "Users", href: "/dashboard/insurer/users", icon: <Users className="h-5 w-5" /> },
-        
+
         { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
         { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
-        { name: "Logout", href: "/login", icon: <LogOut className="h-5 w-5" />}
+        { name: "Logout", href: "/login", icon: <LogOut className="h-5 w-5" /> }
       ]}
-   //   actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
     >
       <div className="space-y-6">
         <div className="flex justify-between items-center mb-6">
@@ -321,7 +314,7 @@ export default function InsurerDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={claimsByTypeData}
+                      data={claimsByType}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -330,7 +323,7 @@ export default function InsurerDashboard() {
                       dataKey="value"
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
-                      {claimsByTypeData.map((entry, index) => (
+                      {claimsByType.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -416,7 +409,7 @@ export default function InsurerDashboard() {
                   <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold">Claim #{claim.id}</h3>
+                        <h3 className="text-lg font-semibold">Claim #{claim.code}</h3>
                         <p className="text-sm text-muted-foreground">
                           {claim.vehicle} • {claim.date}
                         </p>
@@ -437,10 +430,10 @@ export default function InsurerDashboard() {
                     </div>
 
                     <div className="mt-4 flex justify-end space-x-2">
-                      <Button size="sm" onClick={() => handleAssignAssessor(claim.id, claim.customer)}>
+                      <Button size="sm" onClick={() => handleAssignAssessor(claim)}>
                         Assign Assessor
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleRequestInfo(claim.id, claim.customer)}>
+                      <Button variant="outline" size="sm" onClick={() => handleRequestInfo(claim)}>
                         Request Info
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => handleViewDetails(claim.id)}>
@@ -470,7 +463,7 @@ export default function InsurerDashboard() {
                   <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold">Claim #{claim.id}</h3>
+                        <h3 className="text-lg font-semibold">Claim #{claim.code}</h3>
                         <p className="text-sm text-muted-foreground">
                           {claim.vehicle} • {claim.date}
                         </p>
@@ -529,7 +522,7 @@ export default function InsurerDashboard() {
                   <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold">Claim #{claim.id}</h3>
+                        <h3 className="text-lg font-semibold">Claim #{claim.code}</h3>
                         <p className="text-sm text-muted-foreground">
                           {claim.vehicle} • {claim.date}
                         </p>
@@ -582,8 +575,7 @@ export default function InsurerDashboard() {
             )}
           </TabsContent>
         </Tabs>
-
-        {/* Upcoming Activities */}
+        {/* upcoming activities */}
         <Card>
           <CardHeader>
             <CardTitle>Upcoming Activities</CardTitle>
@@ -591,46 +583,45 @@ export default function InsurerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="bg-blue-100 text-blue-700 p-2 rounded-md">
-                  <Calendar className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <h4 className="font-medium">Assessment for Claim #CL-2023-003</h4>
-                    <span className="text-sm text-muted-foreground">Tomorrow, 10:00 AM</span>
+              {upcomingActivities.length > 0 ? (
+                upcomingActivities.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-4">
+                    <div className="bg-blue-100 text-blue-700 p-2 rounded-md">
+                      <Calendar className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                        <h4 className="font-medium">Assessment for Claim #{activity.description}</h4>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(activity.scheduled_at).toLocaleString('en-US', {
+                            weekday: 'long',
+                            hour: 'numeric',
+                            minute: 'numeric',
+                            hour12: true,
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Assessor: {activity.assessor?.first_name} {activity.assessor?.last_name}
+                      </p>
+                      <div className="mt-2">
+                        <Button variant="outline" size="sm">
+                          Reschedule
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">Assessor: Habimana Jean</p>
-                  <div className="mt-2">
-                    <Button variant="outline" size="sm">
-                      Reschedule
-                    </Button>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground">No upcoming activities scheduled.</p>
                 </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="bg-purple-100 text-purple-700 p-2 rounded-md">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <h4 className="font-medium">Review Investigation Report for Claim #CL-2023-006</h4>
-                    <span className="text-sm text-muted-foreground">Friday, 2:00 PM</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">Investigator: Nshimiyimana Claude</p>
-                  <div className="mt-2">
-                    <Button variant="outline" size="sm">
-                      Set Reminder
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
-
-        {/* Recent Activities */}
+        {/* recrnt activities */}
         <Card>
           <CardHeader>
             <CardTitle>Recent Activities</CardTitle>
@@ -638,77 +629,69 @@ export default function InsurerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="bg-green-100 text-green-700 p-2 rounded-md">
-                  <CheckCircle2 className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <h4 className="font-medium">Claim #CL-2023-008 approved</h4>
-                    <span className="text-sm text-muted-foreground">Today, 9:15 AM</span>
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-4">
+                    <div
+                      className={`p-2 rounded-md ${activity.event.toLowerCase().includes('approved') ? 'bg-green-100 text-green-700' :
+                        activity.event.toLowerCase().includes('created') ? 'bg-blue-100 text-blue-700' :
+                          activity.event.toLowerCase().includes('flagged') ? 'bg-amber-100 text-amber-700' :
+                            'bg-purple-100 text-purple-700'
+                        }`}
+                    >
+                      {activity.event.toLowerCase().includes('approved') ? <CheckCircle2 className="h-5 w-5" /> :
+                        activity.event.toLowerCase().includes('created') ? <FileSignature className="h-5 w-5" /> :
+                          activity.event.toLowerCase().includes('flagged') ? <AlertTriangle className="h-5 w-5" /> :
+                            <Users className="h-5 w-5" />}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                        <h4 className="font-medium">
+                          {activity.event}
+                          {/* {activity.event === 'approved' ? `Claim #${activity.description} approved` :
+                            activity.event === 'created' ? `New ${activity.table_name === 'claims' ? 'claim' : 'activity'} created` :
+                              activity.event === 'flagged' ? `Potential fraud detected in claim #${activity.description}` :
+                                activity.description} */}
+                        </h4>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(activity.created_at).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: 'numeric',
+                            hour12: true,
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        By: {activity.user?.first_name} {activity.user?.last_name}
+                      </p>
+                      <div className="mt-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link
+                            href={`/dashboard/insurer/${activity.table_name}/${activity.table_id}`}
+                          >
+                            View {activity.table_name === 'claims' ? 'Claim' : activity.table_name === 'assessments' ? 'Assessment' : 'Bid'}
+                          </Link>
+                          {/* <Link
+                            href={`/dashboard/insurer/${activity.table_name === 'claims' ? 'claims' :
+                              activity.table_name === 'assessments' ? 'assessments' :
+                                'bids'
+                              }/${activity.description}`}
+                          >
+                            View {activity.table_name === 'claims' ? 'Claim' : activity.table_name === 'assessments' ? 'Assessment' : 'Bid'}
+                          </Link> */}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">Approved by: Jean-Paul Mugisha</p>
-                  <div className="mt-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/dashboard/insurer/claims/CL-2023-008">View Claim</Link>
-                    </Button>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground">No recent activities found.</p>
                 </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="bg-blue-100 text-blue-700 p-2 rounded-md">
-                  <FileSignature className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <h4 className="font-medium">New multi-signature claim created</h4>
-                    <span className="text-sm text-muted-foreground">Yesterday, 3:45 PM</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">Created by: Marie Uwimana</p>
-                  <div className="mt-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/dashboard/insurer/multi-signature-claims">View Claim</Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="bg-purple-100 text-purple-700 p-2 rounded-md">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <h4 className="font-medium">New assessor registered</h4>
-                    <span className="text-sm text-muted-foreground">2 days ago</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">User: Emmanuel Hakizimana</p>
-                  <div className="mt-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/dashboard/insurer/users">View Profile</Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="bg-amber-100 text-amber-700 p-2 rounded-md">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <h4 className="font-medium">Potential fraud detected</h4>
-                    <span className="text-sm text-muted-foreground">3 days ago</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">Claim #CL-2023-007 flagged for review</p>
-                  <div className="mt-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/dashboard/insurer/claims/CL-2023-007">Investigate</Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
             <div className="mt-4 flex justify-center">
               <Button variant="outline" className="w-full sm:w-auto">
@@ -723,15 +706,14 @@ export default function InsurerDashboard() {
           <AssignAssessorDialog
             open={assignAssessorOpen}
             onOpenChange={setAssignAssessorOpen}
-            claimId={selectedClaim.id}
-            onAssign={handleAssignAssessorSubmit}
+            claim={selectedClaim}
+            onAssignSuccess={refreshClaimsData}
           />
           <RequestInfoDialog
             open={requestInfoOpen}
             onOpenChange={setRequestInfoOpen}
-            claimId={selectedClaim.id}
-            customerName={selectedClaim.customer}
-            onRequest={handleRequestInfoSubmit}
+            claim={selectedClaim}
+            onRequestSuccess={refreshClaimsData}
           />
         </>
       )}

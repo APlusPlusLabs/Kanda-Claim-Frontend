@@ -77,9 +77,9 @@ export default function GarageRepairsPage() {
             <p>Here's a list of repairs in your garage.</p>
           </CardContent>
         </Card>
-        <Button asChild>
+        {/* <Button asChild>
           <Link href="/dashboard/garage/repairs/create">Create Repair</Link>
-        </Button>
+        </Button> */}
       </div>
 
       {/* The client component will be rendered here */}

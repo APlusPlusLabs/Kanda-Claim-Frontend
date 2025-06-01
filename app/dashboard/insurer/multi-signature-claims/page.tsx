@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FileSignature, Clock, CheckCircle2, XCircle, Eye, Plus, Filter } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 import { MultiSignatureWorkflow } from "@/components/e-signature/multi-signature-workflow"
 import type { SignatureInfo } from "@/components/e-signature/signature-display"
@@ -128,7 +128,7 @@ const mockClaims = [
 
 export default function MultiSignatureClaimsPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, apiRequest } = useAuth()
   const { toast } = useToast()
   const [claims, setClaims] = useState<typeof mockClaims>([])
   const [loading, setLoading] = useState(true)

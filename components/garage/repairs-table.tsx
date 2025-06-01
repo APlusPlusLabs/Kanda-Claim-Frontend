@@ -122,9 +122,9 @@ export function RepairsTable() {
 
       setLoading(true);
       try {
-        console.log("Fetching repairs from:", `${API_URL}/repair-jobs/${user.tenant_id}/${user.garage_id}`);
+        console.log("Fetching repairs from:", `${API_URL}repair-jobs/${user.tenant_id}/${user.garage_id}`);
         const response = await apiRequest(
-          `${API_URL}/repair-jobs/${user.tenant_id}/${user.garage_id}`,
+          `${API_URL}repair-jobs/${user.tenant_id}/${user.garage_id}`,
           "GET");
         console.log("Repairs response:", response);
         setRepairs(response);
@@ -148,7 +148,7 @@ export function RepairsTable() {
 
     try {
       const response = await apiRequest(
-        `${API_URL}/repair-jobs/${selectedRepair.id}/estimate`,
+        `${API_URL}repair-jobs/${selectedRepair.id}/estimate`,
         "PUT",
         {
           tenant_id: user.tenant_id,
@@ -185,7 +185,7 @@ export function RepairsTable() {
 
     try {
       const response = await apiRequest(
-        `${API_URL}/repair-jobs/${repair.id}/status`,
+        `${API_URL}repair-jobs/${repair.id}/status`,
         "PUT",
         {
           tenant_id: user.tenant_id,
@@ -224,7 +224,7 @@ export function RepairsTable() {
 
     try {
       const response = await apiRequest(
-        `${API_URL}/repair-jobs/${selectedRepair.id}/progress`,
+        `${API_URL}repair-jobs/${selectedRepair.id}/progress`,
         "PUT",
         {
           tenant_id: user.tenant_id,

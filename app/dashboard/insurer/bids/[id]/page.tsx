@@ -89,7 +89,7 @@ export default function BidDetailsPage({ params }: Props) {
         const interestedGarages = Array.from(
           new Set(response.submissions?.map((sub: { garage_id: string }) => sub.garage_id) || [])
         );
-        const activities = await apiRequest(`${API_URL}activities-by-tenant/${id}/${user.tenant_id}`, "GET");
+        const activities = await apiRequest(`${API_URL}bid-activities-by-tenant/${id}/${user.tenant_id}`, "GET");
         const bidWithInterests = {
           ...response,
           interested_garages: interestedGarages,
