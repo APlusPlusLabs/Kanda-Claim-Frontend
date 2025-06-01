@@ -109,7 +109,7 @@ export default function AnalyticsPage() {
           to: dateRange.to?.toISOString().split("T")[0],
           period,
         };
-const param = `?from=${ dateRange.from?.toISOString().split("T")[0] }&to=${dateRange.to?.toISOString().split("T")[0]}&period=${period}`
+        const param = `?from=${dateRange.from?.toISOString().split("T")[0]}&to=${dateRange.to?.toISOString().split("T")[0]}&period=${period}`
         const [
           claimsByMonthRes,
           claimsByTypeRes,
@@ -119,22 +119,22 @@ const param = `?from=${ dateRange.from?.toISOString().split("T")[0] }&to=${dateR
           settlementTimeRes,
           summaryRes,
         ] = await Promise.all([
-          apiRequest(`${API_URL}analytics/${user.tenant_id}/claims-by-month?from=${ dateRange.from?.toISOString().split("T")[0] }&to=${dateRange.to?.toISOString().split("T")[0]}&period=${period}`, "GET"),
-          apiRequest(`${API_URL}analytics/${user.tenant_id}/claims-by-type${ param }`, "GET"),
-          apiRequest(`${API_URL}analytics/${user.tenant_id}/claims-by-status${ param }`, "GET"),
-          apiRequest(`${API_URL}analytics/${user.tenant_id}/top-garages${ param }`, "GET"),
-          apiRequest(`${API_URL}analytics/${user.tenant_id}/monthly-comparison${ param }`, "GET"),
-          apiRequest(`${API_URL}analytics/${user.tenant_id}/settlement-time-by-type${ param }`, "GET"),
-          apiRequest(`${API_URL}analytics/${user.tenant_id}/summary${ param }`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/claims-by-month${param}`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/claims-by-type${param}`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/claims-by-status${param}`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/top-garages${param}`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/monthly-comparison${param}`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/settlement-time-by-type${param}`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/summary${param}`, "GET"),
         ]);
 
-        setClaimsByMonth(claimsByMonthRes.data);
-        setClaimsByType(claimsByTypeRes.data);
-        setClaimsByStatus(claimsByStatusRes.data);
-        setTopGarages(topGaragesRes.data);
-        setMonthlyComparison(monthlyComparisonRes.data);
-        setSettlementTime(settlementTimeRes.data);
-        setSummary(summaryRes.data);
+        setClaimsByMonth(claimsByMonthRes);
+        setClaimsByType(claimsByTypeRes);
+        setClaimsByStatus(claimsByStatusRes);
+        setTopGarages(topGaragesRes);
+        setMonthlyComparison(monthlyComparisonRes);
+        setSettlementTime(settlementTimeRes);
+        setSummary(summaryRes);
       } catch (error) {
         toast({ title: "Error", description: "Failed to load analytics data", variant: "destructive" });
       } finally {
@@ -161,612 +161,612 @@ const param = `?from=${ dateRange.from?.toISOString().split("T")[0] }&to=${dateR
 
   return (
     <DashboardLayout
-    user={{
-      name: user.name,
-      role: "Insurance Company",
-      avatar: "/placeholder.svg?height=40&width=40",
-    }}
-    navigation={[
-      { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
-      { name: "Claims", href: "/dashboard/insurer/claims", icon: <Building2 className="h-5 w-5" /> },
-      { name: "Multi-Signature Claims", href: "/dashboard/insurer/multi-signature-claims", icon: <Building2 className="h-5 w-5" /> },
-      { name: "Analytics", href: "/dashboard/insurer/analytics", current: true, icon: <BarChart3 className="h-5 w-5" /> },
-    ]}
-  >
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Comprehensive insights into claims and performance</p>
-        </div>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" /> Export Report
-        </Button>
-      </div>
-
-      {/* Filters Section */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-muted p-4 rounded-lg">
-        <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5 text-muted-foreground" />
-          <span className="font-medium">Filters:</span>
-        </div>
-        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-          <DatePickerWithRange
-            className="w-full md:w-auto"
-            date={dateRange}
-            setDate={setDateRange}
-          />
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="quarter">This Quarter</SelectItem>
-              <SelectItem value="year">This Year</SelectItem>
-              <SelectItem value="custom">Custom Range</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Loading State or Content */}
-      {loading ? (
-        <p>Loading analytics data...</p>
-      ) : (
-        <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Claims</CardTitle>
-                <CardDescription className="text-2xl font-bold">{summary.totalClaims.value}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xs text-muted-foreground">
-                  <span className={`${summary.totalClaims.change >= 0 ? "text-green-500" : "text-red-500"} font-medium`}>
-                    {summary.totalClaims.change >= 0 ? "↑" : "↓"} {summary.totalClaims.change.toFixed(1)}%
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Payout</CardTitle>
-                <CardDescription className="text-2xl font-bold">{summary.totalPayout.value.toLocaleString()} RWF</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xs text-muted-foreground">
-                  <span className={`${summary.totalPayout.change >= 0 ? "text-green-500" : "text-red-500"} font-medium`}>
-                    {summary.totalPayout.change >= 0 ? "↑" : "↓"} {summary.totalPayout.change.toFixed(1)}%
-                  </span>{" "}
-                  from previous period
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Average Claim Value</CardTitle>
-                <CardDescription className="text-2xl font-bold">{summary.avgClaimValue.value.toLocaleString()} RWF</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xs text-muted-foreground">
-                  <span className={`${summary.avgClaimValue.change >= 0 ? "text-green-500" : "text-red-500"} font-medium`}>
-                    {summary.avgClaimValue.change >= 0 ? "↑" : "↓"} {summary.avgClaimValue.change.toFixed(1)}%
-                  </span>{" "}
-                  from previous period
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Approval Rate</CardTitle>
-                <CardDescription className="text-2xl font-bold">{summary.approvalRate.value}%</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xs text-muted-foreground">
-                  <span className={`${summary.approvalRate.change >= 0 ? "text-green-500" : "text-red-500"} font-medium`}>
-                    {summary.approvalRate.change >= 0 ? "↑" : "↓"} {summary.approvalRate.change.toFixed(1)}%
-                  </span>{" "}
-                  from previous period
-                </div>
-              </CardContent>
-            </Card>
+      user={{
+        name: user.name,
+        role: "Insurance Company",
+        avatar: "/placeholder.svg?height=40&width=40",
+      }}
+      navigation={[
+        { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
+        { name: "Claims", href: "/dashboard/insurer/claims", icon: <Building2 className="h-5 w-5" /> },
+        { name: "Multi-Signature Claims", href: "/dashboard/insurer/multi-signature-claims", icon: <Building2 className="h-5 w-5" /> },
+        { name: "Analytics", href: "/dashboard/insurer/analytics", current: true, icon: <BarChart3 className="h-5 w-5" /> },
+      ]}
+    >
+      <div className="space-y-6">
+        {/* Header Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+            <p className="text-muted-foreground mt-2">Comprehensive insights into claims and performance</p>
           </div>
+          <Button variant="outline">
+            <Download className="mr-2 h-4 w-4" /> Export Report
+          </Button>
+        </div>
 
-          {/* Tabs Section */}
-          <Tabs defaultValue="claims">
-            <TabsList>
-              <TabsTrigger value="claims">Claims Analysis</TabsTrigger>
-              <TabsTrigger value="financial">Financial Analysis</TabsTrigger>
-              <TabsTrigger value="performance">Performance Metrics</TabsTrigger>
-            </TabsList>
+        {/* Filters Section */}
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-muted p-4 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-muted-foreground" />
+            <span className="font-medium">Filters:</span>
+          </div>
+          <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+            <DatePickerWithRange
+              className="w-full md:w-auto"
+              date={dateRange}
+              setDate={setDateRange}
+            />
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="quarter">This Quarter</SelectItem>
+                <SelectItem value="year">This Year</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-            {/* Claims Analysis Tab */}
-            <TabsContent value="claims" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Claims by Month Chart */}
+        {/* Loading State or Content */}
+        {loading ? (
+          <p>Loading analytics data...</p>
+        ) : (
+          <>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Claims</CardTitle>
+                  <CardDescription className="text-2xl font-bold">{summary.totalClaims.value}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xs text-muted-foreground">
+                    <span className={`${summary.totalClaims.change >= 0 ? "text-green-500" : "text-red-500"} font-medium`}>
+                      {summary.totalClaims.change >= 0 ? "↑" : "↓"} {summary.totalClaims.change.toFixed(1)}%
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Payout</CardTitle>
+                  <CardDescription className="text-2xl font-bold">{summary.totalPayout.value.toLocaleString()} RWF</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xs text-muted-foreground">
+                    <span className={`${summary.totalPayout.change >= 0 ? "text-green-500" : "text-red-500"} font-medium`}>
+                      {summary.totalPayout.change >= 0 ? "↑" : "↓"} {summary.totalPayout.change.toFixed(1)}%
+                    </span>{" "}
+                    from previous period
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Average Claim Value</CardTitle>
+                  <CardDescription className="text-2xl font-bold">{summary.avgClaimValue.value.toLocaleString()} RWF</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xs text-muted-foreground">
+                    <span className={`${summary.avgClaimValue.change >= 0 ? "text-green-500" : "text-red-500"} font-medium`}>
+                      {summary.avgClaimValue.change >= 0 ? "↑" : "↓"} {summary.avgClaimValue.change.toFixed(1)}%
+                    </span>{" "}
+                    from previous period
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Approval Rate</CardTitle>
+                  <CardDescription className="text-2xl font-bold">{summary.approvalRate.value}%</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xs text-muted-foreground">
+                    <span className={`${summary.approvalRate.change >= 0 ? "text-green-500" : "text-red-500"} font-medium`}>
+                      {summary.approvalRate.change >= 0 ? "↑" : "↓"} {summary.approvalRate.change.toFixed(1)}%
+                    </span>{" "}
+                    from previous period
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Tabs Section */}
+            <Tabs defaultValue="claims">
+              <TabsList>
+                <TabsTrigger value="claims">Claims Analysis</TabsTrigger>
+                <TabsTrigger value="financial">Financial Analysis</TabsTrigger>
+                <TabsTrigger value="performance">Performance Metrics</TabsTrigger>
+              </TabsList>
+
+              {/* Claims Analysis Tab */}
+              <TabsContent value="claims" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Claims by Month Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <LineChart className="h-5 w-5 mr-2" /> Claims by Month
+                      </CardTitle>
+                      <CardDescription>Number of claims processed each month</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-80 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={claimsByMonth} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
+                            <XAxis dataKey="month" tick={{ fill: "#888888" }} axisLine={{ stroke: "#e0e0e0" }} />
+                            <YAxis
+                              yAxisId="left"
+                              orientation="left"
+                              tickFormatter={(value) => `${value}`}
+                              domain={[0, "auto"]}
+                              tick={{ fill: "#888888" }}
+                              axisLine={{ stroke: "#e0e0e0" }}
+                              label={{
+                                value: "Claims",
+                                angle: -90,
+                                position: "insideLeft",
+                                offset: -5,
+                                fill: "#888888",
+                                fontSize: 12,
+                              }}
+                            />
+                            <YAxis
+                              yAxisId="right"
+                              orientation="right"
+                              tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+                              domain={[0, "auto"]}
+                              tick={{ fill: "#888888" }}
+                              axisLine={{ stroke: "#e0e0e0" }}
+                              label={{
+                                value: "Amount (RWF)",
+                                angle: 90,
+                                position: "insideRight",
+                                offset: 5,
+                                fill: "#888888",
+                                fontSize: 12,
+                              }}
+                            />
+                            <Tooltip
+                              formatter={(value, name) => {
+                                if (name === "claims") return [`${value} claims`, "Claims"];
+                                if (name === "amount") return [`${Number(value).toLocaleString()} RWF`, "Amount"];
+                                return [value, name];
+                              }}
+                              labelFormatter={(label) => `Month: ${label}`}
+                              contentStyle={{
+                                backgroundColor: "rgba(255, 255, 255, 0.9)",
+                                borderRadius: "6px",
+                                border: "1px solid #e0e0e0",
+                              }}
+                            />
+                            <Legend wrapperStyle={{ paddingTop: 10 }} />
+                            <Bar yAxisId="left" dataKey="claims" fill="#8884d8" radius={[4, 4, 0, 0]} name="Claims" />
+                            <Line
+                              yAxisId="right"
+                              type="monotone"
+                              dataKey="amount"
+                              stroke="#82ca9d"
+                              strokeWidth={3}
+                              dot={{ r: 4, strokeWidth: 2 }}
+                              activeDot={{ r: 6, strokeWidth: 2 }}
+                              name="Amount (RWF)"
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-6 space-y-2">
+                        <div className="grid grid-cols-4 text-sm font-medium">
+                          <div>Month</div>
+                          <div className="text-right">Claims</div>
+                          <div className="text-right">Amount (RWF)</div>
+                          <div className="text-right">Avg. Value</div>
+                        </div>
+                        {claimsByMonth.slice(0, 5).map((item) => (
+                          <div key={item.month} className="grid grid-cols-4 text-sm py-1 border-b border-gray-100">
+                            <div className="font-medium">{item.month}</div>
+                            <div className="text-right">{item.claims}</div>
+                            <div className="text-right">{item.amount.toLocaleString()}</div>
+                            <div className="text-right">{item.claims ? Math.round(item.amount / item.claims).toLocaleString() : 0}</div>
+                          </div>
+                        ))}
+                        <div className="pt-2">
+                          <Button variant="outline" size="sm" className="w-full">
+                            View All Months
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Claims by Type Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <PieChart className="h-5 w-5 mr-2" /> Claims by Type
+                      </CardTitle>
+                      <CardDescription>Distribution of claims by type</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-80 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPieChart>
+                            <Pie
+                              data={claimsByType}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="percentage"
+                              nameKey="type"
+                              label={({ type, percentage }) => `${type}: ${percentage}%`}
+                            >
+                              {claimsByType.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value) => [`${value}%`, "Percentage"]} />
+                            <Legend />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <div className="grid grid-cols-3 text-sm font-medium">
+                          <div>Type</div>
+                          <div className="text-right">Count</div>
+                          <div className="text-right">Percentage</div>
+                        </div>
+                        {claimsByType.map((item) => (
+                          <div key={item.type} className="grid grid-cols-3 text-sm">
+                            <div>{item.type}</div>
+                            <div className="text-right">{item.count}</div>
+                            <div className="text-right">{item.percentage}%</div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Claims by Status and Top Garages */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <PieChart className="h-5 w-5 mr-2" /> Claims by Status
+                      </CardTitle>
+                      <CardDescription>Current status of all claims</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPieChart>
+                            <Pie
+                              data={claimsByStatus}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="percentage"
+                              nameKey="status"
+                              label={({ status, percentage }) => `${status}: ${percentage}%`}
+                            >
+                              {claimsByStatus.map((entry, index) => (
+                                <Cell key={`cell-${entry.status}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value) => `${value}%`} />
+                            <Legend />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <div className="grid grid-cols-3 text-sm font-medium">
+                          <div>Status</div>
+                          <div className="text-right">Count</div>
+                          <div className="text-right">Percentage</div>
+                        </div>
+                        {claimsByStatus.map((item) => (
+                          <div key={item.status} className="grid grid-cols-3 text-sm">
+                            <div>{item.status}</div>
+                            <div className="text-right">{item.count}</div>
+                            <div className="text-right">{item.percentage}%</div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <BarChart3 className="h-5 w-5 mr-2" /> Top Garages
+                      </CardTitle>
+                      <CardDescription>Garages with the most claims</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={sortedGarageData}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" />
+                            <YAxis type="category" dataKey="name" width={100} />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="claims" fill="#8884d8" name="Claims" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <div className="grid grid-cols-3 text-sm font-medium">
+                          <div>
+                            <Button variant="ghost" className="p-0 font-semibold" onClick={() => handleSort("name")}>
+                              Garage
+                              {sortField === "name" && (
+                                <ArrowUpDown className={`ml-2 h-4 w-4 ${sortDirection === "asc" ? "rotate-180" : ""}`} />
+                              )}
+                            </Button>
+                          </div>
+                          <div className="text-right">
+                            <Button variant="ghost" className="p-0 font-semibold" onClick={() => handleSort("claims")}>
+                              Claims
+                              {sortField === "claims" && (
+                                <ArrowUpDown className={`ml-2 h-4 w-4 ${sortDirection === "asc" ? "rotate-180" : ""}`} />
+                              )}
+                            </Button>
+                          </div>
+                          <div className="text-right">
+                            <Button variant="ghost" className="p-0 font-semibold" onClick={() => handleSort("amount")}>
+                              Amount (RWF)
+                              {sortField === "amount" && (
+                                <ArrowUpDown className={`ml-2 h-4 w-4 ${sortDirection === "asc" ? "rotate-180" : ""}`} />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                        {sortedGarageData.map((item) => (
+                          <div key={item.name} className="grid grid-cols-3 text-sm">
+                            <div className="truncate">{item.name}</div>
+                            <div className="text-right">{item.claims}</div>
+                            <div className="text-right">{item.amount.toLocaleString()}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              {/* Financial Analysis Tab */}
+              <TabsContent value="financial" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <LineChart className="h-5 w-5 mr-2" /> Monthly Comparison
+                      </CardTitle>
+                      <CardDescription>Claims comparison with previous year</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-80 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={monthlyComparison} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="month" />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="thisYear" fill="#8884d8" name="This Year" />
+                            <Bar dataKey="lastYear" fill="#82ca9d" name="Last Year" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Month</TableHead>
+                              <TableHead className="text-right">This Year</TableHead>
+                              <TableHead className="text-right">Last Year</TableHead>
+                              <TableHead className="text-right">Change</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {monthlyComparison.slice(0, 6).map((item) => {
+                              const change = item.lastYear ? ((item.thisYear - item.lastYear) / item.lastYear * 100) : 0;
+                              return (
+                                <TableRow key={item.month}>
+                                  <TableCell>{item.month}</TableCell>
+                                  <TableCell className="text-right">{item.thisYear}</TableCell>
+                                  <TableCell className="text-right">{item.lastYear}</TableCell>
+                                  <TableCell className="text-right">
+                                    <span className={change >= 0 ? "text-green-500" : "text-red-500"}>
+                                      {change >= 0 ? "+" : ""}{change.toFixed(1)}%
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <BarChart3 className="h-5 w-5 mr-2" /> Settlement Time by Claim Type
+                      </CardTitle>
+                      <CardDescription>Average days to settle claims by type</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-80 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={settlementTime} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis label={{ value: "Days", angle: -90, position: "insideLeft" }} />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="value" fill="#8884d8" name="Days to Settle">
+                              {settlementTime.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Claim Type</TableHead>
+                              <TableHead className="text-right">Avg. Days to Settle</TableHead>
+                              <TableHead className="text-right">Benchmark</TableHead>
+                              <TableHead className="text-right">Performance</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {settlementTime.map((item) => {
+                              const benchmark = item.name === "Theft" ? 30 : item.name === "Natural Disaster" ? 25 : 15;
+                              const performance = ((benchmark - item.value) / benchmark * 100);
+                              return (
+                                <TableRow key={item.name}>
+                                  <TableCell>{item.name}</TableCell>
+                                  <TableCell className="text-right">{item.value}</TableCell>
+                                  <TableCell className="text-right">{benchmark}</TableCell>
+                                  <TableCell className="text-right">
+                                    <span className={performance >= 0 ? "text-green-500" : "text-red-500"}>
+                                      {performance >= 0 ? "+" : ""}{performance.toFixed(1)}%
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center">
-                      <LineChart className="h-5 w-5 mr-2" /> Claims by Month
+                      <BarChart3 className="h-5 w-5 mr-2" /> Financial Trends
                     </CardTitle>
-                    <CardDescription>Number of claims processed each month</CardDescription>
+                    <CardDescription>Monthly claim amounts and payouts</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="h-80 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={claimsByMonth} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
-                          <XAxis dataKey="month" tick={{ fill: "#888888" }} axisLine={{ stroke: "#e0e0e0" }} />
+                        <ComposedChart data={claimsByMonth} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="colorPayout" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="month" />
                           <YAxis
                             yAxisId="left"
-                            orientation="left"
-                            tickFormatter={(value) => `${value}`}
-                            domain={[0, "auto"]}
-                            tick={{ fill: "#888888" }}
-                            axisLine={{ stroke: "#e0e0e0" }}
-                            label={{
-                              value: "Claims",
-                              angle: -90,
-                              position: "insideLeft",
-                              offset: -5,
-                              fill: "#888888",
-                              fontSize: 12,
-                            }}
+                            tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+                            domain={[0, "dataMax + 1000000"]}
                           />
                           <YAxis
                             yAxisId="right"
                             orientation="right"
-                            tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
-                            domain={[0, "auto"]}
-                            tick={{ fill: "#888888" }}
-                            axisLine={{ stroke: "#e0e0e0" }}
-                            label={{
-                              value: "Amount (RWF)",
-                              angle: 90,
-                              position: "insideRight",
-                              offset: 5,
-                              fill: "#888888",
-                              fontSize: 12,
-                            }}
+                            tickFormatter={(value) => `${value}`}
+                            domain={[0, "dataMax"]}
                           />
                           <Tooltip
                             formatter={(value, name) => {
-                              if (name === "claims") return [`${value} claims`, "Claims"];
                               if (name === "amount") return [`${Number(value).toLocaleString()} RWF`, "Amount"];
+                              if (name === "claims") return [`${value} claims`, "Claims"];
                               return [value, name];
                             }}
                             labelFormatter={(label) => `Month: ${label}`}
-                            contentStyle={{
-                              backgroundColor: "rgba(255, 255, 255, 0.9)",
-                              borderRadius: "6px",
-                              border: "1px solid #e0e0e0",
-                            }}
                           />
-                          <Legend wrapperStyle={{ paddingTop: 10 }} />
-                          <Bar yAxisId="left" dataKey="claims" fill="#8884d8" radius={[4, 4, 0, 0]} name="Claims" />
-                          <Line
-                            yAxisId="right"
+                          <Legend />
+                          <Area
+                            yAxisId="left"
                             type="monotone"
                             dataKey="amount"
-                            stroke="#82ca9d"
-                            strokeWidth={3}
-                            dot={{ r: 4, strokeWidth: 2 }}
-                            activeDot={{ r: 6, strokeWidth: 2 }}
-                            name="Amount (RWF)"
+                            stroke="#8884d8"
+                            strokeWidth={2}
+                            fillOpacity={1}
+                            fill="url(#colorAmount)"
+                            name="Claim Amount (RWF)"
                           />
-                        </BarChart>
+                          <Bar yAxisId="right" dataKey="claims" barSize={20} fill="#82ca9d" name="Number of Claims" />
+                          <Line
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="amount"
+                            stroke="#ff7300"
+                            strokeWidth={3}
+                            dot={{ r: 5 }}
+                            activeDot={{ r: 8 }}
+                            name="Trend Line"
+                          />
+                        </ComposedChart>
                       </ResponsiveContainer>
                     </div>
-                    <div className="mt-6 space-y-2">
-                      <div className="grid grid-cols-4 text-sm font-medium">
-                        <div>Month</div>
-                        <div className="text-right">Claims</div>
-                        <div className="text-right">Amount (RWF)</div>
-                        <div className="text-right">Avg. Value</div>
-                      </div>
-                      {claimsByMonth.slice(0, 5).map((item) => (
-                        <div key={item.month} className="grid grid-cols-4 text-sm py-1 border-b border-gray-100">
-                          <div className="font-medium">{item.month}</div>
-                          <div className="text-right">{item.claims}</div>
-                          <div className="text-right">{item.amount.toLocaleString()}</div>
-                          <div className="text-right">{item.claims ? Math.round(item.amount / item.claims).toLocaleString() : 0}</div>
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Total Claims Amount</h4>
+                        <div className="text-2xl font-bold">{summary.totalPayout.value.toLocaleString()} RWF</div>
+                        <div className="flex items-center text-sm">
+                          <span className={summary.totalPayout.change >= 0 ? "text-green-500" : "text-red-500"}>
+                            {summary.totalPayout.change >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
+                            {summary.totalPayout.change.toFixed(1)}%
+                          </span>
+                          <span className="text-muted-foreground ml-1">from last year</span>
                         </div>
-                      ))}
-                      <div className="pt-2">
-                        <Button variant="outline" size="sm" className="w-full">
-                          View All Months
-                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Average Claim Value</h4>
+                        <div className="text-2xl font-bold">{summary.avgClaimValue.value.toLocaleString()} RWF</div>
+                        <div className="flex items-center text-sm">
+                          <span className={summary.avgClaimValue.change >= 0 ? "text-green-500" : "text-red-500"}>
+                            {summary.avgClaimValue.change >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
+                            {summary.avgClaimValue.change.toFixed(1)}%
+                          </span>
+                          <span className="text-muted-foreground ml-1">from last year</span>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Projected Annual Payout</h4>
+                        <div className="text-2xl font-bold">{(summary.totalPayout.value * 1.2).toLocaleString()} RWF</div>
+                        <div className="flex items-center text-sm">
+                          <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
+                          <span className="text-green-500 font-medium">+5.8%</span>
+                          <span className="text-muted-foreground ml-1">from last year</span>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-
-                {/* Claims by Type Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <PieChart className="h-5 w-5 mr-2" /> Claims by Type
-                    </CardTitle>
-                    <CardDescription>Distribution of claims by type</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
-                          <Pie
-                            data={claimsByType}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="percentage"
-                            nameKey="type"
-                            label={({ type, percentage }) => `${type}: ${percentage}%`}
-                          >
-                            {claimsByType.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value) => [`${value}%`, "Percentage"]} />
-                          <Legend />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      <div className="grid grid-cols-3 text-sm font-medium">
-                        <div>Type</div>
-                        <div className="text-right">Count</div>
-                        <div className="text-right">Percentage</div>
-                      </div>
-                      {claimsByType.map((item) => (
-                        <div key={item.type} className="grid grid-cols-3 text-sm">
-                          <div>{item.type}</div>
-                          <div className="text-right">{item.count}</div>
-                          <div className="text-right">{item.percentage}%</div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Claims by Status and Top Garages */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <PieChart className="h-5 w-5 mr-2" /> Claims by Status
-                    </CardTitle>
-                    <CardDescription>Current status of all claims</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
-                          <Pie
-                            data={claimsByStatus}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="percentage"
-                            nameKey="status"
-                            label={({ status, percentage }) => `${status}: ${percentage}%`}
-                          >
-                            {claimsByStatus.map((entry, index) => (
-                              <Cell key={`cell-${entry.status}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value) => `${value}%`} />
-                          <Legend />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      <div className="grid grid-cols-3 text-sm font-medium">
-                        <div>Status</div>
-                        <div className="text-right">Count</div>
-                        <div className="text-right">Percentage</div>
-                      </div>
-                      {claimsByStatus.map((item) => (
-                        <div key={item.status} className="grid grid-cols-3 text-sm">
-                          <div>{item.status}</div>
-                          <div className="text-right">{item.count}</div>
-                          <div className="text-right">{item.percentage}%</div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <BarChart3 className="h-5 w-5 mr-2" /> Top Garages
-                    </CardTitle>
-                    <CardDescription>Garages with the most claims</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={sortedGarageData}
-                          layout="vertical"
-                          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" />
-                          <YAxis type="category" dataKey="name" width={100} />
-                          <Tooltip />
-                          <Legend />
-                          <Bar dataKey="claims" fill="#8884d8" name="Claims" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      <div className="grid grid-cols-3 text-sm font-medium">
-                        <div>
-                          <Button variant="ghost" className="p-0 font-semibold" onClick={() => handleSort("name")}>
-                            Garage
-                            {sortField === "name" && (
-                              <ArrowUpDown className={`ml-2 h-4 w-4 ${sortDirection === "asc" ? "rotate-180" : ""}`} />
-                            )}
-                          </Button>
-                        </div>
-                        <div className="text-right">
-                          <Button variant="ghost" className="p-0 font-semibold" onClick={() => handleSort("claims")}>
-                            Claims
-                            {sortField === "claims" && (
-                              <ArrowUpDown className={`ml-2 h-4 w-4 ${sortDirection === "asc" ? "rotate-180" : ""}`} />
-                            )}
-                          </Button>
-                        </div>
-                        <div className="text-right">
-                          <Button variant="ghost" className="p-0 font-semibold" onClick={() => handleSort("amount")}>
-                            Amount (RWF)
-                            {sortField === "amount" && (
-                              <ArrowUpDown className={`ml-2 h-4 w-4 ${sortDirection === "asc" ? "rotate-180" : ""}`} />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      {sortedGarageData.map((item) => (
-                        <div key={item.name} className="grid grid-cols-3 text-sm">
-                          <div className="truncate">{item.name}</div>
-                          <div className="text-right">{item.claims}</div>
-                          <div className="text-right">{item.amount.toLocaleString()}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            {/* Financial Analysis Tab */}
-            <TabsContent value="financial" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <LineChart className="h-5 w-5 mr-2" /> Monthly Comparison
-                    </CardTitle>
-                    <CardDescription>Claims comparison with previous year</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={monthlyComparison} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <Tooltip />
-                          <Legend />
-                          <Bar dataKey="thisYear" fill="#8884d8" name="This Year" />
-                          <Bar dataKey="lastYear" fill="#82ca9d" name="Last Year" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="mt-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Month</TableHead>
-                            <TableHead className="text-right">This Year</TableHead>
-                            <TableHead className="text-right">Last Year</TableHead>
-                            <TableHead className="text-right">Change</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {monthlyComparison.slice(0, 6).map((item) => {
-                            const change = item.lastYear ? ((item.thisYear - item.lastYear) / item.lastYear * 100) : 0;
-                            return (
-                              <TableRow key={item.month}>
-                                <TableCell>{item.month}</TableCell>
-                                <TableCell className="text-right">{item.thisYear}</TableCell>
-                                <TableCell className="text-right">{item.lastYear}</TableCell>
-                                <TableCell className="text-right">
-                                  <span className={change >= 0 ? "text-green-500" : "text-red-500"}>
-                                    {change >= 0 ? "+" : ""}{change.toFixed(1)}%
-                                  </span>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <BarChart3 className="h-5 w-5 mr-2" /> Settlement Time by Claim Type
-                    </CardTitle>
-                    <CardDescription>Average days to settle claims by type</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={settlementTime} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis label={{ value: "Days", angle: -90, position: "insideLeft" }} />
-                          <Tooltip />
-                          <Legend />
-                          <Bar dataKey="value" fill="#8884d8" name="Days to Settle">
-                            {settlementTime.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="mt-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Claim Type</TableHead>
-                            <TableHead className="text-right">Avg. Days to Settle</TableHead>
-                            <TableHead className="text-right">Benchmark</TableHead>
-                            <TableHead className="text-right">Performance</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {settlementTime.map((item) => {
-                            const benchmark = item.name === "Theft" ? 30 : item.name === "Natural Disaster" ? 25 : 15;
-                            const performance = ((benchmark - item.value) / benchmark * 100);
-                            return (
-                              <TableRow key={item.name}>
-                                <TableCell>{item.name}</TableCell>
-                                <TableCell className="text-right">{item.value}</TableCell>
-                                <TableCell className="text-right">{benchmark}</TableCell>
-                                <TableCell className="text-right">
-                                  <span className={performance >= 0 ? "text-green-500" : "text-red-500"}>
-                                    {performance >= 0 ? "+" : ""}{performance.toFixed(1)}%
-                                  </span>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <BarChart3 className="h-5 w-5 mr-2" /> Financial Trends
-                  </CardTitle>
-                  <CardDescription>Monthly claim amounts and payouts</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={claimsByMonth} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
-                            <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="colorPayout" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
-                            <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="month" />
-                        <YAxis
-                          yAxisId="left"
-                          tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
-                          domain={[0, "dataMax + 1000000"]}
-                        />
-                        <YAxis
-                          yAxisId="right"
-                          orientation="right"
-                          tickFormatter={(value) => `${value}`}
-                          domain={[0, "dataMax"]}
-                        />
-                        <Tooltip
-                          formatter={(value, name) => {
-                            if (name === "amount") return [`${Number(value).toLocaleString()} RWF`, "Amount"];
-                            if (name === "claims") return [`${value} claims`, "Claims"];
-                            return [value, name];
-                          }}
-                          labelFormatter={(label) => `Month: ${label}`}
-                        />
-                        <Legend />
-                        <Area
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="amount"
-                          stroke="#8884d8"
-                          strokeWidth={2}
-                          fillOpacity={1}
-                          fill="url(#colorAmount)"
-                          name="Claim Amount (RWF)"
-                        />
-                        <Bar yAxisId="right" dataKey="claims" barSize={20} fill="#82ca9d" name="Number of Claims" />
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="amount"
-                          stroke="#ff7300"
-                          strokeWidth={3}
-                          dot={{ r: 5 }}
-                          activeDot={{ r: 8 }}
-                          name="Trend Line"
-                        />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium">Total Claims Amount</h4>
-                      <div className="text-2xl font-bold">{summary.totalPayout.value.toLocaleString()} RWF</div>
-                      <div className="flex items-center text-sm">
-                        <span className={summary.totalPayout.change >= 0 ? "text-green-500" : "text-red-500"}>
-                          {summary.totalPayout.change >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-                          {summary.totalPayout.change.toFixed(1)}%
-                        </span>
-                        <span className="text-muted-foreground ml-1">from last year</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium">Average Claim Value</h4>
-                      <div className="text-2xl font-bold">{summary.avgClaimValue.value.toLocaleString()} RWF</div>
-                      <div className="flex items-center text-sm">
-                        <span className={summary.avgClaimValue.change >= 0 ? "text-green-500" : "text-red-500"}>
-                          {summary.avgClaimValue.change >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-                          {summary.avgClaimValue.change.toFixed(1)}%
-                        </span>
-                        <span className="text-muted-foreground ml-1">from last year</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium">Projected Annual Payout</h4>
-                      <div className="text-2xl font-bold">{(summary.totalPayout.value * 1.2).toLocaleString()} RWF</div>
-                      <div className="flex items-center text-sm">
-                        <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
-                        <span className="text-green-500 font-medium">+5.8%</span>
-                        <span className="text-muted-foreground ml-1">from last year</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+              </TabsContent>
 
               <TabsContent value="performance" className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
