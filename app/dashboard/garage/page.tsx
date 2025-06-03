@@ -102,15 +102,17 @@ export default function GarageDashboard() {
   
       setIsLoading(true);
       try {
-        console.log("Fetching repair jobs from:", `${API_URL}repair-jobs/${user.tenant_id}/${user.garage_id}`);
         const response = await apiRequest(`${API_URL}repair-jobs/${user.tenant_id}/${user.garage_id}`,"GET");
-        console.log("API response:", response);
-  
+       
         const pending = response.filter((job: RepairJob) =>
-          ["awaiting_approval", "approved"].includes(job.status)
+          ["awaiting_approval", "approved", "pending"].includes(job.status)
         );
-        const active = response.filter((job: RepairJob) => job.status === "in_progress");
-        const completed = response.filter((job: RepairJob) => job.status === "completed");
+        const active = response.filter((job: RepairJob) =>
+          ["in_progress","pending"].includes(job.status)
+        );
+        const completed = response.filter((job: RepairJob) =>
+          ["completed"].includes(job.status)
+        );
   
         setPendingRepairs(pending);
         setActiveRepairs(active);
@@ -140,6 +142,7 @@ export default function GarageDashboard() {
         {
           tenant_id: user.tenant_id,
           proposed_cost: values.proposed_cost,
+          user_id: user.id
         });
 
       setPendingRepairs((prev) =>
@@ -176,7 +179,8 @@ export default function GarageDashboard() {
         "PUT",
         {
           tenant_id: user.tenant_id,
-          status: "in_progress",
+          status: "in_progress", 
+          user_id: user.id
         });
 
       const updatedJob = {
@@ -213,6 +217,7 @@ export default function GarageDashboard() {
         {
           tenant_id: user.tenant_id,
           progress: values.progress,
+          user_id: user.id
         });
 
       if (response.repair_job.status === "completed") {

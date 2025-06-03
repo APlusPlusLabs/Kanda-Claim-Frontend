@@ -13,93 +13,123 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-provider"
+import { Garage } from "@/lib/types/claims"
+import { useToast } from "./ui/use-toast"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible"
 
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 // Mock data for garages
-const MOCK_GARAGES = [
-  {
-    id: 1,
-    name: "Kigali Auto Repair",
-    address: "KG 123 St, Kigali",
-    phone: "+250 788 123 456",
-    distance: 1.2, // in km
-    rating: 4.5,
-    specializations: ["bodywork", "mechanical"],
-    openHours: "8:00 - 18:00",
-    description: "Professional auto repair services with certified technicians.",
-  },
-  {
-    id: 2,
-    name: "Rwanda Motors",
-    address: "KN 78 Ave, Kigali",
-    phone: "+250 788 234 567",
-    distance: 2.5, // in km
-    rating: 4.8,
-    specializations: ["mechanical", "electrical"],
-    openHours: "7:30 - 19:00",
-    description: "Specialized in all types of mechanical and electrical repairs.",
-  },
-  {
-    id: 3,
-    name: "Premium Auto Care",
-    address: "KK 34 St, Kigali",
-    phone: "+250 788 345 678",
-    distance: 0.8, // in km
-    rating: 4.2,
-    specializations: ["bodywork", "painting"],
-    openHours: "8:00 - 17:00",
-    description: "Expert bodywork and painting services for all vehicle makes.",
-  },
-  {
-    id: 4,
-    name: "Gasabo Garage",
-    address: "KG 543 St, Gasabo",
-    phone: "+250 788 456 789",
-    distance: 3.7, // in km
-    rating: 4.0,
-    specializations: ["mechanical", "electrical", "bodywork"],
-    openHours: "7:00 - 20:00",
-    description: "Full-service garage with 24/7 towing services available.",
-  },
-  {
-    id: 5,
-    name: "Nyarugenge Auto Shop",
-    address: "KN 32 Ave, Nyarugenge",
-    phone: "+250 788 567 890",
-    distance: 5.2, // in km
-    rating: 4.7,
-    specializations: ["mechanical", "diagnostics"],
-    openHours: "8:30 - 18:30",
-    description: "Advanced diagnostic equipment and skilled technicians.",
-  },
-]
 
-type Garage = (typeof MOCK_GARAGES)[0]
 type Specialization = "bodywork" | "mechanical" | "electrical" | "painting" | "diagnostics"
 type SortOption = "distance" | "rating" | "name"
 
 interface GarageRecommendationsProps {
   onSelectGarage: (garage: Garage) => void
-  userLocation?: { lat: number; lng: number }
 }
-
-export function GarageRecommendations({ onSelectGarage, userLocation }: GarageRecommendationsProps) {
+interface locationdata { latitude: number, longitude: number }
+export function GarageRecommendations({ onSelectGarage }: GarageRecommendationsProps) {
+  const { user, apiRequest } = useAuth()
+  const { toast } = useToast();
   const { t } = useLanguage()
-  const [garages, setGarages] = useState<Garage[]>(MOCK_GARAGES)
-  const [filteredGarages, setFilteredGarages] = useState<Garage[]>(MOCK_GARAGES)
+  const [garages, setGarages] = useState<Garage[]>([])
+  const [filteredGarages, setFilteredGarages] = useState<Garage[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSpecializations, setSelectedSpecializations] = useState<Specialization[]>([])
   const [maxDistance, setMaxDistance] = useState<number>(10) // in km
   const [minRating, setMinRating] = useState<number>(0)
   const [sortBy, setSortBy] = useState<SortOption>("distance")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
-
-  // Simulate fetching garages based on user location
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGeolocating, setIsGeolocating] = useState(false);
+  const [userLocation, setUserLocation] = useState<locationdata>();
+  // Fetch location
   useEffect(() => {
-    // In a real app, this would be an API call using the user's location
-    // For now, we'll just use our mock data
-    setGarages(MOCK_GARAGES)
-  }, [userLocation])
+    if (user?.tenant_id) {
+      handleGeolocate();
+    }
+  }, [user]);
+  // Fetch garages
+  useEffect(() => {
+    const fetchGarages = async () => {
+      setIsLoading(true);
+      try {
+        if (userLocation) {
+          // Fetch garages near user location
+          const response = await apiRequest(
+            `${API_URL}garages-by-location/${user.tenant_id}?latitude=${encodeURIComponent(userLocation.latitude)}&longitude=${encodeURIComponent(userLocation.longitude)}`,
+            "GET"
+          );
+          setGarages(
+            response.map((garage: Garage) => ({
+              ...garage,
+              rating: garage.rating !== null ? Number(garage.rating) : null,
+              latitude: garage.latitude !== null ? Number(garage.latitude) : null,
+              longitude: garage.longitude !== null ? Number(garage.longitude) : null,
+              distance: garage.distance !== null && garage.distance !== undefined ? Number(garage.distance) : null,
+            }))
+          );
+        } else {
+          // Fetch all garages as fallback
+          const response = await apiRequest(`${API_URL}garages-getall/${user.tenant_id}`, "GET");
+          setGarages(
+            response.map((garage: Garage) => ({
+              ...garage,
+              rating: garage.rating !== null ? Number(garage.rating) : null,
+              latitude: garage.latitude !== null ? Number(garage.latitude) : null,
+              longitude: garage.longitude !== null ? Number(garage.longitude) : null,
+              distance: garage.distance !== null && garage.distance !== undefined ? Number(garage.distance) : null,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching garages:", error);
+        toast({
+          title: "Error Loading Garages",
+          description: "Failed to load garages. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
+    if (user?.tenant_id) {
+      fetchGarages();
+    }
+  }, [user, userLocation, toast]); // Dependencies: user, userLocation, toast
+
+  const handleGeolocate = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation Unavailable",
+        description: "Your browser does not support geolocation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeolocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude })
+        toast({
+          title: "Location Acquired",
+          description: "Current location is lat: " + userLocation?.latitude + " , long: " + userLocation?.longitude,
+        });
+        setIsGeolocating(false);
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        toast({
+          title: "Geolocation Error",
+          description: "Failed to get current location",
+          variant: "destructive",
+        });
+        setIsGeolocating(false);
+      }
+    );
+  };
   // Apply filters and sorting
   useEffect(() => {
     let result = [...garages]
@@ -111,7 +141,7 @@ export function GarageRecommendations({ onSelectGarage, userLocation }: GarageRe
         (garage) =>
           garage.name.toLowerCase().includes(query) ||
           garage.address.toLowerCase().includes(query) ||
-          garage.description.toLowerCase().includes(query),
+          garage.description?.toLowerCase().includes(query),
       )
     }
 
@@ -180,6 +210,32 @@ export function GarageRecommendations({ onSelectGarage, userLocation }: GarageRe
     )
   }
 
+  // Helper function to format specialization for display
+  const formatSpecializationtoarray = (spec: any): string[] => {
+    const spex = JSON.stringify(spec)
+    const sp = spex.split(',')
+    return sp
+  };
+  const formatSpecialization = (spec: any) => {
+    return spec.replace(/^"|"$/g, '').replace(/\\"/g, '').replace(/-/g, " ")
+      .replace("[", "")
+      .replace("]", "")
+      .replace("\\", "")
+      .replace(/\b\w/g, (char: string) => char.toUpperCase());
+  };
+
+  // Helper function to parse openHours
+  const parseOpenHours = (openHours: string | null): { [key: string]: string } | null => {
+    if (!openHours) return null;
+    try {
+      // Clean JSON string
+      const cleaned = openHours.replace(/^"|"$/g, '').replace(/\\"/g, '"');
+      return JSON.parse(cleaned);
+    } catch (error) {
+      console.warn("Failed to parse openHours as JSON:", openHours, error);
+      return null;
+    }
+  };
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
@@ -277,25 +333,46 @@ export function GarageRecommendations({ onSelectGarage, userLocation }: GarageRe
                 <CardTitle className="text-lg">{garage.name}</CardTitle>
                 <CardDescription className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  {garage.address} • {formatDistance(garage.distance)}
+                  {garage.address} • {formatDistance(garage.distance ?? 0)}
                 </CardDescription>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {garage.specializations.map((spec) => (
-                    <Badge key={spec} variant="secondary" className="text-xs">
-                      {t(`garage.specialization_${spec}`)}
-                    </Badge>
-                  ))}
-                </div>
+                {garage.specializations !== null && garage.specializations !== undefined ? (
+                  <div className="specializations flex flex-wrap gap-2 mt-2">
+                    {formatSpecializationtoarray(garage.specializations).map(ss => (
+                      <Badge>{formatSpecialization(ss)}</Badge>
+                    ))}
+                  </div>) : ''}
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4" />
                     <span className="text-sm">{garage.phone}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span className="text-sm">{garage.openHours}</span>
+
+                    <div className="open-hours mt-2">
+                      {/* Open Hours */}
+                      <Collapsible className="mt-2">
+                        <CollapsibleTrigger className="text-sm font-medium text-blue-600 hover:underline flex">
+                          <Clock className="h-4 w-4" />  Operating Hours
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <ul className="list-disc pl-5 text-sm mt-1">
+                            {(() => {
+                              const hours = parseOpenHours(garage.openHours);
+                              if (!hours) {
+                                return <p className="text-gray-500">No hours available</p>;
+                              }
+                              return Object.entries(hours).map(([day, hours]) => (
+                                <li key={day}>
+                                  {day.charAt(0).toUpperCase() + day.slice(1)}: {hours}
+                                </li>
+                              ));
+                            })()}
+                          </ul>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </div>
                   </div>
                 </div>
                 <div className="mb-2">{renderRatingStars(garage.rating)}</div>

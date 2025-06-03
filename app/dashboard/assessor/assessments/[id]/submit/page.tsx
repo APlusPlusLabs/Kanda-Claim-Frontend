@@ -290,12 +290,14 @@ export default function SubmitAssessment({ params }: Props) {
       formdata.set('notes', `Assessment completed. Total estimated cost: ${calculateTotalCost().toLocaleString()} RWF`)
       formdata.set('assessor_id', user.id)
       formdata.set('estimated_amount', calculateTotalCost().toLocaleString())
+      formdata.set('tenant_id', user.tenant_id)
+      formdata.set('user_id', user.id)
       const response = await apiRequest(`${API_URL}assessments/${assessment.id}`, 'PUT', updateData)
 
       if (response.success) {
         toast({
           title: "Assessment Report Submitted",
-          description: `Assessment report for ${assessment?.vehicle || 'vehicle'} has been submitted successfully.`,
+          description: `Assessment report has been submitted successfully.`,
         })
 
         router.push('/dashboard/assessor/assessments')

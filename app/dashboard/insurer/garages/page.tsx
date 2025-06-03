@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
     Dialog,
@@ -24,7 +24,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2 } from "lucide-react";
+import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, Settings } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 type Day = keyof GarageFormValues['openHours'];
@@ -251,7 +251,7 @@ export default function GaragesPage() {
         if (!selectedGarage) return;
 
         try {
-            await apiRequest(`${API_URL}/garages/${selectedGarage.id}`, "DELETE", { tenant_id: user.tenant_id });
+            await apiRequest(`${API_URL}garages/${selectedGarage.id}`, "DELETE", { tenant_id: user.tenant_id });
 
             setGarages(garages.filter((g) => g.id !== selectedGarage.id));
             toast({
@@ -301,14 +301,15 @@ export default function GaragesPage() {
         <DashboardLayout
             user={{
                 name: user.name,
-                role: "Insurance Company",
+                role: user.role.name +' @ '+ user.tenant.name,
                 avatar: "/placeholder.svg?height=40&width=40",
             }}
             navigation={[
                 { name: "Dashboard", href: "/dashboard/insurer", icon: null },
                 { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
                 { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
-                { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
+                { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },  
+                { name: "Settings", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
                 { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
             ]}
         >
@@ -322,7 +323,8 @@ export default function GaragesPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Tenant Garages</CardTitle>
+                        <CardTitle>{user.tenant.name} Garages Partners</CardTitle>
+                        <CardDescription>Garages that you work with, will be suggested in claim filling</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {garages.length > 0 ? (
@@ -398,7 +400,7 @@ export default function GaragesPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Create New Garage</DialogTitle>
-                        <DialogDescription>Add a new garage to your tenant.</DialogDescription>
+                        <DialogDescription>Add a new garage that works with your company.</DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(createDialogOpen ? handleCreateGarage : handleUpdateGarage)} className="space-y-4">
@@ -444,9 +446,8 @@ export default function GaragesPage() {
                                     name="phone"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Phone</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Ex: 0788883000" {...field} />
+                                                <Input placeholder="Phone Ex: 0788883000" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -457,9 +458,8 @@ export default function GaragesPage() {
                                     name="email"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Email</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="contact@garage.com" {...field} />
+                                                <Input placeholder="Email: ex: contact@garage.com" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -472,7 +472,6 @@ export default function GaragesPage() {
                                 name="address"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Address</FormLabel>
                                         <FormControl>
                                             <Input placeholder="Enter garage address" {...field} />
                                         </FormControl>
@@ -540,7 +539,7 @@ export default function GaragesPage() {
                             <div className="space-y-2">
                                 <Label>Open Hours</Label>
 
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-4 gap-1">
                                     {days.map((day) => (
                                         <FormField
                                             key={day}
@@ -572,7 +571,6 @@ export default function GaragesPage() {
                                                 onChange={(e) => field.onChange(e.target.value ? e.target.value.split(", ").map((s) => s.trim()) : [])}
                                             />
                                         </FormControl>
-                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />
@@ -581,7 +579,6 @@ export default function GaragesPage() {
                                 name="description"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Description</FormLabel>
                                         <FormControl>
                                             <Input placeholder="Enter garage description" {...field} />
                                         </FormControl>

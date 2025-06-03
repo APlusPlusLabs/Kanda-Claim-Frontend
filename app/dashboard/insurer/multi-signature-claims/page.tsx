@@ -222,7 +222,7 @@ export default function MultiSignatureClaimsPage() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Sanlam Alianz",
+        name: user.name,
         role: "Insurance Company",
         avatar: "/placeholder.svg?height=40&width=40",
       }}

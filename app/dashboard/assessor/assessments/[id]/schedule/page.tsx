@@ -137,6 +137,7 @@ export default function ScheduleAssessment({ params }: Props) {
         notes: notes.trim(),
         duration: duration,
         assessor_id: user.id,
+        user_id: user.id,
         tenant_id: user.tenant_id,
         claim_id: assessment.claim.id
       };

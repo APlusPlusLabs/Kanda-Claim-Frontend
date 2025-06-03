@@ -44,7 +44,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { Role, User } from "@/lib/types/users";
 import { Description } from "@radix-ui/react-toast";
-import { Garage } from "@/lib/types/claims";
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const userFormSchema = z.object({
@@ -53,30 +52,12 @@ const userFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
   phone: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
-
-  department_id: z.string().uuid(),
-  // role: z.string().min(1, "Role is required"),
-  // garage_id: z.string().optional().refine(
-  //   (value, ctx) => {
-  //     const roleId = ctx.parent.role;
-  //     const role = roles.find((r) => r.id === roleId);
-  //     if (role?.name.toLowerCase() === "garage" && !value) {
-  //       return false;
-  //     }
-  //     return true;
-  //   },
-  //   { message: "Garage is required for garage role" }
-  // ),
   role: z.string().min(1, "Role is required"),
-  garage_id: z.string().optional(), // No refine here
   tenant_id: z.string().optional(),
   insuranceCompanyName: z.string().optional(),
 }).refine(
   (data) => {
     if (data.role !== "insurer" && !data.tenant_id) {
-      return false;
-    }
-    if (data.role === "garage" && !data.garage_id) {
       return false;
     }
     if (data.role === "insurer" && !data.insuranceCompanyName) {
@@ -89,13 +70,8 @@ const userFormSchema = z.object({
     path: ["tenant_id", "insuranceCompanyName"],
   }
 );
-const departmentFormSchema = z.object({
-  name: z.string().min(2, { message: "Department name must be at least 2 characters." }),
-  description: z.string().min(2, { message: "description must be at least 2 characters." }),
-});
 
-
-export default function UsersManagementPage() {
+export default function ClientsManagementPage() {
   const { user, apiRequest, logout } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -113,7 +89,7 @@ export default function UsersManagementPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const usersData = await apiRequest(`${API_URL}users/by-tenant/${user?.tenant_id}`, "GET");
+        const usersData = await apiRequest(`${API_URL}users/clients/${user?.tenant_id}`, "GET");
         setUsers(
           usersData.map((u: any) => ({
             id: u.id,
@@ -122,26 +98,14 @@ export default function UsersManagementPage() {
             email: u.email,
             phone: u.phone,
             role_id: u.role_id,
-            department_id: u.department_id,
-            garage_id: u.garage_id,
             tenant_id: u.tenant_id,
             status: u.is_active ? "active" : "inactive",
             last_login: u.last_login || undefined,
           }))
         );
-        //ddepartments-by-tenant/
-        const ddepartments = await apiRequest(`${API_URL}departments-by-tenant/${user.tenant_id}`, "GET");
-        setDepartments(ddepartments)
         // Fetch roles
         const rolesData = await apiRequest(`${API_URL}roles`, "GET");
         setRoles(rolesData);
-        const garagesReq = await apiRequest(`${API_URL}garages/${user.tenant_id}`, "GET");
-        setGarages(garagesReq.map((garage: Garage) => ({
-          ...garage,
-          rating: garage.rating !== null ? Number(garage.rating) : null,
-          latitude: garage.latitude !== null ? Number(garage.latitude) : null,
-          longitude: garage.longitude !== null ? Number(garage.longitude) : null,
-        })));
       } catch (error: any) {
         toast({
           variant: "destructive",
@@ -166,27 +130,15 @@ export default function UsersManagementPage() {
       phone: "",
       password: "",
       role: "driver",
-      department_id: "",
-      garage_id: "",
       tenant_id: user?.tenant_id || "",
       insuranceCompanyName: "",
-    },
-  });
-  const departform = useForm<z.infer<typeof departmentFormSchema>>({
-    resolver: zodResolver(departmentFormSchema),
-    defaultValues: {
-      name: "",
-      description: ""
     },
   });
 
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof userFormSchema>) => {
     const selectedRole = roles.find((r) => r.id === values.role);
-    if (selectedRole?.name.toLowerCase() === "garage" && !values.garage_id) {
-      form.setError("garage_id", { message: "Garage is required for garage role" });
-      return;
-    }
+  
     try {
 
       const newUser = await apiRequest(`${API_URL}users/store`, "POST", {
@@ -196,8 +148,8 @@ export default function UsersManagementPage() {
         phone: values.phone,
         password: values.password,
         role_id: values.role,
-        department_id: values.department_id,
-        garage_id: values.garage_id,
+        department_id: "",
+        garage_id: "",
         tenant_id: user?.tenant_id
       });
 
@@ -238,39 +190,7 @@ export default function UsersManagementPage() {
       });
     }
   };
-  const onSubmitNewDepartment = async (values: z.infer<typeof departmentFormSchema>) => {
-    try {
 
-      const newDescription = await apiRequest(`${API_URL}departments/store`, "POST", {
-        name: values.name,
-        description: values.description,
-        tenant_id: user.tenant_id
-      });
-
-      setDepartments([
-        ...departments,
-        {
-          id: newDescription.id,
-          first_name: newDescription.description,
-          description: newDescription.description,
-        },
-      ]);
-
-      setIsAddDepartmentOpen(false);
-      departform.reset();
-
-      toast({
-        title: "Department added successfully",
-        description: `${values.name} has been added.`,
-      });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to add Department. ",
-      });
-    }
-  };
 
   // Filter users based on search query
   const filteredUsers = users.filter(
@@ -351,13 +271,14 @@ export default function UsersManagementPage() {
   return (
     <DashboardLayout
       user={{
-        name: user.name || "User Name",
-        role: user.role.name || "User Role",
+        name: user.name,
+        role: user.role.name +" @ "+user.tenant.name,
         avatar: user.avatar || "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
         { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
-        { name: "Users", href: "/dashboard/insurer/users", icon: <Users className="h-5 w-5" /> },
+        { name: "Clients (Drivers)", href: "/dashboard/insurer/clients", icon: <Users className="h-5 w-5" /> },
+        { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },
         { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
         { name: "Bids", href: "/dashboard/insurer/bids", icon: <FileText className="h-5 w-5" /> },
       ]}
@@ -365,250 +286,15 @@ export default function UsersManagementPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">User Management</h1>
-            <p className="text-muted-foreground mt-2">Manage users and their access to the system</p>
+            <h1 className="text-3xl font-bold">Clients (Drivers) Management</h1>
+            <p className="text-muted-foreground mt-2">Drivers that signed-up to this company</p>
           </div>
-          <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <UserPlus className="mr-2 h-4 w-4" /> Add User
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[525px]">
-              <DialogHeader>
-                <DialogTitle>Add New User</DialogTitle>
-                <DialogDescription>Create a new user account with appropriate role and permissions.</DialogDescription>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="first_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>First Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="John" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="last_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Last Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Doe" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="+250788123456" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input placeholder="john.doe@example.com" type="email" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    /></div>
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="********" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="role"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Role</FormLabel>
-                        <Select onValueChange={(value) => {
-                          field.onChange(value);
-                          form.setValue("garage_id", "");
-                        }} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {roles.map((role) => (
-                              <SelectItem key={role.id} value={role.id}>
-                                {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>This determines what permissions the user will have.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {form.watch("role") && roles.find((r) => r.id === form.watch("role"))?.name.toLowerCase() === "garage" && (
-                    <FormField
-                      control={form.control}
-                      name="garage_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Garage</FormLabel>
-                          {garages?.length > 0 ? (
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value || ""}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select garage" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {garages.map((garage) => (
-                                  <SelectItem key={garage.id} value={garage.id}>
-                                    {garage.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <div className="space-y-2">
-                              <p className="text-sm text-muted-foreground">No garages available.</p>
-                              <Button asChild>
-                                <Link href="/dashboard/insurer/garages">
-                                  <Plus className="h-4 w-4 mr-2" /> Add Garage
-                                </Link>
-                              </Button>
-                            </div>
-                          )}
-                          <FormDescription>Garage is required for garage role users.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                  <FormField
-                    control={form.control}
-                    name="department_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="space-y-2">
-                          <FormLabel htmlFor="department_id">Department</FormLabel>
-                          <Select
-                            name="department_id"
-                            defaultValue={departments?.[0]?.id?.toString()}
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {departments?.map((department) => (
-                                <SelectItem key={department.id} value={department.id.toString()}>
-                                  {department.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>department is required for agents/assessors, optional for the rest.</FormDescription>
-                          <FormMessage />
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-
-
-                  <DialogFooter>
-                    <Button type="submit">Add User</Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={isAddDepartmentOpen} onOpenChange={setIsAddDepartmentOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <HousePlus className="mr-2 h-4 w-4" /> Add Department
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[525px]">
-              <DialogHeader>
-                <DialogTitle>Add New Department</DialogTitle>
-                <DialogDescription>Create a new department for company users.</DialogDescription>
-              </DialogHeader>
-              <Form {...departform}>
-                <form onSubmit={departform.handleSubmit(onSubmitNewDepartment)} className="space-y-4 py-4">
-                  <FormField
-                    control={departform.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Department Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex: Finance, Garage, Claims..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={departform.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Explain a bit" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <DialogFooter>
-                    <Button type="submit">Add Department</Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
         </div>
 
         <div className="flex items-center space-x-2">
           <Search className="h-5 w-5 text-muted-foreground" />
           <Input
-            placeholder="Search users by name, email, or role..."
+            placeholder="Search Drivers by name, email..."
             className="max-w-md"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -617,15 +303,12 @@ export default function UsersManagementPage() {
 
         <Tabs defaultValue="all">
           <TabsList>
-            <TabsTrigger value="all">All Users ({users.length})</TabsTrigger>
+            <TabsTrigger value="all">All Clients ({users.length})</TabsTrigger>
             <TabsTrigger value="active">
               Active ({users.filter((user) => user.status === "active").length})
             </TabsTrigger>
             <TabsTrigger value="inactive">
               Inactive ({users.filter((user) => user.status === "inactive").length})
-            </TabsTrigger>
-            <TabsTrigger value="departments">
-              Departments ({departments.length})
             </TabsTrigger>
           </TabsList>
 
@@ -667,7 +350,7 @@ export default function UsersManagementPage() {
 
                     <div className="mt-4 flex justify-end space-x-2">
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/insurer/users/${user.id}`}>View Details</Link>
+                        <Link href={`/dashboard/insurer/clients/${user.id}`}>View Details</Link>
                       </Button>
                       <Dialog>
                         <DialogTrigger asChild>
@@ -728,13 +411,13 @@ export default function UsersManagementPage() {
                 <CardContent className="p-6 text-center">
                   <div className="flex flex-col items-center justify-center py-8">
                     <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Users Found</h3>
+                    <h3 className="text-lg font-semibold mb-2">No Clients Found</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      No users match your search criteria. Try adjusting your search or add a new user.
+                      No Clients found or match your search criteria. Try adjusting your search.
                     </p>
-                    <Button onClick={() => setIsAddUserOpen(true)}>
+                    {/* <Button onClick={() => setIsAddUserOpen(true)}>
                       <UserPlus className="mr-2 h-4 w-4" /> Add User
-                    </Button>
+                    </Button> */}
                   </div>
                 </CardContent>
               </Card>
@@ -819,8 +502,8 @@ export default function UsersManagementPage() {
                 <CardContent className="p-6 text-center">
                   <div className="flex flex-col items-center justify-center py-8">
                     <UserCheck className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Active Users Found</h3>
-                    <p className="text-sm text-muted-foreground mb-4">No active users match your search criteria.</p>
+                    <h3 className="text-lg font-semibold mb-2">No Active Clients Found</h3>
+                    <p className="text-sm text-muted-foreground mb-4">No active Clients match your search criteria.</p>
                   </div>
                 </CardContent>
               </Card>
@@ -905,66 +588,14 @@ export default function UsersManagementPage() {
                 <CardContent className="p-6 text-center">
                   <div className="flex flex-col items-center justify-center py-8">
                     <UserX className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Inactive Users Found</h3>
-                    <p className="text-sm text-muted-foreground mb-4">No inactive users match your search criteria.</p>
+                    <h3 className="text-lg font-semibold mb-2">No Inactive Clients Found</h3>
+                    <p className="text-sm text-muted-foreground mb-4">No inactive Clients match your search criteria.</p>
                   </div>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
-          <TabsContent value="departments" className="space-y-4">
-            {departments.length > 0 ? (
-
-              <Card>
-                <CardContent className="p-6 space-y-2">
-                  {departments.map((depart, index) => (
-                    <Card key={index}>
-                      <CardContent className="p-6">
-                        <div className="grid grid-cols-2">
-                          <div className="space-x-4">
-                            <h2>{depart.name}  info</h2>
-                            <div className="space-y-3">
-                              <span>Department name</span> : {depart.name} <br />
-                              <span>Description</span>: {depart.description}
-                            </div>
-                          </div>
-                          <div className="space-x-4">
-                            <h2>{depart.name}  users</h2>
-                            <div className="space-y-3">
-                              {depart.users?.map((ussa, i) => (
-                                <div key={i}>
-                                  <span>user</span> {ussa.info} < br />
-                                  <Button variant="outline" size="sm" asChild>
-                                    <Link href={`/dashboard/insurer/users/${ussa.id}`}>View Details</Link>
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Departments Found</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      No Departments yet
-                    </p>
-                    <Button onClick={() => setIsAddDepartmentOpen(true)}>
-                      <HousePlus className="mr-2 h-4 w-4" /> Add Department
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-            }
-          </TabsContent>
+       
         </Tabs>
       </div>
     </DashboardLayout>

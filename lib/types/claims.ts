@@ -105,12 +105,16 @@ export interface Garage {
   tenant_id: string;
   claim_id: string;
   name: string;
-  address: string;
   phone: string;
   repair_estimate: number;
   rating?: number,
+  address: string;
+  description?: string;
+  specializations?: string[];
+  openHours?: any;
   latitude?: number,
   longitude?: number,
+  distance?: number,
 }
 export interface PoliceReport {
   id: string;
@@ -122,6 +126,15 @@ export interface PoliceReport {
   police_officer_name: string;
   police_officer_phone: string;
   note: string;
+}
+export interface ClaimType {
+  id: string;
+  tenant_id: string;
+  name: string;
+  category: string;
+  description: string;
+  is_active: boolean;
+  claims?: Claim[]
 }
 export interface Claim {
   id: string;

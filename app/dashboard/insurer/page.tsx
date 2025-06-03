@@ -27,6 +27,8 @@ import {
   ArrowRight,
   FileSignature,
   Wrench,
+  Settings,
+  UserCog,
 } from "lucide-react"
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts"
 import DashboardLayout from "@/components/dashboard-layout"
@@ -195,13 +197,14 @@ export default function InsurerDashboard() {
   return (
     <DashboardLayout
       user={{
-        name: user?.name ? `${user.name} ` : "user name",
-        role: user?.role?.name + " @ " + user?.tenant?.name,
+        name: user.name,
+        role: user.role.name + " @ " + user.tenant.name,
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
         { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
         { name: "Claims", href: "/dashboard/insurer/claims", icon: <FileText className="h-5 w-5" /> },
+        { name: "Clients (Drivers)", href: "/dashboard/insurer/clients", icon: <Users className="h-5 w-5" /> },
         { name: "Assessments", href: "/dashboard/insurer/assessments", icon: <FileText className="h-5 w-5" /> },
         {
           name: "Multi-Signature Claims",
@@ -211,11 +214,13 @@ export default function InsurerDashboard() {
         { name: "Bids", href: "/dashboard/insurer/bids", icon: <FileText className="h-5 w-5" /> },
         { name: "Documents", href: "/dashboard/insurer/documents", icon: <FileText className="h-5 w-5" /> },
         { name: "Analytics", href: "/dashboard/insurer/analytics", icon: <BarChart3 className="h-5 w-5" /> },
-        { name: "Users", href: "/dashboard/insurer/users", icon: <Users className="h-5 w-5" /> },
+        { name: "Clients (Drivers)", href: "/dashboard/insurer/clients", icon: <Users className="h-5 w-5" /> },
+        { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },
 
         { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
         { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
+        { name: "Settings", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
         { name: "Logout", href: "/login", icon: <LogOut className="h-5 w-5" /> }
       ]}

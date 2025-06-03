@@ -761,7 +761,7 @@ export default function InsurerClaimsPage() {
                                     </TooltipTrigger>
                                     <TooltipContent>
                                       <p>{claim.pending_reason}</p>
-                                      {claim.department.name && (
+                                      {claim.department?.name && (
                                         <p className="font-semibold mt-1">
                                           With: {claim.department.name} ({claim.assignment?.assessor?.name})
                                         </p>

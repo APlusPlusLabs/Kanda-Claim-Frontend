@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Building, FileText, Edit, CheckCircle2, Eye, XCircle, Clock, FileImage, FileDownIcon, Link, Plus, User2 } from "lucide-react";
+import { ArrowLeft, Building, FileText, Edit, CheckCircle2, Eye, XCircle, Clock, FileImage, FileDownIcon, Link, Plus, User2, Users, UserCog } from "lucide-react";
 import { Dialog, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -24,11 +24,7 @@ import { useForm } from "react-hook-form";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
-const garageFormSchema = z.object({
-    garage_id: z.string().min(2, { message: "garage is requitrd" })
-})
-
-export default function ViewUserPage() {
+export default function ViewClientPage() {
     const { user, apiRequest, logout } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
@@ -44,13 +40,7 @@ export default function ViewUserPage() {
 
     const [garages, setGarages] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
-    // garageForm setup
-    const form = useForm<z.infer<typeof garageFormSchema>>({
-        resolver: zodResolver(garageFormSchema),
-        defaultValues: {
-            garage_id: "",
-        }
-    })
+
     // Fetch data
     // user loading
     useEffect(() => {
@@ -105,8 +95,6 @@ export default function ViewUserPage() {
             };
             setUserData(userData);
             console.log('user data', userResponse);
-            const ddepartments = await apiRequest(`${API_URL}departments-by-tenant/${user.tenant_id}`, "GET");
-            setDepartments(ddepartments)
 
             const rolesResponse = await apiRequest(`${API_URL}roles`, "GET");
             const userRole = rolesResponse.find((r: Role) => r.id === userData.role_id);
@@ -124,13 +112,7 @@ export default function ViewUserPage() {
                 );
                 setClaims(claimsResponse.data || []);
             }
-            const garagesReq = await apiRequest(`${API_URL}garages/${user.tenant_id}`, "GET");
-            setGarages(garagesReq.map((garage: Garage) => ({
-                ...garage,
-                rating: garage.rating !== null ? Number(garage.rating) : null,
-                latitude: garage.latitude !== null ? Number(garage.latitude) : null,
-                longitude: garage.longitude !== null ? Number(garage.longitude) : null,
-            })));
+
         } catch (error: any) {
             console.error("fetchData error", error);
             toast({
@@ -138,7 +120,7 @@ export default function ViewUserPage() {
                 title: "Error",
                 description: error.message || "Failed to load user data.",
             });
-            router.push("/dashboard/insurer/users");
+            router.push("/dashboard/insurer/clients");
         } finally {
             console.log("fetchData completed, setting loading to false");
             setLoading(false);
@@ -169,18 +151,6 @@ export default function ViewUserPage() {
         }
         return "secondary";
     };
-
-    // Corrected role check
-    if (!["Insurer", "Admin"].includes(user?.role.name.trim())) {
-        console.log("Rendering: Access denied for role", user?.role.name);
-        toast({
-            variant: "destructive",
-            title: "Access Denied",
-            description: "Only Insurer or Admin roles can view user details.",
-        });
-        router.push("/dashboard"); // More generic redirect
-        return null;
-    }
 
     if (loading) {
         console.log("Rendering: Loading data");
@@ -235,48 +205,24 @@ export default function ViewUserPage() {
         }
     };
 
-    const onSubmitGarage = async (values: z.infer<typeof garageFormSchema>) => {
-        try {
-            const garagedata = await apiRequest(`${API_URL}users/update-garage`, "PUT", {
-                id: id,
-                garage_id: values.garage_id,
-                tenant_id: user?.tenant_id
-            });
-            setUserData({
-                ...userData,
-                garage_id: garagedata.garage_id
-            });
-            setIsGarageModalOpen(false);
-            form.reset();
-            toast({
-                title: "Garage set successfully",
-                description: ``,
-            });
-        } catch (error: any) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: error.message || "Failed to set garafw.",
-            });
-        }
-    };
     return (
         <DashboardLayout
             user={{
-                name: user?.name || "User Name",
-                role: user?.role.name || "User Role",
+                name: user.name,
+                role: user.role.name + " @ " + user.tenant.name,
                 avatar: user?.avatar || "/placeholder.svg?height=40&width=40",
             }}
             navigation={[
                 { name: "Dashboard", href: "/dashboard/insurer", icon: <Building className="h-5 w-5" /> },
-                { name: "Users", href: "/dashboard/insurer/users", icon: <User2 className="h-5 w-5" /> },
+                { name: "Clients (Drivers)", href: "/dashboard/insurer/clients", icon: <Users className="h-5 w-5" /> },
+                { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },
             ]}
         >
             <div className="space-y-6">
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold">User Details</h1>
+                            <h1 className="text-3xl font-bold">Client Details</h1>
                             <p className="text-muted-foreground mt-2">
                                 View details for {userData.first_name} {userData.last_name}
                             </p>
@@ -285,7 +231,7 @@ export default function ViewUserPage() {
                             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                                 <DialogTrigger asChild>
                                     <Button onClick={() => setIsEditOpen(true)}>
-                                        <Edit className="mr-2 h-4 w-4" /> Edit User
+                                        <Edit className="mr-2 h-4 w-4" /> Edit Client Info
                                     </Button>
                                 </DialogTrigger>
                                 <EditUserDialog
@@ -296,80 +242,18 @@ export default function ViewUserPage() {
                                     onSuccess={handleUserUpdate}
                                     apiRequest={apiRequest}
                                     tenant_id={user?.tenant_id || ''}
-                                    role_id={user?.role_id || ''} departments={departments ?? []} />
+                                    role_id={user?.role_id || ''} departments={[]} />
                             </Dialog>
-                            <Button variant="outline" onClick={() => router.push("/dashboard/insurer/users")}>
-                                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
+                            <Button variant="outline" onClick={() => router.push("/dashboard/insurer/clients")}>
+                                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Clients
                             </Button>
                         </div>
-                        {userData.role.name === 'Garage' ? (
-                            <div className="space-x-2">
-                                <Dialog open={isGarageModalOpen} onOpenChange={setIsGarageModalOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button onClick={() => setIsGarageModalOpen(true)}>
-                                            <Edit className="mr-2 h-4 w-4" /> Manage User's Garage
-                                        </Button>
-                                    </DialogTrigger>
-                                    <Form {...form}>
-                                        <form onSubmit={form.handleSubmit(onSubmitGarage)} className="space-y-4 py-4">
-                                            <FormField
-                                                control={form.control}
-                                                name="garage_id"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Garage</FormLabel>
-                                                        {garages?.length > 0 ? (
-                                                            <Select
-                                                                onValueChange={field.onChange}
-                                                                value={field.value || ""}
-                                                            >
-                                                                <FormControl>
-                                                                    <SelectTrigger>
-                                                                        <SelectValue placeholder="Select garage" />
-                                                                    </SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    {garages.map((garage) => (
-                                                                        <SelectItem key={garage.id} value={garage.id}>
-                                                                            {garage.name}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        ) : (
-                                                            <div className="space-y-2">
-                                                                <p className="text-sm text-muted-foreground">No garages available.</p>
-                                                                <Button asChild>
-                                                                    <Link href="/dashboard/insurer/garages">
-                                                                        <Plus className="h-4 w-4 mr-2" /> Add Garage
-                                                                    </Link>
-                                                                </Button>
-                                                            </div>
-                                                        )}
-                                                        <FormDescription>Garage is required for garage role users.</FormDescription>
-                                                        <FormMessage />
-                                                    </FormItem>
-
-                                                )}
-                                            />
-                                            <DialogFooter>
-                                                <Button type="submit">Assign Garage to {userData.info}</Button>
-                                            </DialogFooter>
-                                        </form>
-                                    </Form>
-
-                                </Dialog>
-                                <Button variant="outline" onClick={() => router.push("/dashboard/insurer/users")}>
-                                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
-                                </Button>
-                            </div>
-                        ) : ''}
                     </div>
                     <div className="flex grid">
                         <div className="grid grid-cols-2 space-x-2">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>User Info</CardTitle>
+                                    <CardTitle>Client Info</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-2">
                                     <div>
@@ -389,29 +273,12 @@ export default function ViewUserPage() {
                                     <div>
                                         <span className="text-muted-foreground">Last Login:</span>{" "}
                                         {userData.last_login ? new Date(userData.last_login).toLocaleString() : "Never"}
+                                    </div><div>
+                                        <span className="text-muted-foreground">Insurer:</span> {userData.tenant.name}
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>User Classfication</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    <div>
-                                        <span className="text-muted-foreground">Insurer:</span> {userData.tenant.name}
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Department:</span> {userData.department?.name}
-                                    </div>
-                                    {userData.role.name === 'Garage' ? (
-                                        <div>
-                                            <span className="text-muted-foreground">Garage:</span> {userData.garage?.name}
-                                        </div>
-                                    ) : ''
-                                    }
-                                </CardContent>
-                            </Card>
 
                         </div>
                         <h3></h3>
@@ -499,11 +366,11 @@ export default function ViewUserPage() {
                                             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
                                             <h3 className="text-lg font-semibold mb-2">No Claims Found</h3>
                                             <p className="text-sm text-muted-foreground mb-4">{userData?.name} doesn't have any claims yet.</p>
-                                            <Button asChild>
+                                            {/* <Button asChild>
                                                 <Link href="/dashboard/driver/claims/new">
                                                     <Plus className="mr-2 h-4 w-4" /> Submit New Claim
                                                 </Link>
-                                            </Button>
+                                            </Button> */}
                                         </div>
                                     </CardContent>
                                 </Card>
