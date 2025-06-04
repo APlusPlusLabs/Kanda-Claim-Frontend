@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // Login function
-  async function login(data: { email: string; password: string }) {
+  async function login(data: { email: string; password: string; redirect?: true;}) {
     data
     try {
       const response = await fetch(`${API_URL}login`, {

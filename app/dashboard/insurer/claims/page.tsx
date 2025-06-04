@@ -1640,7 +1640,7 @@ export default function InsurerClaimsPage() {
                                 <TableCell>{damage.owner_name}</TableCell>
                                 <TableCell>{damage.type}</TableCell>
                                 <TableCell>{damage.description}</TableCell>
-                                <TableCell className="text-right">{damage.estimated_cost.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{damage.estimated_cost}</TableCell>
                               </TableRow>
                             ))}
                             <TableRow>

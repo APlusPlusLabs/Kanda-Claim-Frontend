@@ -13,6 +13,13 @@ type TranslationKeys = {
 // Define translations for each language
 const translations: Record<Language, TranslationKeys> = {
   en: {
+    auth:{
+      congrats: "Your account was succefully created, Check your email or Phone SMS for the CODE and paste it below to activate your Account",
+      activate_my_account: "Activate my Account",
+      didntreceive: "Didnt Receive Code? ",
+      resend: "Resend the Code",
+      codeis6: "Auth CODE is 6 Characters",
+    },
     nav: {
       dashboard: "Dashboard",
       claims: "My Claims",
@@ -285,7 +292,13 @@ const translations: Record<Language, TranslationKeys> = {
       specialization_diagnostics: "Diagnostics",
     },
   },
-  fr: {
+  fr: {   auth:{
+    congrats: "Your account was succefully created, Check your email or Phone SMS for the CODE and paste it below to activate your Account",
+    activate_my_account: "Activate my Account",
+    didntreceive: "Didnt Receive Code? ",
+    resend: "Resend the Code",
+    codeis6: "Auth CODE is 6 Characters",
+  },
     nav: {
       dashboard: "Tableau de Bord",
       claims: "Mes Réclamations",
@@ -559,7 +572,13 @@ const translations: Record<Language, TranslationKeys> = {
       specialization_diagnostics: "Diagnostics",
     },
   },
-  rw: {
+  rw: {   auth:{
+    congrats: "Konti yanyu yafunguwe, reba muri email cg kuri Phone SMS uzane CODE twakoherereje uyishyiremo hano hasi winjiri muri system",
+    activate_my_account: "Injira muri konti yanjye",
+    didntreceive: "Ntiwabonye Code? ",
+    resend: "Ongera uyihabwe Code",
+    codeis6: "CODE ninyuguti 6",
+  },
     nav: {
       dashboard: "Ibiro",
       claims: "Ubusabe Bwanjye",

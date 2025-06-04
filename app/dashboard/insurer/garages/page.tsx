@@ -284,10 +284,11 @@ export default function GaragesPage() {
                 }}
                 navigation={[
                     { name: "Dashboard", href: "/dashboard/insurer", icon: null },
-                    { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
-                    { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
+                    // { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
+                    // { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
                     { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
-                    { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
+                    { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
+                    // { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
                 ]}
             >
                 <div className="flex justify-center items-center h-[60vh]">
@@ -306,11 +307,11 @@ export default function GaragesPage() {
             }}
             navigation={[
                 { name: "Dashboard", href: "/dashboard/insurer", icon: null },
-                { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
-                { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
+                // { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
+                // { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
                 { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },  
-                { name: "Settings", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
-                { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
+                { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
+                // { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
             ]}
         >
             <div className="space-y-6">

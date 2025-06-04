@@ -25,7 +25,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, BriefcaseBusiness, HousePlus } from "lucide-react";
+import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, BriefcaseBusiness, HousePlus, Settings } from "lucide-react";
 import { ClaimType } from "@/lib/types/claims";
 import { Department } from "@/lib/types/users";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -322,11 +322,12 @@ export default function SettingsPage() {
                     avatar: "/placeholder.svg?height=40&width=40",
                 }}
                 navigation={[
-                    { name: "Dashboard", href: "/dashboard/insurer", icon: null },
-                    { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
-                    { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
-                    { name: "ClaimTypes Partners", href: "/dashboard/insurer/claimtypes", icon: <Wrench className="h-5 w-5" /> },
-                    { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
+                    // { name: "Dashboard", href: "/dashboard/insurer", icon: null },
+                    // { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
+                    // { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
+                    { name: "Garage Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
+                    { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
+                    // { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
                 ]}
             >
                 <div className="flex justify-center items-center h-[60vh]">
@@ -344,11 +345,12 @@ export default function SettingsPage() {
                 avatar: "/placeholder.svg?height=40&width=40",
             }}
             navigation={[
-                { name: "Dashboard", href: "/dashboard/insurer", icon: null },
-                { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
-                { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
+                // { name: "Dashboard", href: "/dashboard/insurer", icon: null },
+                // { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
+                // { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
                 { name: "Garage Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
-                { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
+                { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
+                // { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
             ]}
         >
             <div className="space-y-6">
@@ -360,6 +362,9 @@ export default function SettingsPage() {
                         </Button>
                         <Button onClick={() => setIsCreateDepartmentOpen(true)} className="space-x-2">
                             <Plus className="h-4 w-4 mr-2" /> Department
+                        </Button>
+                        <Button onClick={() => router.push('/dashboard/insurer/garages')} className="space-x-2">
+                            <Plus className="h-4 w-4 mr-2" /> Garages
                         </Button>
                     </div>
                 </div>

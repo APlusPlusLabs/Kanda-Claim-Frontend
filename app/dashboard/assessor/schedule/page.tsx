@@ -192,7 +192,7 @@ export default function AssessorSchedule() {
             <div className="space-y-4">
               {schedules.length > 0 ? (
                 schedules
-                  .sort((a, b) => a.date.getTime() - b.date.getTime())
+                  .sort((a, b) => a.date - b.date)
                   .map((assessment) => (
                     <div
                       key={assessment.id}

@@ -214,7 +214,6 @@ export default function InsurerDashboard() {
         { name: "Bids", href: "/dashboard/insurer/bids", icon: <FileText className="h-5 w-5" /> },
         { name: "Documents", href: "/dashboard/insurer/documents", icon: <FileText className="h-5 w-5" /> },
         { name: "Analytics", href: "/dashboard/insurer/analytics", icon: <BarChart3 className="h-5 w-5" /> },
-        { name: "Clients (Drivers)", href: "/dashboard/insurer/clients", icon: <Users className="h-5 w-5" /> },
         { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },
 
         { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },

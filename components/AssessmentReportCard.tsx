@@ -6,20 +6,8 @@ import { AssignmentReport } from '@/lib/types/claims'
 const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
 
 const AssessmentReportCard = ({ reportData }) => {
-    // Default data
-    const defaultReportData = {
-        photos: ["claims/documents/klm-2025-oxvo-oytrr-assessment-2025-05-27-161219.png"],
-        laborCost: 56443,
-        totalCost: 56943,
-        submittedAt: "2025-05-27T16:12:19.289Z",
-        selectedParts: [{ id: 1748361977040, cost: 500, name: "iiii", category: "body", selected: true }],
-        partsToReplace: [{ id: 1748361977040, cost: 500, name: "iiii", category: "body", selected: true }],
-        damageDescription: "hhhh",
-        repairRecommendation: "tttt"
-    };
-
     // const data = reportData || defaultReportData;
-    const data = (typeof reportData === 'string' ? JSON.parse(reportData) : reportData) || defaultReportData;
+    const data = (typeof reportData === 'string' ? JSON.parse(reportData) : reportData);
 
     const formatCurrency = (amount: number | bigint | null | undefined) => {
         if (amount == null || isNaN(Number(amount))) {
@@ -47,10 +35,13 @@ const AssessmentReportCard = ({ reportData }) => {
     // console.log('Labor cost:', data.laborCost, typeof data.laborCost);
     // console.log('Total cost:', data.totalCost, typeof data.totalCost);
     // console.log('Selected parts:', data.selectedParts);
+    if (!data) {
+        return 'loading report data...'
+    }
     const partsCost = data.selectedParts?.length
         ? data.selectedParts.reduce((total, part) => total + (part.cost || 0), 0)
         : 0;
-
+   
     return (
         <div className="max-w-4xl bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
@@ -151,7 +142,7 @@ const AssessmentReportCard = ({ reportData }) => {
                         {data.photos?.map((photo, index) => (
                             <div key={index} className="bg-white p-3 rounded-lg border border-gray-200">
                                 <div className="aspect-video bg-gray-200 rounded-lg mb-2 flex items-center justify-center">
-                                        <img src={STORAGES_URL + photo} alt="" />
+                                    <img src={STORAGES_URL + photo} alt="" />
                                 </div>
                                 <p className="text-sm text-gray-600 truncate" title={photo}>
                                     {photo.split('/').pop()}
