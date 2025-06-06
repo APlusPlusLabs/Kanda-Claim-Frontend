@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -17,13 +17,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
-import { CalendarIcon, X, ImageIcon, File, ArrowLeft, AlertCircle } from "lucide-react"
+import { CalendarIcon, X, ImageIcon, ArrowLeft, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { Stepper, Step, StepDescription, StepTitle } from "@/components/stepper"
+import { Tenant } from "@/lib/types/users"
+import { useAuth } from "@/lib/auth-provider"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
@@ -128,19 +130,40 @@ const formSchema = z.object({
   }),
 })
 
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 export default function ThirdPartySubmitPage() {
   const router = useRouter()
+  const { apiRequest } = useAuth()
   const { toast } = useToast()
   const [step, setStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
   const [stepErrors, setStepErrors] = useState<number[]>([])
+  const [tenants, setTenants] = useState<Tenant[]>()
   const [previews, setPreviews] = useState({
     damagePhotos: [] as string[],
   })
 
   const totalSteps = 8
-
+  // Fetch tenants from API
+  useEffect(() => {
+    async function fetchTenants() {
+      try {
+        const response = await apiRequest(`${API_URL}tenants`, "GET")
+        setTenants(response)
+      } catch (error) {
+        console.error("Failed to fetch tenants:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load insurance companies. Please try again.",
+        })
+      }
+    }
+    fetchTenants()
+  }, [toast])
+  
+type FormData = z.infer<typeof formSchema>;
   // Initialize the form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -305,76 +328,80 @@ export default function ThirdPartySubmitPage() {
     }
   }
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // Validate all steps before final submission
-    try {
-      let allValid = true
+  const onSubmit = async (data: FormData) => {
+    let allValid = true
 
-      // Validate current step first
-      const currentStepValid = await validateStep(step)
-      if (!currentStepValid) {
-        allValid = false
-      }
+    // Validate current step first
+    const currentStepValid = await validateStep(step)
+    if (!currentStepValid) {
+      allValid = false
+    }
 
-      // Check if all previous steps are completed
-      for (let i = 1; i <= totalSteps; i++) {
-        if (!completedSteps.includes(i)) {
-          // Try to validate this step
-          const stepValid = await validateStep(i)
-          if (!stepValid) {
-            allValid = false
-          }
+    // Check if all previous steps are completed
+    for (let i = 1; i <= totalSteps; i++) {
+      if (!completedSteps.includes(i)) {
+        // Try to validate this step
+        const stepValid = await validateStep(i)
+        if (!stepValid) {
+          allValid = false
         }
       }
+    }
 
-      if (!allValid) {
-        toast({
-          variant: "destructive",
-          title: "Incomplete Steps",
-          description: "Please complete all required steps before submitting.",
-        })
-        return
-      }
-
-      // Final submission
-      setIsSubmitting(true)
-      try {
-        // Submit form logic...
-        console.log("Third-party claim data:", values)
-        await new Promise((resolve) => setTimeout(resolve, 1500))
-
-        // Generate a tracking ID
-        const trackingId = `TP-2025-${Math.floor(10000 + Math.random() * 90000)}`
-
-        toast({
-          title: "Claim Submitted Successfully",
-          description: "Your claim has been submitted and is pending review.",
-        })
-
-        // Redirect to success page with tracking ID
-        router.push(`/third-party/success?trackingId=${trackingId}`)
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Submission Failed",
-          description: "There was an error submitting your claim. Please try again.",
-        })
-      } finally {
-        setIsSubmitting(false)
-      }
-    } catch (error) {
-      // Validation error - form will show field errors
-      console.error("Validation error:", error)
-
-      // Show toast for validation error
+    if (!allValid) {
       toast({
         variant: "destructive",
-        title: "Validation Error",
-        description: "Please complete all required fields before submitting.",
+        title: "Incomplete Steps",
+        description: "Please complete all required steps before submitting.",
       })
+      return
     }
-  }
 
+    // Final submission
+    setIsSubmitting(true)
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === "incidentDate" || key === "policeReportDate") {
+        formData.append(key, value ? value.toISOString() : "");
+      } else if (key === "damagePhotos" && value) {
+        value.forEach((file: string | Blob, index: number) => {
+          if (file) formData.append(`damagePhotos[${index}]`, file);
+        });
+      } else if (key === "otherDocuments" && value) {
+        value.forEach((file: string | Blob, index: number) => {
+          if (file) formData.append(`otherDocuments[${index}]`, file);
+        });
+      } else if (key === "policeReportDoc" && value) {
+        formData.append(key, value);
+      } else {
+        formData.append(key, value ? value.toString() : "");
+      }
+    });
+    const tenant_id = tenants?.find(t => t.name === formData.get('policyholderInsuranceCompany'))?.id;
+    formData.append("tenant_id", tenant_id + "");
+
+    try {
+      const response = await apiRequest(`${API_URL}third-party-claims`, "POST", formData);
+      setStep(1);
+      const trackingId = response.claim.tracking_id
+
+      toast({
+        title: "Claim Submitted Successfully",
+        description: "Your claim " + trackingId + " has been submitted and is pending review.",
+      })
+
+      // Redirect to success page with tracking ID
+      router.push(`/third-party/success?trackingId=${trackingId}`)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: JSON.stringify(error) + " Failed to submit claim. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false)
+    }
+  };
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const files = event.target.files
     if (!files || files.length === 0) return
@@ -506,7 +533,7 @@ export default function ThirdPartySubmitPage() {
                               mode="single"
                               selected={field.value}
                               onSelect={(date) => field.onChange(date)}
-                              disabled={(date) => date > new Date("2025-04-30") || date < new Date("2020-01-01")}
+                              disabled={(date) => date > new Date() || date < new Date("2020-01-01")}
                               initialFocus
                             />
                           </PopoverContent>
@@ -656,12 +683,9 @@ export default function ThirdPartySubmitPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Sanlam Alianz">Sanlam Alianz</SelectItem>
-                            <SelectItem value="SONARWA">SONARWA</SelectItem>
-                            <SelectItem value="SORAS">SORAS</SelectItem>
-                            <SelectItem value="Radiant">Radiant</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                            <SelectItem value="Unknown">Unknown</SelectItem>
+                            {tenants?.map(company => (
+                              <SelectItem key={company.id} value={company.name}>{company.name}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -1068,8 +1092,7 @@ export default function ThirdPartySubmitPage() {
                                   mode="single"
                                   selected={field.value}
                                   onSelect={(date) => field.onChange(date)}
-                                  disabled={(date) => date > new Date("2025-04-30") || date < new Date("2020-01-01")}
-                                  initialFocus
+                                  disabled={(date) => date > new Date() || date < new Date("2020-01-01")}
                                 />
                               </PopoverContent>
                             </Popover>

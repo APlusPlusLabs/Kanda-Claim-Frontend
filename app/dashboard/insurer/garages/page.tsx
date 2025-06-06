@@ -87,6 +87,7 @@ export default function GaragesPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedGarage, setSelectedGarage] = useState<Garage | null>(null);
     const [isGeolocating, setIsGeolocating] = useState(false);
+    const [isSubmiting, setIsSubmiting] = useState(false);
 
     const form = useForm<GarageFormValues>({
         resolver: zodResolver(garageSchema),
@@ -174,7 +175,9 @@ export default function GaragesPage() {
     };
     // Handle create garage
     const handleCreateGarage = async (values: GarageFormValues) => {
+
         try {
+            setIsSubmiting(true)
             const payload = {
                 ...values,
                 tenant_id: user.tenant_id,
@@ -189,6 +192,7 @@ export default function GaragesPage() {
             });
             setCreateDialogOpen(false);
             form.reset();
+            setIsSubmiting(false)
         } catch (error: any) {
             console.error("Error creating garage:", error);
             toast({
@@ -196,6 +200,7 @@ export default function GaragesPage() {
                 description: error.response?.data?.message || "Failed to create garage. Please try again.",
                 variant: "destructive",
             });
+            setIsSubmiting(false)
         }
     };
 
@@ -219,7 +224,7 @@ export default function GaragesPage() {
 
     const handleUpdateGarage = async (values: GarageFormValues) => {
         if (!selectedGarage) return;
-
+        setIsSubmiting(true)
         try {
             const payload = {
                 ...values,
@@ -234,7 +239,8 @@ export default function GaragesPage() {
             toast({
                 title: "Garage Updated",
                 description: `Garage ${response.garage.name} has been updated.`,
-            });
+            }); 
+            setIsSubmiting(false)
             setEditDialogOpen(false);
             setSelectedGarage(null);
             form.reset();
@@ -245,11 +251,12 @@ export default function GaragesPage() {
                 description: error.response?.data?.message || "Failed to update garage. Please try again.",
                 variant: "destructive",
             });
+            setIsSubmiting(false)
         }
     };
     const handleDeleteGarage = async () => {
         if (!selectedGarage) return;
-
+        setIsSubmiting(true)
         try {
             await apiRequest(`${API_URL}garages/${selectedGarage.id}`, "DELETE", { tenant_id: user.tenant_id });
 
@@ -259,6 +266,7 @@ export default function GaragesPage() {
                 description: `Garage ${selectedGarage.name} has been deleted.`,
             });
             setDeleteDialogOpen(false);
+            setIsSubmiting(false)
             setSelectedGarage(null);
         } catch (error: any) {
             console.error("Error deleting garage:", error);
@@ -267,6 +275,7 @@ export default function GaragesPage() {
                 description: error.response?.data?.message || "Failed to delete garage. Please try again.",
                 variant: "destructive",
             });
+            setIsSubmiting(false)
         }
     };
 
@@ -302,14 +311,14 @@ export default function GaragesPage() {
         <DashboardLayout
             user={{
                 name: user.name,
-                role: user.role.name +' @ '+ user.tenant.name,
+                role: user.role.name + ' @ ' + user.tenant.name,
                 avatar: "/placeholder.svg?height=40&width=40",
             }}
             navigation={[
                 { name: "Dashboard", href: "/dashboard/insurer", icon: null },
                 // { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
                 // { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
-                { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },  
+                { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
                 { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
                 // { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
             ]}
@@ -591,7 +600,7 @@ export default function GaragesPage() {
                                 <Button variant="outline" onClick={() => (createDialogOpen ? setCreateDialogOpen(false) : setEditDialogOpen(false))}>
                                     Cancel
                                 </Button>
-                                <Button type="submit">{createDialogOpen ? "Create" : "Update"}</Button>
+                                <Button type="submit" disabled={!form.formState.isValid || isSubmiting}>{createDialogOpen ? "Create" : "Update"}</Button>
                             </DialogFooter>
                         </form>
                     </Form>

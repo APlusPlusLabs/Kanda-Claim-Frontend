@@ -36,7 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Building2, Search, UserPlus, UserCog, Shield, Users, UserCheck, UserX, HousePlus, FileText, Wrench, Plus } from "lucide-react";
+import { Building2, Search, UserPlus, UserCog, Shield, Users, UserCheck, UserX, HousePlus, FileText, Wrench, Plus, Edit } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/components/ui/use-toast";
@@ -45,6 +45,7 @@ import { EditUserDialog } from "@/components/EditUserDialog";
 import { Role, User } from "@/lib/types/users";
 import { Description } from "@radix-ui/react-toast";
 import { Garage } from "@/lib/types/claims";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const userFormSchema = z.object({
@@ -115,16 +116,7 @@ export default function UsersManagementPage() {
       try {
         const usersData = await apiRequest(`${API_URL}users/by-tenant/${user?.tenant_id}`, "GET");
         setUsers(
-          usersData.map((u: any) => ({
-            id: u.id,
-            first_name: u.first_name,
-            last_name: u.last_name,
-            email: u.email,
-            phone: u.phone,
-            role_id: u.role_id,
-            department_id: u.department_id,
-            garage_id: u.garage_id,
-            tenant_id: u.tenant_id,
+          usersData.map((u: any) => ({...u,
             status: u.is_active ? "active" : "inactive",
             last_login: u.last_login || undefined,
           }))
@@ -685,7 +677,7 @@ export default function UsersManagementPage() {
                             onSuccess={handleUserUpdate}
                             apiRequest={apiRequest}
                             role_id={user.role_id}
-                            tenant_id={user.tenant_id} garages={garages}                          />
+                            tenant_id={user.tenant_id} garages={garages} />
                         )}
                       </Dialog>
                       <Button
@@ -914,56 +906,48 @@ export default function UsersManagementPage() {
           </TabsContent>
           <TabsContent value="departments" className="space-y-4">
             {departments.length > 0 ? (
-
-              <Card>
-                <CardContent className="p-6 space-y-2">
-                  {departments.map((depart, index) => (
-                    <Card key={index}>
-                      <CardContent className="p-6">
-                        <div className="grid grid-cols-2">
-                          <div className="space-x-4">
-                            <h2>{depart.name}  info</h2>
-                            <div className="space-y-3">
-                              <span>Department name</span> : {depart.name} <br />
-                              <span>Description</span>: {depart.description}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Department Name</TableHead>
+                    <TableHead>Department Staff</TableHead>
+                    <TableHead>Department Description</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {departments.map((department) => (
+                    <TableRow key={department.id}>
+                      <TableCell className="font-medium">{department.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {users
+                          .filter((u) => u.department_id+"" === department.id+"")
+                          .map((u) => (
+                            <div key={u.id}>
+                              <strong>{u.name} - {u.role?.name}</strong>
                             </div>
-                          </div>
-                          <div className="space-x-4">
-                            <h2>{depart.name}  users</h2>
-                            <div className="space-y-3">
-                              {depart.users?.map((ussa, i) => (
-                                <div key={i}>
-                                  <span>user</span> {ussa.info} < br />
-                                  <Button variant="outline" size="sm" asChild>
-                                    <Link href={`/dashboard/insurer/users/${ussa.id}`}>View Details</Link>
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                          ))}
+                      </TableCell>
+                      <TableCell>{department.description}</TableCell>
+                      <TableCell className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push('dashboard/insurer/settings')}
+                        >
+                          <Edit className="h-4 w-4 mr-1" /> Manage
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </CardContent>
-              </Card>
+                </TableBody>
+              </Table>
             ) : (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Departments Found</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      No Departments yet
-                    </p>
-                    <Button onClick={() => setIsAddDepartmentOpen(true)}>
-                      <HousePlus className="mr-2 h-4 w-4" /> Add Department
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-            }
+              <div className="text-center py-8">
+                <p className="text-sm text-muted-foreground">No departments found for this tenant.</p>
+                <Button onClick={() => router.push('dashboard/insurer/settings')}>Add new Department</Button>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

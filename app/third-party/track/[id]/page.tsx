@@ -34,85 +34,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useAuth } from "@/lib/auth-provider"
+import { format } from "date-fns"
 
-// Mock data for a third-party claim
-const mockClaim = {
-  id: "TP-2025-12345",
-  status: "In Progress",
-  progress: 40,
-  submittedDate: "2025-03-15",
-  lastUpdated: "2025-03-20",
-  claimant: {
-    name: "John Doe",
-    email: "john.doe@example.com",
-    phone: "+250 788 123 456",
-  },
-  policyholder: {
-    vehiclePlate: "RAA 123A",
-    vehicleMake: "Toyota",
-    vehicleModel: "RAV4",
-    insuranceCompany: "Sanlam Alianz",
-  },
-  incident: {
-    date: "2025-03-10",
-    location: "Kimironko Junction, Kigali",
-    description: "The policyholder's vehicle collided with my vehicle at the intersection.",
-  },
-  damages: {
-    type: "Vehicle Damage",
-    description: "Front bumper damage, headlight broken, and hood dented.",
-    estimatedAmount: "450000",
-  },
-  documents: [
-    { name: "Damage_Photo_1.jpg", type: "image", uploadedAt: "2025-03-15" },
-    { name: "Damage_Photo_2.jpg", type: "image", uploadedAt: "2025-03-15" },
-    { name: "Police_Report.pdf", type: "pdf", uploadedAt: "2025-03-15" },
-  ],
-  timeline: [
-    { date: "2025-03-15", event: "Claim submitted", status: "complete" },
-    { date: "2025-03-16", event: "Claim received and under initial review", status: "complete" },
-    { date: "2025-03-18", event: "Additional information requested", status: "complete" },
-    { date: "2025-03-20", event: "Information received, claim under assessment", status: "in-progress" },
-    { date: "2025-03-25", event: "Assessment scheduled", status: "pending" },
-    { date: "2025-04-01", event: "Assessment completed", status: "pending" },
-    { date: "2025-04-05", event: "Claim decision", status: "pending" },
-  ],
-  messages: [
-    {
-      date: "2025-03-16",
-      from: "System",
-      content: "Your claim has been received and is under initial review.",
-    },
-    {
-      date: "2025-03-18",
-      from: "Claims Agent",
-      content: "Please provide additional photos of the damage to your vehicle's front bumper.",
-      isRequest: true,
-    },
-    {
-      date: "2025-03-20",
-      from: "You",
-      content: "I have uploaded the additional photos as requested.",
-    },
-    {
-      date: "2025-03-20",
-      from: "Claims Agent",
-      content: "Thank you for providing the additional information. Your claim is now under assessment.",
-    },
-  ],
-  pendingRequests: [
-    {
-      id: "REQ-001",
-      date: "2025-03-18",
-      type: "Additional Photos",
-      description: "Please provide additional photos of the damage to your vehicle's front bumper.",
-      status: "Completed",
-    },
-  ],
-}
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
+const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/claims/photos/";
 
 export default function ThirdPartyTrackPage() {
   const router = useRouter()
+  const { apiRequest } = useAuth()
   const params = useParams()
   const { toast } = useToast()
   const [claim, setClaim] = useState<any>(null)
@@ -124,47 +54,32 @@ export default function ThirdPartyTrackPage() {
   const [uploadDescription, setUploadDescription] = useState("")
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
 
+  const searchParams = new URLSearchParams(window.location.search)
+  const refNumber = searchParams.get("ref")
+
   useEffect(() => {
-    // In a real app, we would fetch the claim data from an API
-    // For now, we'll use the mock data
     const fetchClaim = async () => {
+      setLoading(true);
       try {
-        // Get reference number from URL query
-        const searchParams = new URLSearchParams(window.location.search)
-        const refNumber = searchParams.get("ref")
-
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        // Check if the tracking ID matches our mock data and reference number is valid
-        // In a real app, we would validate both
-        if (params.id === mockClaim.id) {
-          setClaim({
-            ...mockClaim,
-            referenceNumber: refNumber || "REF-12345", // Use provided ref or fallback
-          })
-        } else {
-          // If not found, we'll still use the mock data for demo purposes
-          // In a real app, we would show an error
-          setClaim({
-            ...mockClaim,
-            id: params.id,
-            referenceNumber: refNumber || "REF-12345", // Use provided ref or fallback
-          })
-        }
+        const response = await apiRequest(`${API_URL}third-party-claims/${params.id}`);
+        setClaim(response);
       } catch (error) {
+        console.error("Error fetching claim:", error);
         toast({
-          variant: "destructive",
           title: "Error",
-          description: "Failed to fetch claim data. Please try again.",
-        })
+          description: "Failed to load claim details. Please try again.",
+          variant: "destructive",
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
+    fetchClaim();
+  }, [params.id]);
 
-    fetchClaim()
-  }, [params.id, toast])
+  if (loading) {
+    return <div className="container mx-auto p-4">Loading...</div>;
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -297,7 +212,7 @@ export default function ThirdPartyTrackPage() {
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Tracking Claim #{claim.id}</h1>
+            <h1 className="text-3xl font-bold mb-2">Tracking Claim #{claim.tracking_id}</h1>
             <p className="text-muted-foreground">
               Submitted on {claim.submittedDate} • Last updated: {claim.lastUpdated}
             </p>
@@ -343,11 +258,11 @@ export default function ThirdPartyTrackPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tracking ID:</span>
-                      <span>{claim.id}</span>
+                      <span>{claim.tracking_id}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Reference Number:</span>
-                      <span>{claim.referenceNumber}</span>
+                      <span>{claim.code}</span>
                     </div>
                   </div>
                 </div>
@@ -400,7 +315,7 @@ export default function ThirdPartyTrackPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Date:</span>
-                    <span>{claim.incident.date}</span>
+                    <span>{format(new Date(claim.incident.date), "yyyy-MM-dd")}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Location:</span>
@@ -516,16 +431,17 @@ export default function ThirdPartyTrackPage() {
                 <div className="border rounded-md divide-y">
                   {claim.documents.map((doc: any, index: number) => (
                     <div key={index} className="flex items-center justify-between p-4">
-                      <div className="flex items-center">
-                        {getDocumentIcon(doc.type)}
+                      <div className="flex flex-col items-center">
+                        {/* {getDocumentIcon(doc.type)} */}
+                        <img src={STORAGES_URL + doc.name} alt={doc.type} />
                         <span className="ml-2">{doc.name}</span>
                       </div>
                       <div className="flex items-center">
                         <span className="text-xs text-muted-foreground mr-4">Uploaded on {doc.uploadedAt}</span>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={() => window.location.assign(STORAGES_URL + doc.name)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={() => window.location.assign(STORAGES_URL + doc.name)}>
                           <Download className="h-4 w-4" />
                         </Button>
                       </div>
@@ -553,13 +469,12 @@ export default function ThirdPartyTrackPage() {
                   {claim.messages.map((message: any, index: number) => (
                     <div
                       key={index}
-                      className={`p-4 rounded-md ${
-                        message.from === "You"
-                          ? "bg-primary/10 ml-8"
-                          : message.isRequest
-                            ? "bg-yellow-50 border-yellow-200 border"
-                            : "bg-muted mr-8"
-                      }`}
+                      className={`p-4 rounded-md ${message.from === "You"
+                        ? "bg-primary/10 ml-8"
+                        : message.isRequest
+                          ? "bg-yellow-50 border-yellow-200 border"
+                          : "bg-muted mr-8"
+                        }`}
                     >
                       <div className="flex justify-between mb-2">
                         <span className="font-medium">{message.from}</span>

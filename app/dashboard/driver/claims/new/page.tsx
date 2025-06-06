@@ -140,6 +140,7 @@ const formSchema = z.object({
   damages: z.array(
     z.object({
       type: z.string().min(2, { message: "Damage type is required" }),
+      estimated_cost: z.number().optional(),
       owner_name: z.string().min(2, { message: "Owner name is required" }),
       description: z.string().min(10, { message: "Damage description is required" }),
     }),
@@ -240,6 +241,7 @@ const stepValidationSchemas = [
     })).optional(),
     damages: z.array(z.object({
       type: z.string().min(2),
+      estimated_cost: z.number().optional(),
       owner_name: z.string().min(2),
       description: z.string().min(10),
     })).optional(),
@@ -618,6 +620,7 @@ export default function NewClaimPage() {
         const dataDamages = {
           damages: values.damages?.map((damage) => ({
             type: damage.type,
+            estimated_cost: damage.estimated_cost,
             owner_name: damage.owner_name,
             description: damage.description,
           })),
@@ -690,7 +693,7 @@ export default function NewClaimPage() {
   };
   return (
     <DashboardLayout
-      user={{ name: user?.name || 'Driver', role: 'Driver', avatar: '/placeholder.svg' }}
+      user={{ name: user.name, role: user.role.name +" @ "+user.tenant.name, avatar: '/placeholder.svg' }}
       navigation={[
         {
           name: `Kanda Claim - ${t("nav.dashboard")}`,
@@ -1573,19 +1576,35 @@ export default function NewClaimPage() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <FormField
-                        control={form.control}
-                        name={`damages.${index}.type`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("form.damage_type")}*</FormLabel>
-                            <FormControl>
-                              <Input placeholder={t("form.damage_type_placeholder")} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="grid grid-col-2">
+
+                        <FormField
+                          control={form.control}
+                          name={`damages.${index}.type`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.damage_type")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.damage_type_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`damages.${index}.estimated_cost`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.estimated_cost")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.estimated_cost_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       <FormField
                         control={form.control}
                         name={`damages.${index}.owner_name`}
@@ -1624,6 +1643,7 @@ export default function NewClaimPage() {
                     onClick={() =>
                       appendDamage({
                         type: "",
+                        estimated_cost: 0,
                         owner_name: "",
                         description: "",
                       })

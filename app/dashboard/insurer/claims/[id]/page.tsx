@@ -180,8 +180,8 @@ export default function ClaimDetailsPage({ params }: Props) {
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
-        { name: "Dashboard", href: "/dashboard/driver", icon: <Car className="h-5 w-5" /> },
-        { name: "My Claims", href: "/dashboard/driver/claims", icon: <FileText className="h-5 w-5" /> },
+        { name: "Dashboard", href: "/dashboard/insurer", icon: <Car className="h-5 w-5" /> },
+        { name: "My Claims", href: "/dashboard/insurer/claims", icon: <FileText className="h-5 w-5" /> },
       ]}
     >
       <div className="space-y-6">
@@ -193,16 +193,16 @@ export default function ClaimDetailsPage({ params }: Props) {
             <h1 className="text-3xl font-bold">Claim #{claim.code}</h1>
             {getStatusBadge(claim.status)}
           </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => router.push("/dashboard/driver/messages")}>
+          {/* <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => router.push("/dashboard/insurer/messages")}>
               <MessageSquareText className="mr-2 h-4 w-4" /> Contact Insurer
             </Button>
             {claim.status !== "Completed" && claim.status !== "Rejected" && (
-              <Button onClick={() => router.push(`/dashboard/driver/claims/edit/${claim.id}`)}>
+              <Button onClick={() => router.push(`/dashboard/insurer/claims/edit/${claim.id}`)}>
                 <FileText className="mr-2 h-4 w-4" /> Update Claim
               </Button>
             )}
-          </div>
+          </div> */}
         </div>
 
         <Card>

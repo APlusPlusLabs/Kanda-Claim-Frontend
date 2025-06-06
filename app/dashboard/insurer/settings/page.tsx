@@ -32,7 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 const claimtypeSchema = z.object({
-    name: z.string().min(1, "Claim-Type Name is required").max(255),
+    name: z.string().min(2, "Claim-Type Name is required & must be at least 2 characters").max(255),
     description: z.string().optional(),
     is_active: z.boolean()
 });
@@ -63,8 +63,10 @@ export default function SettingsPage() {
     const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
     const [isCreateDepartmentOpen, setIsCreateDepartmentOpen] = useState(false);
     const [departments, setDepartments] = useState<any[]>([]);
+    const [isSubmiting, setISubmiting] = useState(false);
 
     const claimTypeform = useForm<z.infer<typeof claimtypeSchema>>({
+        mode: 'onChange',
         resolver: zodResolver(claimtypeSchema),
         defaultValues: {
             name: "",
@@ -73,6 +75,7 @@ export default function SettingsPage() {
         },
     });
     const claimTypeEditform = useForm<z.infer<typeof claimtypeSchema>>({
+        mode: 'onChange',
         resolver: zodResolver(claimtypeSchema),
         defaultValues: {
             name: selectedClaimType?.name,
@@ -80,7 +83,8 @@ export default function SettingsPage() {
             is_active: selectedClaimType?.is_active
         },
     });
-    const departmentform = useForm<z.infer<typeof departmentFormSchema>>({
+    const departmentForm = useForm<z.infer<typeof departmentFormSchema>>({
+        mode: 'onChange',
         resolver: zodResolver(departmentFormSchema),
         defaultValues: {
             name: "",
@@ -88,6 +92,7 @@ export default function SettingsPage() {
         },
     });
     const departmenteEditform = useForm<z.infer<typeof departmentFormSchema>>({
+        mode: 'onChange',
         resolver: zodResolver(departmentFormSchema),
         defaultValues: {
             name: selectedClaimType?.name,
@@ -124,6 +129,7 @@ export default function SettingsPage() {
     // Handle create claimtype
     const handleCreateClaimType = async (values: claimTypeFormValues) => {
         try {
+            setISubmiting(true)
             const payload = {
                 ...values,
                 category: values.name,
@@ -138,6 +144,7 @@ export default function SettingsPage() {
                 description: `ClaimType ${response.name} has been created.`,
             });
             setCreateClaimTypeDialogOpen(false);
+            setISubmiting(false)
             claimTypeform.reset();
         } catch (error: any) {
             console.error("Error creating claimtype:", error);
@@ -146,6 +153,7 @@ export default function SettingsPage() {
                 description: error.response?.data?.message || "Failed to create claimtype. Please try again.",
                 variant: "destructive",
             });
+            setISubmiting(false)
         }
     };
 
@@ -162,6 +170,7 @@ export default function SettingsPage() {
 
     const handleUpdateClaimType = async (values: claimTypeFormValues) => {
         if (!selectedClaimType) return;
+        setISubmiting(true)
         try {
             const payload = {
                 ...values,
@@ -180,6 +189,7 @@ export default function SettingsPage() {
             });
             setEditClaimTypeDialogOpen(false);
             setSelectedClaimType(null);
+            setISubmiting(false)
             claimTypeform.reset();
         } catch (error: any) {
             console.error("Error updating claimtype:", error);
@@ -188,10 +198,12 @@ export default function SettingsPage() {
                 description: error.response?.message || "Failed to update claimtype. Please try again.",
                 variant: "destructive",
             });
+            setISubmiting(false)
         }
     };
     const handleDeleteClaimType = async () => {
         if (!selectedClaimType) return;
+        setISubmiting(true)
         try {
             await apiRequest(`${API_URL}claim-types/${selectedClaimType.id}`, "DELETE", { tenant_id: user.tenant_id });
             setClaimTypes(claimtypes.filter((g) => g.id !== selectedClaimType.id));
@@ -201,6 +213,7 @@ export default function SettingsPage() {
             });
             setDeleteClaimTypeDialogOpen(false);
             setSelectedClaimType(null);
+            setISubmiting(false)
         } catch (error: any) {
             console.error("Error deleting claimtype:", error);
             toast({
@@ -208,6 +221,7 @@ export default function SettingsPage() {
                 description: error.response?.data?.message || "Failed to delete claimtype. Please try again.",
                 variant: "destructive",
             });
+            setISubmiting(false)
         }
     };
 
@@ -220,39 +234,34 @@ export default function SettingsPage() {
     const onSubmitNewDepartment = async (values: z.infer<typeof departmentFormSchema>) => {
         try {
 
-            const newDescription = await apiRequest(`${API_URL}departments/store`, "POST", {
+            setISubmiting(true)
+            const newDepartment = await apiRequest(`${API_URL}departments/store`, "POST", {
                 name: values.name,
                 description: values.description,
                 tenant_id: user.tenant_id
             });
-
             setDepartments([
-                ...departments,
-                {
-                    id: newDescription.id,
-                    first_name: newDescription.description,
-                    description: newDescription.description,
-                },
+                newDepartment, ...departments,
             ]);
-
             setIsCreateDepartmentOpen(false);
-            departmentform.reset();
-
+            departmentForm.reset();
             toast({
                 title: "Department added successfully",
                 description: `${values.name} has been added.`,
             });
+            setISubmiting(false)
         } catch (error: any) {
             toast({
                 variant: "destructive",
                 title: "Error",
                 description: error.message || "Failed to add Department. ",
             });
+            setISubmiting(false)
         }
     };
     const handleEditDepartment = (department: Department) => {
         setSelectedDepartment(department);
-        departmentform.reset({
+        departmentForm.reset({
             name: department.name,
             description: department.description
         });
@@ -261,14 +270,13 @@ export default function SettingsPage() {
 
     const handleUpdateDepartment = async (values: departmentFormValues) => {
         if (!selectedDepartment) return;
+        setISubmiting(true)
         try {
             const payload = {
                 ...values,
                 tenant_id: user.tenant_id,
             };
-
             const response = await apiRequest(`${API_URL}departments/${selectedDepartment.id}`, "PUT", payload);
-
             setDepartments(
                 departments.map((g) => (g.id === selectedDepartment.id ? response : g))
             );
@@ -277,8 +285,9 @@ export default function SettingsPage() {
                 description: `Department ${response.name} has been updated.`,
             });
             setEditDepartmentDialogOpen(false);
+            setISubmiting(false)
             setSelectedDepartment(null);
-            departmentform.reset();
+            departmentForm.reset();
         } catch (error: any) {
             console.error("Error updating department:", error);
             toast({
@@ -286,10 +295,12 @@ export default function SettingsPage() {
                 description: error || "Failed to update department. Please try again.",
                 variant: "destructive",
             });
+            setISubmiting(false)
         }
     };
     const handleDeleteDepartment = async () => {
         if (!selectedDepartment) return;
+        setISubmiting(true)
         try {
             await apiRequest(`${API_URL}departments/${selectedDepartment.id}`, "DELETE", { tenant_id: user.tenant_id });
             setDepartments(departments.filter((g) => g.id !== selectedDepartment.id));
@@ -298,6 +309,7 @@ export default function SettingsPage() {
                 description: `Department ${selectedDepartment.name} has been deleted.`,
             });
             setDeleteDepartmentDialogOpen(false);
+            setISubmiting(false)
             setSelectedDepartment(null);
         } catch (error: any) {
             console.error("Error deleting department:", error);
@@ -424,7 +436,7 @@ export default function SettingsPage() {
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold">Departments</h2>
-                    <Button onClick={() => setCreateDepartmentDialogOpen(true)}>
+                    <Button onClick={() => setIsCreateDepartmentOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" /> Add Department
                     </Button>
                 </div>
@@ -537,7 +549,7 @@ export default function SettingsPage() {
                                 )}
                             />
                             <DialogFooter>
-                                <Button type="submit">Add ClaimType</Button>
+                                <Button type="submit" disabled={!claimTypeform.formState.isValid || isSubmiting}>Add ClaimType</Button>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -552,10 +564,10 @@ export default function SettingsPage() {
                         <DialogTitle>Add New Department</DialogTitle>
                         <DialogDescription>Create a new department for company users.</DialogDescription>
                     </DialogHeader>
-                    <Form {...departmentform}>
-                        <form onSubmit={departmentform.handleSubmit(onSubmitNewDepartment)} className="space-y-4 py-4">
+                    <Form {...departmentForm}>
+                        <form onSubmit={departmentForm.handleSubmit(onSubmitNewDepartment)} className="space-y-4 py-4">
                             <FormField
-                                control={departmentform.control}
+                                control={departmentForm.control}
                                 name="name"
                                 render={({ field }) => (
                                     <FormItem>
@@ -568,7 +580,7 @@ export default function SettingsPage() {
                                 )}
                             />
                             <FormField
-                                control={departmentform.control}
+                                control={departmentForm.control}
                                 name="description"
                                 render={({ field }) => (
                                     <FormItem>
@@ -581,7 +593,7 @@ export default function SettingsPage() {
                                 )}
                             />
                             <DialogFooter>
-                                <Button type="submit">Add Department</Button>
+                                <Button type="submit" disabled={!departmentForm.formState.isValid || isSubmiting}>Add Department</Button>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -647,7 +659,7 @@ export default function SettingsPage() {
                                 <Button variant="outline" onClick={() => (createClaimTypeDialogOpen ? setCreateClaimTypeDialogOpen(false) : setEditClaimTypeDialogOpen(false))}>
                                     Cancel
                                 </Button>
-                                <Button type="submit">{createClaimTypeDialogOpen ? "Create" : "Update"}</Button>
+                                <Button type="submit" disabled={!claimTypeform.formState.isValid || isSubmiting}>{createClaimTypeDialogOpen ? "Create" : "Update"}</Button>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -660,10 +672,10 @@ export default function SettingsPage() {
                     <DialogHeader>
                         <DialogTitle>Edit Department: {selectedDepartment?.name} </DialogTitle>
                     </DialogHeader>
-                    <Form {...departmentform}>
-                        <form onSubmit={departmentform.handleSubmit(handleUpdateDepartment)} className="space-y-4 py-4">
+                    <Form {...departmentForm}>
+                        <form onSubmit={departmentForm.handleSubmit(handleUpdateDepartment)} className="space-y-4 py-4">
                             <FormField
-                                control={departmentform.control}
+                                control={departmentForm.control}
                                 name="name"
                                 render={({ field }) => (
                                     <FormItem>
@@ -676,7 +688,7 @@ export default function SettingsPage() {
                                 )}
                             />
                             <FormField
-                                control={departmentform.control}
+                                control={departmentForm.control}
                                 name="description"
                                 render={({ field }) => (
                                     <FormItem>
@@ -689,7 +701,7 @@ export default function SettingsPage() {
                                 )}
                             />
                             <DialogFooter>
-                                <Button type="submit">Save Department</Button>
+                                <Button type="submit" disabled={!departmentForm.formState.isValid || isSubmiting}>Save Department</Button>
                             </DialogFooter>
                         </form>
                     </Form>
