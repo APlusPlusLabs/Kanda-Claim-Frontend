@@ -13,20 +13,11 @@ import { Bell, Car, FileText, LogOut, MessageSquare, User } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/lib/auth-provider"
 import { useLanguage } from "@/lib/language-context"
+import { Notification } from "@/lib/types/messaging"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/";
-// Mock data for notifications
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 
-interface Notification {
-  id: string | number;
-  title: string;
-  description: string;
-  timestamp: string;
-  type: string;
-  read: boolean;
-  vehicle?: { make: string; model: string; plateNumber: string; garage: string };
-  garage?: { name: string; address: string };
-}
+
 export default function NotificationsPage() {
   const { user, apiRequest } = useAuth()
   const { t } = useLanguage();

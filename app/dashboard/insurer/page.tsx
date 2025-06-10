@@ -63,6 +63,8 @@ export default function InsurerDashboard() {
   const [requestInfoOpen, setRequestInfoOpen] = useState(false)
   const [selectedClaim, setSelectedClaim] = useState<Claim>()
   const [newClaims, setNewClaims] = useState<any[]>([])
+  const [multisignatureClaims, setMultisignatureClaims] = useState(0)
+
 
   const [inProgressClaims, setInProgressClaims] = useState<any[]>([])
 
@@ -94,6 +96,13 @@ export default function InsurerDashboard() {
         )
         setClaimsOverTime(overTimeData)
 
+        // get multisignatureClaims count
+        const multisignatureClaimsCount = await apiRequest(
+          `${API_URL}claims/${user.tenant_id}/multi-signature-count?year=${year}`,
+          "GET"
+        )
+        setMultisignatureClaims(multisignatureClaimsCount)
+        
         // get claims by type
         const byTypeData = await apiRequest(
           `${API_URL}claims/${user.tenant_id}/by-type?year=${year}`,
@@ -294,7 +303,7 @@ export default function InsurerDashboard() {
           <Card className="bg-purple-50 border-purple-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-purple-800">Multi-Signature Claims</CardTitle>
-              <CardDescription className="text-2xl font-bold text-purple-900">3</CardDescription>
+              <CardDescription className="text-2xl font-bold text-purple-900">{multisignatureClaims}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-xs text-purple-700">Requires multiple approvals</div>

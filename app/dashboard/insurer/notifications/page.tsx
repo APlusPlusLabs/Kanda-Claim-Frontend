@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -22,101 +22,112 @@ import {
   X,
 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
-import { useAuth } from "@/lib/auth-hooks"
+import { useAuth } from "@/lib/auth-provider"
 import { formatDistanceToNow } from "date-fns"
+import { useLanguage } from "@/lib/language-context"
+import { useToast } from "@/components/ui/use-toast"
+import { Notification } from "@/lib/types/messaging"
 
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 export default function InsurerNotifications() {
-  const { user } = useAuth()
+  const { user, apiRequest } = useAuth()
+  const { t } = useLanguage();
+  const [activeTab, setActiveTab] = useState("all")
+  // const [notifications, setNotifications] = useState(initialNotifications)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [isPickupDialogOpen, setIsPickupDialogOpen] = useState(false)
+  const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false)
+  const [selectedNotification, setSelectedNotification] = useState<any>(null)
+  const { toast } = useToast()
 
-  // In a real app, you would fetch this data from an API
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: "claim_submitted",
-      title: "New Claim Submitted",
-      description: "Mugisha Nkusi has submitted a new claim for Toyota RAV4 (CL-2025-001)",
-      timestamp: "2025-03-15T10:30:00",
-      read: false,
-      link: "/dashboard/insurer/claims/CL-2025-001",
-      icon: <FileText className="h-5 w-5" />,
-    },
-    {
-      id: 2,
-      type: "assessment_completed",
-      title: "Assessment Completed",
-      description: "Habimana Jean has completed the assessment for Suzuki Swift (CL-2025-002)",
-      timestamp: "2025-03-14T14:20:00",
-      read: false,
-      link: "/dashboard/insurer/claims/CL-2025-002",
-      icon: <ClipboardCheck className="h-5 w-5" />,
-    },
-    {
-      id: 3,
-      type: "repair_completed",
-      title: "Repairs Completed",
-      description: "Kigali Auto Center has completed repairs for Honda Civic (CL-2025-003)",
-      timestamp: "2025-03-10T16:45:00",
-      read: true,
-      link: "/dashboard/insurer/claims/CL-2025-003",
-      icon: <Wrench className="h-5 w-5" />,
-    },
-    {
-      id: 4,
-      type: "message",
-      title: "New Message",
-      description: "You have a new message from Mugisha Nkusi regarding claim CL-2025-001",
-      timestamp: "2025-03-15T11:15:00",
-      read: true,
-      link: "/dashboard/insurer/messages",
-      icon: <MessageSquareText className="h-5 w-5" />,
-    },
-    {
-      id: 5,
-      type: "claim_update",
-      title: "Claim Status Updated",
-      description: "Claim CL-2025-003 has been marked as Completed",
-      timestamp: "2025-03-10T17:30:00",
-      read: true,
-      link: "/dashboard/insurer/claims/CL-2025-003",
-      icon: <CheckCircle2 className="h-5 w-5" />,
-    },
-    {
-      id: 6,
-      type: "third_party_claim",
-      title: "Third-Party Claim Submitted",
-      description: "A third-party claim has been submitted against policy POL-2024-12345",
-      timestamp: "2025-03-13T09:45:00",
-      read: false,
-      link: "/dashboard/insurer/claims",
-      icon: <Car className="h-5 w-5" />,
-    },
-    {
-      id: 7,
-      type: "appointment",
-      title: "Assessment Scheduled",
-      description: "Assessment for claim CL-2025-002 scheduled for March 17, 2025",
-      timestamp: "2025-03-12T13:20:00",
-      read: true,
-      link: "/dashboard/insurer/claims/CL-2025-002",
-      icon: <Calendar className="h-5 w-5" />,
-    },
-  ])
-
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await apiRequest(`${API_URL}notifications-by-tenant/${user?.tenant_id}`, "GET");
+        setNotifications(response);
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+        toast({ title: "Error", description: "Failed to load notifications", variant: "destructive" });
+      }
+    };
+    fetchNotifications();
+  }, []);
   const unreadNotifications = notifications.filter((notification) => !notification.read)
   const readNotifications = notifications.filter((notification) => notification.read)
 
-  const markAsRead = (id) => {
-    setNotifications(
-      notifications.map((notification) => (notification.id === id ? { ...notification, read: true } : notification)),
-    )
-  }
+
+  const markAsRead = async (id: string) => {
+    try {
+      await apiRequest(`${API_URL}notifications/${id}/read/${user?.id}`, "PATCH");
+      setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+      toast({ title: "Error", description: "Failed to mark notification as read", variant: "destructive" });
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    try {
+      await apiRequest(`${API_URL}notifications/${id}`, "DELETE");
+      setNotifications(notifications.filter((n) => n.id !== id));
+      toast({ title: "Success", description: "Notification deleted" });
+    } catch (error) {
+      console.error("Failed to delete notification:", error);
+      toast({ title: "Error", description: "Failed to delete notification", variant: "destructive" });
+    }
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    if (notification.type === "pickup") {
+      setSelectedNotification(notification);
+      setIsPickupDialogOpen(true);
+    }
+    if (!notification.read) {
+      markAsRead(notification.id.toString());
+    }
+  };
+
+  const handlePickupConfirm = async () => {
+    if (!selectedNotification) return;
+
+    try {
+      const response = await apiRequest(`${API_URL}notifications/${selectedNotification.id}/pickup/${user?.id}`, "POST");
+      setIsPickupDialogOpen(false);
+      setNotifications(
+        notifications.map((n) =>
+          n.id === selectedNotification.id ? { ...n, read: true } : n
+        )
+      );
+      toast({ title: "Pickup Confirmed", description: "Thank you for confirming your vehicle pickup" });
+
+      // Open rating dialog with garage data
+      setTimeout(() => {
+        setIsRatingDialogOpen(true);
+      }, 500);
+    } catch (error) {
+      console.error("Failed to confirm pickup:", error);
+      toast({ title: "Error", description: "Failed to confirm pickup", variant: "destructive" });
+    }
+  };
+
+  const handleRateGarage = async (rating: number, comment?: string) => {
+    if (!selectedNotification) return;
+
+    try {
+      await apiRequest(`${API_URL}notifications/${selectedNotification.id}/rating/${user?.id}`, "POST", {
+        rating,
+        comment,
+      });
+      setIsRatingDialogOpen(false);
+      toast({ title: "Success", description: "Garage rated successfully" });
+    } catch (error) {
+      console.error("Failed to rate garage:", error);
+      toast({ title: "Error", description: "Failed to rate garage", variant: "destructive" });
+    }
+  };
 
   const markAllAsRead = () => {
     setNotifications(notifications.map((notification) => ({ ...notification, read: true })))
-  }
-
-  const deleteNotification = (id) => {
-    setNotifications(notifications.filter((notification) => notification.id !== id))
   }
 
   const getNotificationIcon = (type) => {
@@ -143,7 +154,7 @@ export default function InsurerNotifications() {
   return (
     <DashboardLayout
       user={{
-        name: user?.firstName ? `${user.firstName} ${user.lastName}` : "Marie Uwase",
+        name: user.name,
         role: "Insurance Company",
         avatar: "/placeholder.svg?height=40&width=40",
       }}
@@ -153,8 +164,8 @@ export default function InsurerNotifications() {
         { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
+        { name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }
       ]}
-      actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -199,7 +210,7 @@ export default function InsurerNotifications() {
                           <div className="flex items-center mt-2">
                             <Clock className="h-3 w-3 text-muted-foreground mr-1" />
                             <span className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })}
+                              {notification.timestamp}
                             </span>
                           </div>
                         </div>
@@ -244,7 +255,7 @@ export default function InsurerNotifications() {
                           <div className="flex items-center mt-2">
                             <Clock className="h-3 w-3 text-muted-foreground mr-1" />
                             <span className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })}
+                              {notification.timestamp}
                             </span>
                           </div>
                         </div>

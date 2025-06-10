@@ -71,12 +71,12 @@ export function MultiSignatureWorkflow({
     try {
       const response = await apiRequest(`${API_URL}claims/${user.tenant_id}/approve/${claimId}/${workflowApprovers[currentApproverIndex].id}`, "POST", {
         status: "approved",
-        signature,
+        signature, user_id: user.id
       });
-      setWorkflowApprovers(response.data.claim.approvers);
-      if (response.data.claim.status !== "pending_approval") {
+      setWorkflowApprovers(response.claim.approvers);
+      if (response.claim.status !== "pending_approval") {
         setWorkflowComplete(true);
-        onComplete(response.data.claim.approvers);
+        onComplete(response.claim.approvers);
       } else if (sequential) {
         setCurrentApproverIndex(prev => prev + 1);
         setSignature(null);
@@ -96,11 +96,11 @@ export function MultiSignatureWorkflow({
     try {
       const response = await apiRequest(`${API_URL}claims/${user.tenant_id}/approve/${claimId}/${workflowApprovers[currentApproverIndex].id}`, "POST", {
         status: "rejected",
-        rejectReason,
+        rejectReason, user_id: user.id
       });
-      setWorkflowApprovers(response.data.claim.approvers);
+      setWorkflowApprovers(response.claim.approvers);
       setWorkflowComplete(true);
-      onComplete(response.data.claim.approvers);
+      onComplete(response.claim.approvers);
       toast({ title: "Claim Rejected", description: "Rejection recorded", variant: "destructive" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });

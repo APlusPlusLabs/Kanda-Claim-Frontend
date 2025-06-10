@@ -32,9 +32,6 @@ export default function ThirdPartyLandingPage() {
     }
 
     if (hasError) return
-
-    // In a real app, we would validate both the tracking ID and reference number
-    // For now, just redirect to the tracking page
     router.push(`/third-party/track/${trackingId}?ref=${referenceNumber}`)
   }
 
@@ -65,7 +62,7 @@ export default function ThirdPartyLandingPage() {
                   <div className="flex gap-2">
                     <Input
                       id="tracking-id"
-                      placeholder="e.g., TP-2025-12345"
+                      placeholder="e.g., KcT3PT-2025-12345"
                       value={trackingId}
                       onChange={(e) => {
                         setTrackingId(e.target.value)
@@ -82,7 +79,7 @@ export default function ThirdPartyLandingPage() {
                   <div className="flex gap-2">
                     <Input
                       id="reference-number"
-                      placeholder="e.g., REF-12345"
+                      placeholder="e.g., Kc3PT-2025-12345"
                       value={referenceNumber}
                       onChange={(e) => {
                         setReferenceNumber(e.target.value)

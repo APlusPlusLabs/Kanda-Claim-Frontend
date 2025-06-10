@@ -175,8 +175,7 @@ export default function InsurerClaimsPage() {
           claim.status === "Submitted" ||
           claim.status === "Assessment Scheduled" ||
           claim.status === "Investigation")) ||
-      (statusFilter === "approved" && claim.status === "Repair Approved") ||
-      (statusFilter === "approved" && claim.status === "Approved") ||
+      (statusFilter === "approved" && (claim.status === "Approved" || claim.status === "Repair Approved")) ||
       (statusFilter === "completed" && claim.status === "Completed") ||
       (statusFilter === "rejected" && claim.status === "Rejected")
 
@@ -246,7 +245,7 @@ export default function InsurerClaimsPage() {
   const ApprovedClaims = sortedClaims.filter((claim) => claim.status === "Approved")
   const submittedClaims = sortedClaims.filter((claim) => claim.status === "Submitted")
   const underReviewClaims = sortedClaims.filter((claim) => claim.status === "Under Review")
-  const approvedClaims = sortedClaims.filter((claim) => claim.status === "Repair Approved")
+  const approvedClaims = sortedClaims.filter((claim) => (claim.status === "Repair Approved"|| claim.status === 'Approved'))
   const completedClaims = sortedClaims.filter((claim) => claim.status === "Completed")
   const rejectedClaims = sortedClaims.filter((claim) => claim.status === "Rejected")
 
@@ -271,7 +270,7 @@ export default function InsurerClaimsPage() {
       case "Submitted":
         return <Badge className="bg-yellow-500">Submitted</Badge>
       case "Approved":
-        return <Badge className="bg-yellow-500">Approved</Badge>
+        return <Badge className="bg-green-500">Approved</Badge>
       case "Under Review":
         return <Badge className="bg-yellow-500">Under Review</Badge>
       case "Pending Review":
@@ -637,7 +636,7 @@ export default function InsurerClaimsPage() {
               <div className="text-2xl font-bold text-blue-900">{approvedClaims.length}</div>
             </CardHeader>
             <CardContent>
-              <div className="text-xs text-blue-700">Repairs approved, in progress</div>
+              <div className="text-xs text-blue-700">Funds / Repairs Approved, in progress</div>
             </CardContent>
           </Card>
 
@@ -870,9 +869,9 @@ export default function InsurerClaimsPage() {
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => openClaimDetails(claim)}
                         >
-                          <TableCell className="font-medium">
+                         <TableCell className="font-medium">
                             <div className="flex flex-col">
-                              <span>{claim.id}</span>
+                              <span>{claim.code}</span>
                               <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
                             </div>
                           </TableCell>
@@ -882,7 +881,7 @@ export default function InsurerClaimsPage() {
                                 {claim.vehicles[0]?.make} {claim.vehicles[0]?.model}
                               </span>
                               <span className="text-xs">{claim.vehicles[0]?.license_plate}</span>
-                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details?.user?.name}</span>
+                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details[0]?.user?.name || claim.user.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -910,7 +909,7 @@ export default function InsurerClaimsPage() {
                                       <p>{claim.pending_reason}</p>
                                       {claim.department?.name && (
                                         <p className="font-semibold mt-1">
-                                          With: {claim.department?.name} ({claim.assignment?.assessor?.name})
+                                          With: {claim.department.name} ({claim.assignment?.assessor?.name})
                                         </p>
                                       )}
                                     </TooltipContent>
@@ -924,7 +923,7 @@ export default function InsurerClaimsPage() {
                             <div className="flex flex-col">
                               <span className="text-sm">{format(new Date(claim.submitted_at?.toString()), "MMM d, yyyy")}</span>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(claim.submitted_at?.toString()), "h:mm a")}
+                                {format(new Date(claim.submitted_at), "h:mm a")}
                               </span>
                             </div>
                           </TableCell>
@@ -1017,9 +1016,9 @@ export default function InsurerClaimsPage() {
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => openClaimDetails(claim)}
                         >
-                          <TableCell className="font-medium">
+                         <TableCell className="font-medium">
                             <div className="flex flex-col">
-                              <span>{claim.id}</span>
+                              <span>{claim.code}</span>
                               <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
                             </div>
                           </TableCell>
@@ -1029,7 +1028,7 @@ export default function InsurerClaimsPage() {
                                 {claim.vehicles[0]?.make} {claim.vehicles[0]?.model}
                               </span>
                               <span className="text-xs">{claim.vehicles[0]?.license_plate}</span>
-                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details?.user?.name}</span>
+                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details[0]?.user?.name || claim.user.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1057,7 +1056,7 @@ export default function InsurerClaimsPage() {
                                       <p>{claim.pending_reason}</p>
                                       {claim.department?.name && (
                                         <p className="font-semibold mt-1">
-                                          With: {claim.department?.name} ({claim.assignment?.assessor?.name})
+                                          With: {claim.department.name} ({claim.assignment?.assessor?.name})
                                         </p>
                                       )}
                                     </TooltipContent>
@@ -1069,7 +1068,7 @@ export default function InsurerClaimsPage() {
                           <TableCell>{getPriorityBadge(claim.priority)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.submitted_at), "MMM d, yyyy")}</span>
+                              <span className="text-sm">{format(new Date(claim.submitted_at?.toString()), "MMM d, yyyy")}</span>
                               <span className="text-xs text-muted-foreground">
                                 {format(new Date(claim.submitted_at), "h:mm a")}
                               </span>
@@ -1164,9 +1163,9 @@ export default function InsurerClaimsPage() {
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => openClaimDetails(claim)}
                         >
-                          <TableCell className="font-medium">
+                         <TableCell className="font-medium">
                             <div className="flex flex-col">
-                              <span>{claim.id}</span>
+                              <span>{claim.code}</span>
                               <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
                             </div>
                           </TableCell>
@@ -1176,7 +1175,7 @@ export default function InsurerClaimsPage() {
                                 {claim.vehicles[0]?.make} {claim.vehicles[0]?.model}
                               </span>
                               <span className="text-xs">{claim.vehicles[0]?.license_plate}</span>
-                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details?.user?.name}</span>
+                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details[0]?.user?.name || claim.user.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1189,12 +1188,34 @@ export default function InsurerClaimsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-col gap-1">{getStatusBadge(claim.status)}</div>
+                            <div className="flex flex-col gap-1">
+                              {getStatusBadge(claim.status)}
+                              {claim.pending_reason && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-center text-xs text-muted-foreground mt-1 cursor-help">
+                                        <Info className="h-3 w-3 mr-1" />
+                                        <span className="truncate max-w-[120px]">{claim.pending_reason}</span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{claim.pending_reason}</p>
+                                      {claim.department?.name && (
+                                        <p className="font-semibold mt-1">
+                                          With: {claim.department.name} ({claim.assignment?.assessor?.name})
+                                        </p>
+                                      )}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>{getPriorityBadge(claim.priority)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.submitted_at), "MMM d, yyyy")}</span>
+                              <span className="text-sm">{format(new Date(claim.submitted_at?.toString()), "MMM d, yyyy")}</span>
                               <span className="text-xs text-muted-foreground">
                                 {format(new Date(claim.submitted_at), "h:mm a")}
                               </span>
@@ -1267,6 +1288,7 @@ export default function InsurerClaimsPage() {
                       <TableHead>Vehicle & Driver</TableHead>
                       <TableHead>Incident Details</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Rejection Reason</TableHead>
                       <TableHead>Priority</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -1280,9 +1302,9 @@ export default function InsurerClaimsPage() {
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => openClaimDetails(claim)}
                         >
-                          <TableCell className="font-medium">
+                        <TableCell className="font-medium">
                             <div className="flex flex-col">
-                              <span>{claim.id}</span>
+                              <span>{claim.code}</span>
                               <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
                             </div>
                           </TableCell>
@@ -1292,7 +1314,7 @@ export default function InsurerClaimsPage() {
                                 {claim.vehicles[0]?.make} {claim.vehicles[0]?.model}
                               </span>
                               <span className="text-xs">{claim.vehicles[0]?.license_plate}</span>
-                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details?.user?.name}</span>
+                              <span className="text-xs text-muted-foreground mt-1">{claim.driver_details[0]?.user?.name || claim.user.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1305,12 +1327,35 @@ export default function InsurerClaimsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-col gap-1">{getStatusBadge(claim.status)}</div>
+                            <div className="flex flex-col gap-1">
+                              {getStatusBadge(claim.status)}
+                              {claim.pending_reason && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-center text-xs text-muted-foreground mt-1 cursor-help">
+                                        <Info className="h-3 w-3 mr-1" />
+                                        <span className="truncate max-w-[120px]">{claim.pending_reason}</span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{claim.pending_reason}</p>
+                                      {claim.department?.name && (
+                                        <p className="font-semibold mt-1">
+                                          With: {claim.department.name} ({claim.assignment?.assessor?.name})
+                                        </p>
+                                      )}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
                           </TableCell>
+                          <TableCell><div className="flex flex-col gap-1"></div></TableCell>
                           <TableCell>{getPriorityBadge(claim.priority)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm">{format(new Date(claim.submitted_at), "MMM d, yyyy")}</span>
+                              <span className="text-sm">{format(new Date(claim.submitted_at?.toString()), "MMM d, yyyy")}</span>
                               <span className="text-xs text-muted-foreground">
                                 {format(new Date(claim.submitted_at), "h:mm a")}
                               </span>
@@ -1406,9 +1451,7 @@ export default function InsurerClaimsPage() {
                           <span className="text-muted-foreground mr-1">{selectedClaim.status} :</span>
                           <Badge variant="outline" className="flex items-center gap-1">
                             {getResponsibleIcon(selectedClaim.department?.name)}
-                           
-                              {selectedClaim.department?.name} ({selectedClaim.assignment?.assessor?.name})
-                           
+                              {selectedClaim.department?.name} ({selectedClaim.assessments[0]?.assessor?.name})
                           </Badge>
                         </span>
                       )}
@@ -1709,7 +1752,7 @@ export default function InsurerClaimsPage() {
 
                   <TabsContent value="timeline">
                     <div className="space-y-4">
-                      {selectedClaim.timeline?.map((item: any, index: number) => (
+                      {selectedClaim.activities?.map((item: any, index: number) => (
                         <div key={index} className="flex">
                           <div className="mr-3">{getTimelineStatusIcon(item.status)}</div>
                           <div className="flex-1">

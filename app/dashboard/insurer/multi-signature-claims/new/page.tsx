@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Send } from "lucide-react"
 import { Stepper } from "@/components/stepper"
 import { Role, User } from "@/lib/types/users"
+import { Claim } from "@/lib/types/claims"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 export default function NewMultiSignatureClaimPage() {
@@ -26,23 +27,31 @@ export default function NewMultiSignatureClaimPage() {
   const [claimData, setClaimData] = useState({
     title: "",
     claimId: "",
+    claimCode: "",
     amount: "",
     customerEmail: "",
     description: "",
     workflowType: "sequential",
+    signers: []
   });
   const [signers, setSigners] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [clients, setClients] = useState<User[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const usersResponse = await apiRequest(`${API_URL}users/${user.tenant_id}`, "GET");
-        const rolesResponse = await apiRequest(`${API_URL}roles/${user.tenant_id}`, "GET");
-        setUsers(usersResponse.data);
-        setRoles(rolesResponse.data);
+        const claimsResponse = await apiRequest(`${API_URL}claims/${user.tenant_id}/claims-with-large-amount`, "GET");
+        setClaims(claimsResponse)
+        const clientsResponse = await apiRequest(`${API_URL}users/by-tenant-sm-info/${user.tenant_id}`, "GET");
+        const usersResponse = await apiRequest(`${API_URL}users/by-tenant/${user.tenant_id}`, "GET");
+        const rolesResponse = await apiRequest(`${API_URL}roles`, "GET");
+        setClients(clientsResponse);
+        setUsers(usersResponse);
+        setRoles(rolesResponse);
       } catch (error) {
         toast({ title: "Error", description: "Failed to load users/roles", variant: "destructive" });
       }
@@ -65,19 +74,29 @@ export default function NewMultiSignatureClaimPage() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      await apiRequest(`/claims/${user.tenant_id}/multi-signature`,"POST", {
+      // const formData = new FormData()
+      // formData.append('title', claimData.title)
+      // formData.append('claim_id', claimData.claimId)
+      // formData.set('amount', claimData.amount)
+      // formData.append('customerEmail', claimData.customerEmail)
+      // formData.append('description', claimData.description)
+      // formData.append('workflowType', claimData.workflowType)
+      // formData.append('signers', JSON.stringify(signers))
+      // formData.append('user_id', user.id)
+      const response = await apiRequest(`${API_URL}claims/multi-signature/${user.tenant_id}`, "POST", {
         title: claimData.title,
-        claimId: claimData.claimId,
-        amount: parseFloat(claimData.amount),
+        claim_id: claimData.claimId,
+        amount: Number(claimData.amount),
         customerEmail: claimData.customerEmail,
         description: claimData.description,
         workflowType: claimData.workflowType,
         signers,
+        user_id: user.id
       });
       toast({ title: "Success", description: "Multi-signature claim created" });
       router.push("/dashboard/insurer/multi-signature-claims");
-    } catch (error:any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || error, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -101,11 +120,29 @@ export default function NewMultiSignatureClaimPage() {
 
   const canProceed = isStepComplete(currentStep);
 
+  const handleSelectedClaim = (claimid: string) => {
+    const claim = claims.find(cl => cl.id + "" === claimid + "")
+    if (claim) {
+      //claimData.claimId = claimid
+      claimData.claimCode = claim.code
+      if (claimData.title === '') {
+        if (claim.vehicles) {
+          const vehicle = claim.vehicles[0] ? claim.vehicles[0].model + " " + claim.vehicles[0].make : ""
+          claimData.title = `${vehicle} claim for ${claim.amount}`
+        } else { claimData.title = `Claim for ${claim.amount}` }
+      }
+      if (claimData.amount === '') { claimData.amount = claim.amount + "" }
+      if (claimData.customerEmail === '') { claimData.customerEmail = claim.user.email }
+      if (claimData.description === '') { claimData.description = claim.description }
+
+      handleClaimDataChange('claimId', claimid)
+    }
+  }
   return (
     <DashboardLayout
       user={{
         name: user.name,
-        role: "Insurance Company",
+        role: user.role.name + " @ " + user.tenant.name,
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
@@ -149,68 +186,80 @@ export default function NewMultiSignatureClaimPage() {
             <CardDescription>{steps[currentStep].description}</CardDescription>
           </CardHeader>
           <CardContent>
-          {currentStep === 0 && (
+            {currentStep === 0 && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Claim Title</Label>
-                    <Input
-                      id="title"
-                      placeholder="Enter claim title"
-                      value={claimData.title}
-                      onChange={(e) => handleClaimDataChange("title", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="claimId">Related Claim ID</Label>
-                    <Input
-                      id="claimId"
-                      placeholder="Enter related claim ID"
-                      value={claimData.claimId}
-                      onChange={(e) => handleClaimDataChange("claimId", e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="amount">Claim Amount (RWF)</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      placeholder="Enter claim amount"
-                      value={claimData.amount}
-                      onChange={(e) => handleClaimDataChange("amount", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="customerEmail">Customer Email</Label>
-                    <Select
-                      value={claimData.customerEmail}
-                      onValueChange={(value) => handleClaimDataChange("customerEmail", value)}
-                    >
-                      <SelectTrigger id="customerEmail">
-                        <SelectValue placeholder="Select customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {users.map((user) => (
-                          <SelectItem key={user.email} value={user.email}>
-                            {user.first_name} {user.last_name} ({user.email})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="description">Claim Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Enter claim description"
-                    rows={4}
-                    value={claimData.description}
-                    onChange={(e) => handleClaimDataChange("description", e.target.value)}
-                  />
+                  <Label htmlFor="claimId">Select the Claim that need MultiSignature</Label>
+                  <Select
+                    value={claimData.claimId}
+                    onValueChange={(value) => handleSelectedClaim(value)}
+
+                  >
+                    <SelectTrigger id="claimId">
+                      <SelectValue placeholder="Select claim" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {claims.map((claim) => (
+                        <SelectItem key={claim.id} value={claim.id}>
+                          {claim.code} by {claim.user.name} for ({claim.amount})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+                {claimData.claimId ? (
+                  <div className="" >
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Claim Title</Label>
+                      <Input
+                        id="title"
+                        placeholder="Enter claim title"
+                        value={claimData.title}
+                        onChange={(e) => handleClaimDataChange("title", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="amount">Claim Amount (RWF)</Label>
+                        <Input
+                          id="amount"
+                          type="number"
+                          placeholder="Enter claim amount"
+                          value={claimData.amount}
+                          onChange={(e) => handleClaimDataChange("amount", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="customerEmail">Customer Email</Label>
+                        <Select
+                          value={claimData.customerEmail}
+                          onValueChange={(value) => handleClaimDataChange("customerEmail", value)}
+                        >
+                          <SelectTrigger id="customerEmail">
+                            <SelectValue placeholder="Select customer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {clients.map((user) => (
+                              <SelectItem key={user.email} value={user.email}>
+                                {user.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Claim Description</Label>
+                      <Textarea
+                        id="description"
+                        placeholder="Enter claim description"
+                        rows={4}
+                        value={claimData.description}
+                        onChange={(e) => handleClaimDataChange("description", e.target.value)}
+                      />
+                    </div>
+                  </div>) : 'Select Claim'}
                 <div className="space-y-2">
                   <Label htmlFor="workflowType">Workflow Type</Label>
                   <Select
@@ -235,15 +284,17 @@ export default function NewMultiSignatureClaimPage() {
             )}
 
             {currentStep === 1 && (
+              <>
 
-              <InviteSignersForm
-                onAddSigner={handleAddSigner}
-                onRemoveSigner={handleRemoveSigner}
-                signers={signers}
-                workflowType={claimData.workflowType}
-                users={users}
-                roles={roles}
-              />
+                <InviteSignersForm
+                  onAddSigner={handleAddSigner}
+                  onRemoveSigner={handleRemoveSigner}
+                  signers={signers}
+                  workflowType={claimData.workflowType}
+                  users={users}
+                  roles={roles}
+                />
+              </>
             )}
 
             {currentStep === 2 && (
@@ -257,7 +308,7 @@ export default function NewMultiSignatureClaimPage() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Related Claim ID</p>
-                      <p className="text-sm">{claimData.claimId}</p>
+                      <p className="text-sm">{claimData.claimCode}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Claim Amount</p>
@@ -321,7 +372,7 @@ export default function NewMultiSignatureClaimPage() {
                           </p>
                           <p className="text-sm">
                             <span className="font-medium">Subject:</span> Action Required: Sign Claim Document
-                            {claimData.claimId ? ` - ${claimData.claimId}` : ""}
+                            {claimData.claimCode ? ` - ${claimData.claimCode}` : ""}
                           </p>
                         </div>
                         <div>
@@ -334,7 +385,7 @@ export default function NewMultiSignatureClaimPage() {
                             <br />
                             Title: {claimData.title || "Claim Title"}
                             <br />
-                            ID: {claimData.claimId || "Claim ID"}
+                            ID: {claimData.claimCode || "Claim ID"}
                             <br />
                             Amount:{" "}
                             {claimData.amount ? `${Number.parseInt(claimData.amount).toLocaleString()} RWF` : "Amount"}
@@ -364,7 +415,7 @@ export default function NewMultiSignatureClaimPage() {
                           </p>
                           <p className="text-sm">
                             <span className="font-medium">Subject:</span> Reminder: Sign Claim Document
-                            {claimData.claimId ? ` - ${claimData.claimId}` : ""}
+                            {claimData.claimCode ? ` - ${claimData.claimCode}` : ""}
                           </p>
                         </div>
                         <div>
@@ -425,7 +476,7 @@ export default function NewMultiSignatureClaimPage() {
               ) : (
                 <>
                   <Send className="mr-2 h-4 w-4" />
-                  Create & Send Invitations
+                  Create & Send Signature Invitations
                 </>
               )}
             </Button>

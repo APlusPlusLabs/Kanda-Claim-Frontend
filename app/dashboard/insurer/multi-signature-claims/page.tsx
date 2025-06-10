@@ -17,16 +17,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 // Mock data for multi-signature claims
 const mockClaims = [
   {
     id: "MS-2023-001",
     title: "High-Value Vehicle Damage Claim",
-    claimId: "CL-2023-042",
+    claimId: "37837-3873873kjkdj-uuiui",
+    code: "CL-2023-042",
     date: "2025-12-10",
     status: "pending_approval",
     customer: "Mugisha Jean",
     amount: 2500000,
+    workflow_type: 'sequential',
     description: "Luxury vehicle damage requiring multiple approvals due to high claim amount",
     approvers: [
       {
@@ -56,74 +59,6 @@ const mockClaims = [
       },
     ],
   },
-  {
-    id: "MS-2023-002",
-    title: "Commercial Vehicle Fleet Claim",
-    claimId: "CL-2023-051",
-    date: "2025-11-28",
-    status: "pending_approval",
-    customer: "Kigali Transport Ltd",
-    amount: 1850000,
-    description: "Multiple vehicle damage from commercial fleet accident",
-    approvers: [
-      {
-        id: "1",
-        name: "Uwimana Marie",
-        role: "Claims Manager",
-        status: "approved",
-        timestamp: new Date("2025-11-29T14:15:00"),
-        signature:
-          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAACWCAYAAABkW7XSAAAAAXNSR0IArs4c6QAABGJJREFUeF7t3UFu20YUgOHnUTZZpgfoMbJMT9BeIL1BewQDWWaZHiG9QXuE9AYtUCDZZJngGSQQEJAVW7LGQ/L7F4Yt2xLJx8fHGZK2m6enp6vNZvPXZrP5Y7vdXnlMCBAgUCGw2+3+3W63f19fX/+z2+3+vLq6+uf5+fnr8/Pz5vHx8Z/r6+s/t9vt71VzNgcCBAicEtjtdl+22+0/T09PXzebzdfN4+Pj1+12e7vZbG5DCAgQIFAusNvtvm232y+bh4eHL5vt9vrL5uHh4fPNzc1tuYQJESBA4LTA58+fP282m9vN/f39p5ubm7vTh/iEAAECNQL39/ef7u7u7jb39/ef7u7u7mqmawYECBA4LXB3d3d3f3//6ZxgHR9nv7+/v/UYESBAoELg9vb2y+3t7e05wToe3N/f33qMCBAgUCFwTrCOB/f39/cVEzYHAgQInBM8wSJAYDiBc4J1fCXw4eHBY0WAwGgCJXcJj0/e39/fj7ZY8yVAYCyBkoP7x8P7+/v7sZZrtgQIjCZwTrCOx7Du7+/vRluu+RIgMJbAOcE6vnh/f39/N9ZyzZYAgdEEzgnW8aD+/f393WjLNV8CBMYSOCdYx1cJ7+/v78ZartlOKuBK+0kXdqJlnROsE4f7iMCIAv7B5IirPm/O5wTr+NLN8XhWxXs3z5uxowmMIVDyTvdjLNMsCYwtUBKs8VdvBQRGEihbwJFWbK4ECJQESLAIEBhOQLCGW7kFExAsz4HhBARruJVbMAHB8hwYTkCwhlv5cAv2TvfDLfnsBS8ZrLNn4AACBMYWEKyx92/2BIYTEKzhVm7BBAQr9jnwm8nYvZtdTECwYvYCFbN3s4sJCFbMXqBi9m52MQHBitkLVMzezS4mIFgxe4GK2bvZxQQEK2YvUDF7N7uYgGDF7AUqZu9mFxMQrJi9QMXs3exiAoIVsxeomL2bXUxAsGL2AhWzd7OLCQhWzF6gYvZudjEBwYrZC1TM3s0uJiBYMXuBitm72cUEBCtmL1AxezebQGAJr8ZPsGwTJkBgIQHBWgjaZRMgkBEQrIyjqxAgsBCBYC0E7bIJEMgICFbG0VUIEFgIQLAWgj7nsl3lPkfJMQTOFxCs861KjnSVu4TRJAicLyBY51uVHOkqdwmjSRA4X0Cwzrcq+cRV7hJGkyBwvoBgnW9V8omr3CWMJkHgfAHBOt+q5BNXuUsYTYLA+QKCdb5VySeucpcwmgSB8wUE63yrsk9c5S6jNBEC5wkI1nlOZUe5yl1GaSIEzhMQrPOcyo5ylbuM0kQInCcgWOc5lR3lKncZpYkQOE9AsM5zKjvKVe4yShMhcJ6AYJ3nVHaUq9xllCZC4DwBwTrPqewoV7nLKE2EwHkCgnWeU9lRrnKXUZoIgfMEBOs8p7KjXOUuozQRAucJCNZ5TmVHucpdRmkiBM4TEKzznMqOcpW7jNJECJwnIFjnOZUd5Sp3GaWJEDhP4H9Z7r9g5zS8AQAAAABJRU5ErkJggg==",
-      },
-      {
-        id: "2",
-        name: "Nkusi Emmanuel",
-        role: "Finance Director",
-        status: "approved",
-        timestamp: new Date("2025-11-30T09:45:00"),
-        signature:
-          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAACWCAYAAABkW7XSAAAAAXNSR0IArs4c6QAABGJJREFUeF7t3UFu20YUgOHnUTZZpgfoMbJMT9BeIL1BewQDWWaZHiG9QXuE9AYtUCDZZJngGSQQEJAVW7LGQ/L7F4Yt2xLJx8fHGZK2m6enp6vNZvPXZrP5Y7vdXnlMCBAgUCGw2+3+3W63f19fX/+z2+3+vLq6+uf5+fnr8/Pz5vHx8Z/r6+s/t9vt71VzNgcCBAicEtjtdl+22+0/T09PXzebzdfN4+Pj1+12e7vZbG5DCAgQIFAusNvtvm232y+bh4eHL5vt9vrL5uHh4fPNzc1tuYQJESBA4LTA58+fP282m9vN/f39p5ubm7vTh/iEAAECNQL39/ef7u7u7jb39/ef7u7u7mqmawYECBA4LXB3d3d3f3//6ZxgHR9nv7+/v/UYESBAoELg9vb2y+3t7e05wToe3N/f33qMCBAgUCFwTrCOB/f39/cVEzYHAgQInBM8wSJAYDiBc4J1fCXw4eHBY0WAwGgCJXcJj0/e39/fj7ZY8yVAYCyBkoP7x8P7+/v7sZZrtgQIjCZwTrCOx7Du7+/vRluu+RIgMJbAOcE6vnh/f39/N9ZyzZYAgdEEzgnW8aD+/f393WjLNV8CBMYSOCdYx1cJ7+/v78ZartlOKuBK+0kXdqJlnROsE4f7iMCIAv7B5IirPm/O5wTr+NLN8XhWxXs3z5uxowmMIVDyTvdjLNMsCYwtUBKs8VdvBQRGEihbwJFWbK4ECJQESLAIEBhOQLCGW7kFExAsz4HhBARruJVbMAHB8hwYTkCwhlv5cAv2TvfDLfnsBS8ZrLNn4AACBMYWEKyx92/2BIYTEKzhVm7BBAQr9jnwm8nYvZtdTECwYvYCFbN3s4sJCFbMXqBi9m52MQHBitkLVMzezS4mIFgxe4GK2bvZxQQEK2YvUDF7N7uYgGDF7AUqZu9mFxMQrJi9QMXs3exiAoIVsxeomL2bXUxAsGL2AhWzd7OLCQhWzF6gYvZudjEBwYrZC1TM3s0uJiBYMXuBitm72cUEBCtmL1AxezebQGAJr8ZPsGwTJkBgIQHBWgjaZRMgkBEQrIyjqxAgsBCBYC0E7bIJEMgICFbG0VUIEFgIQLAWgj7nsl3lPkfJMQTOFxCs861KjnSVu4TRJAicLyBY51uVHOkqdwmjSRA4X0Cwzrcq+cRV7hJGkyBwvoBgnW9V8omr3CWMJkHgfAHBOt+q5BNXuUsYTYLA+QKCdb5VySeucpcwmgSB8wUE63yrsk9c5S6jNBEC5wkI1nlOZUe5yl1GaSIEzhMQrPOcyo5ylbuM0kQInCcgWOc5lR3lKncZpYkQOE9AsM5zKjvKVe4yShMhcJ6AYJ3nVHaUq9xllCZC4DwBwTrPqewoV7nLKE2EwHkCgnWeU9lRrnKXUZoIgfMEBOs8p7KjXOUuozQRAucJCNZ5TmVHucpdRmkiBM4TEKzznMqOcpW7jNJECJwnIFjnOZUd5Sp3GaWJEDhP4H9Z7r9g5S8AQAAAABJRU5ErkJggg==",
-      },
-      {
-        id: "3",
-        name: "Hakizimana Jean-Paul",
-        role: "Chief Operations Officer",
-        status: "pending",
-        timestamp: null,
-        signature: null,
-      },
-    ],
-  },
-  {
-    id: "MS-2023-003",
-    title: "Fraud Investigation Claim",
-    claimId: "CL-2023-038",
-    date: "2025-10-15",
-    status: "rejected",
-    customer: "Gasana Patrick",
-    amount: 1200000,
-    description: "Claim with suspected fraud requiring multi-level review",
-    approvers: [
-      {
-        id: "1",
-        name: "Uwimana Marie",
-        role: "Claims Manager",
-        status: "approved",
-        timestamp: new Date("2025-10-16T11:20:00"),
-        signature:
-          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAACWCAYAAABkW7XSAAAAAXNSR0IArs4c6QAABGJJREFUeF7t3UFu20YUgOHnUTZZpgfoMbJMT9BeIL1BewQDWWaZHiG9QXuE9AYtUCDZZJngGSQQEJAVW7LGQ/L7F4Yt2xLJx8fHGZK2m6enp6vNZvPXZrP5Y7vdXnlMCBAgUCGw2+3+3W63f19fX/+z2+3+vLq6+uf5+fnr8/Pz5vHx8Z/r6+s/t9vt71VzNgcCBAicEtjtdl+22+0/T09PXzebzdfN4+Pj1+12e7vZbG5DCAgQIFAusNvtvm232y+bh4eHL5vt9vrL5uHh4fPNzc1tuYQJESBA4LTA58+fP282m9vN/f39p5ubm7vTh/iEAAECNQL39/ef7u7u7jb39/ef7u7u7mqmawYECBA4LXB3d3d3f3//6ZxgHR9nv7+/v/UYESBAoELg9vb2y+3t7e05wToe3N/f33qMCBAgUCFwTrCOB/f39/cVEzYHAgQInBM8wSJAYDiBc4J1fCXw4eHBY0WAwGgCJXcJj0/e39/fj7ZY8yVAYCyBkoP7x8P7+/v7sZZrtgQIjCZwTrCOx7Du7+/vRluu+RIgMJbAOcE6vnh/f39/N9ZyzZYAgdEEzgnW8aD+/f393WjLNV8CBMYSOCdYx1cJ7+/v78ZartlOKuBK+0kXdqJlnROsE4f7iMCIAv7B5IirPm/O5wTr+NLN8XhWxXs3z5uxowmMIVDyTvdjLNMsCYwtUBKs8VdvBQRGEihbwJFWbK4ECJQESLAIEBhOQLCGW7kFExAsz4HhBARruJVbMAHB8hwYTkCwhlv5cAv2TvfDLfnsBS8ZrLNn4AACBMYWEKyx92/2BIYTEKzhVm7BBAQr9jnwm8nYvZtdTECwYvYCFbN3s4sJCFbMXqBi9m52MQHBitkLVMzezS4mIFgxe4GK2bvZxQQEK2YvUDF7N7uYgGDF7AUqZu9mFxMQrJi9QMXs3exiAoIVsxeomL2bXUxAsGL2AhWzd7OLCQhWzF6gYvZudjEBwYrZC1TM3s0uJiBYMXuBitm72cUEBCtmL1AxezebQGAJr8ZPsGwTJkBgIQHBWgjaZRMgkBEQrIyjqxAgsBCBYC0E7bIJEMgICFbG0VUIEFgIQLAWgj7nsl3lPkfJMQTOFxCs861KjnSVu4TRJAicLyBY51uVHOkqdwmjSRA4X0Cwzrcq+cRV7hJGkyBwvoBgnW9V8omr3CWMJkHgfAHBOt+q5BNXuUsYTYLA+QKCdb5VySeucpcwmgSB8wUE63yrsk9c5S6jNBEC5wkI1nlOZUe5yl1GaSIEzhMQrPOcyo5ylbuM0kQInCcgWOc5lR3lKncZpYkQOE9AsM5zKjvKVe4yShMhcJ6AYJ3nVHaUq9xllCZC4DwBwTrPqewoV7nLKE2EwHkCgnWeU9lRrnKXUZoIgfMEBOs8p7KjXOUuozQRAucJCNZ5TmVHucpdRmkiBM4TEKzznMqOcpW7jNJECJwnIFjnOZUd5Sp3GaWJEDhP4H9Z7r9g5zS8AQAAAABJRU5ErkJggg==",
-      },
-      {
-        id: "2",
-        name: "Nkusi Emmanuel",
-        role: "Finance Director",
-        status: "rejected",
-        timestamp: new Date("2025-10-18T15:30:00"),
-        rejectReason: "Inconsistencies in damage report and photos. Requires further investigation by fraud team.",
-        signature: null,
-      },
-    ],
-  },
 ]
 
 export default function MultiSignatureClaimsPage() {
@@ -131,7 +66,7 @@ export default function MultiSignatureClaimsPage() {
 
   const { user, apiRequest } = useAuth();
   const { toast } = useToast();
-  const [claims, setClaims] = useState([]);
+  const [claims, setClaims] = useState();
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
@@ -142,10 +77,8 @@ export default function MultiSignatureClaimsPage() {
     const fetchClaims = async () => {
       setLoading(true);
       try {
-        const response = await apiRequest('GET', `/claims/${user.tenant_id}/multi-signature`, {
-          params: { status: statusFilter, date: dateFilter },
-        });
-        setClaims(response.data);
+        const response = await apiRequest(`${API_URL}claims/${user.tenant_id}/multi-signature?status=${statusFilter}&date=${dateFilter}`, "GET");
+        setClaims(response);
       } catch (error) {
         toast({ title: "Error", description: "Failed to load claims", variant: "destructive" });
       } finally {
@@ -154,53 +87,52 @@ export default function MultiSignatureClaimsPage() {
     };
     fetchClaims();
   }, [statusFilter, dateFilter]);
+  if (!claims) {
+    return <>No CLaims Yet.</>
+  }
   const handleViewClaim = (claim: (typeof mockClaims)[0]) => {
     setSelectedClaim(claim)
     setShowWorkflow(true)
   }
 
-  const handleWorkflowComplete = (approvers: SignatureInfo[]) => {
-    // In a real app, this would call an API to update the claim
-    console.log("Workflow completed with approvers:", approvers)
-
-    // Update the UI to reflect the changes
-    setClaims((prevClaims) =>
-      prevClaims.map((claim) => {
-        if (claim.id === selectedClaim?.id) {
-          // Check if any approver rejected the claim
-          const rejected = approvers.some((approver) => approver.status === "rejected")
-          // Check if all approvers have approved the claim
-          const allApproved = !rejected && approvers.every((approver) => approver.status !== "pending")
-
-          return {
-            ...claim,
-            status: rejected ? "rejected" : allApproved ? "approved" : "pending_approval",
-            approvers: approvers,
-          }
-        }
-        return claim
-      }),
-    )
-
+  const handleWorkflowComplete = async (approvers: SignatureInfo[]) => {
     setShowWorkflow(false)
+    try {
+      approvers.forEach(async apr => {
+        const response = await apiRequest(`${API_URL}claims/${user.tenant_id}/approve/${selectedClaim.claimId}/${apr.id}`, "POST", {
+          id: apr.id,
+          name: apr.name,
+          rejection_reason: apr.rejectReason,
+          status: apr.status,
+          user_id: user.id,
+          signture: apr.signature
+        });
+      });
 
-    toast({
-      title: "Workflow updated",
-      description: "The multi-signature workflow has been updated successfully",
-    })
+      toast({
+        title: "Workflow updated",
+        description: "The multi-signature workflow has been updated successfully",
+      })
+    } catch (error: any) {
+
+      toast({
+        title: "Error",
+        description: JSON.stringify(error),
+        variant: 'destructive'
+      })
+    }
   }
 
   const handleCreateNew = () => {
-    // In a real app, this would navigate to a form to create a new multi-signature claim
     router.push("/dashboard/insurer/multi-signature-claims/new")
   }
 
   const filteredClaims = claims.filter((claim) => {
     // Filter by status
     if (statusFilter !== "all") {
-      if (statusFilter === "pending" && claim.status !== "pending_approval") return false
-      if (statusFilter === "approved" && claim.status !== "approved") return false
-      if (statusFilter === "rejected" && claim.status !== "rejected") return false
+      if (statusFilter === "pending") return false
+      if (statusFilter === "approved") return false
+      if (statusFilter === "rejected") return false
     }
 
     // Filter by date (simplified for demo)
@@ -223,7 +155,7 @@ export default function MultiSignatureClaimsPage() {
     <DashboardLayout
       user={{
         name: user.name,
-        role: "Insurance Company",
+        role: user.role.name + " @ " + user.tenant.name,
         avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
@@ -336,7 +268,7 @@ export default function MultiSignatureClaimsPage() {
                       <div>
                         <h3 className="text-lg font-semibold">{claim.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          ID: {claim.id} • Claim: {claim.claimId} • {claim.date}
+                          Claim: {claim.code} • {claim.date}
                         </p>
                       </div>
                       <Badge
@@ -454,7 +386,7 @@ export default function MultiSignatureClaimsPage() {
             <CardHeader>
               <CardTitle>Multi-Signature Workflow</CardTitle>
               <CardDescription>
-                Claim #{selectedClaim.claimId} - {selectedClaim.title}
+                Claim #{selectedClaim.code} - {selectedClaim.title}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -463,7 +395,7 @@ export default function MultiSignatureClaimsPage() {
                 claimTitle={selectedClaim.title}
                 approvers={selectedClaim.approvers}
                 onComplete={handleWorkflowComplete}
-                sequential={true}
+                sequential={selectedClaim.workflow_type === 'sequential' ? true : false}
               />
               <div className="mt-4 flex justify-end">
                 <Button variant="outline" onClick={() => setShowWorkflow(false)}>

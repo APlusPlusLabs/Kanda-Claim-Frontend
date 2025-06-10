@@ -38,7 +38,9 @@ import { useAuth } from "@/lib/auth-provider"
 import { format } from "date-fns"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
-const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/claims/photos/";
+const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
+const STORAGES_URL_PHOTOS = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/claims/photos/";
+const STORAGES_URL_DOCS = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/claims/documents/";
 
 export default function ThirdPartyTrackPage() {
   const router = useRouter()
@@ -126,24 +128,39 @@ export default function ThirdPartyTrackPage() {
     setSelectedFiles(Array.from(files))
   }
 
-  const handleUploadSubmit = () => {
-    // In a real app, we would upload the files to an API
-    // For now, we'll just show a success message
-    toast({
-      title: "Files Uploaded",
-      description: "Your files have been uploaded successfully.",
-    })
-    setIsUploadDialogOpen(false)
-    setSelectedFiles([])
-    setUploadType("")
-    setUploadDescription("")
+  const handleUploadSubmit = async () => {
+    try {
+      selectedFiles.forEach(async (doc, index) => {
+        if (doc) {
+          const formData = new FormData();
+          formData.append('type', uploadType);
+          formData.append('description', uploadDescription);
+          formData.append('file', doc);
+          formData.append('claim_id', claim.id + "");
+          const response = await apiRequest(`${API_URL}third-party-claims/${claim.id}/upload-documents`, "POST", formData);
+        }
+      });
+      toast({
+        title: "Files Uploaded",
+        description: "Your files have been uploaded successfully.",
+      })
+      setIsUploadDialogOpen(false)
+      setSelectedFiles([])
+      setUploadType("")
+      setUploadDescription("")
+    } catch (error: any) {
+      console.error("Error upload-documents:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload-documents. Please try again.",
+        variant: "destructive",
+      });
+    }
   }
 
-  const handleMessageSubmit = () => {
+  const handleMessageSubmit = async () => {
     if (!newMessage.trim()) return
-
-    // In a real app, we would send the message to an API
-    // For now, we'll just update the local state
+    const reposnse = await apiRequest(`${API_URL}messages-3rd/${claim.user_id}`, "POST", { content: newMessage, claim_id: claim.id })
     const updatedClaim = {
       ...claim,
       messages: [
@@ -434,14 +451,14 @@ export default function ThirdPartyTrackPage() {
                       <div className="flex flex-col items-center">
                         {/* {getDocumentIcon(doc.type)} */}
                         <img src={STORAGES_URL + doc.name} alt={doc.type} />
-                        <span className="ml-2">{doc.name}</span>
+                        <span className="ml-2">{doc.type}</span>
                       </div>
                       <div className="flex items-center">
                         <span className="text-xs text-muted-foreground mr-4">Uploaded on {doc.uploadedAt}</span>
-                        <Button variant="ghost" size="icon" onClick={() => window.location.assign(STORAGES_URL + doc.name)}>
+                        <Button variant="ghost" size="icon" onClick={() => window.open(STORAGES_URL + doc.name, '_blank')}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => window.location.assign(STORAGES_URL + doc.name)}>
+                        <Button variant="ghost" size="icon" onClick={() => window.open(STORAGES_URL + doc.name, '_blank')}>
                           <Download className="h-4 w-4" />
                         </Button>
                       </div>
@@ -587,7 +604,7 @@ export default function ThirdPartyTrackPage() {
             <Button variant="outline" onClick={() => setIsMessageDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleMessageSubmit} disabled={!newMessage.trim()}>
+            <Button onClick={handleMessageSubmit} disabled={!newMessage.trim() || isSubmiting}>
               Send Message
             </Button>
           </DialogFooter>

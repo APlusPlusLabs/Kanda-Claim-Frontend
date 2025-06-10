@@ -11,9 +11,12 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, ArrowRight, FileText, AlertCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useAuth } from "@/lib/auth-provider"
 
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 export default function LinkClaimPage() {
   const router = useRouter()
+  const { apiRequest } = useAuth()
   const { toast } = useToast()
   const [claimId, setClaimId] = useState("")
   const [referenceNumber, setReferenceNumber] = useState("")
@@ -32,12 +35,8 @@ export default function LinkClaimPage() {
     setError("")
 
     try {
-      // In a real app, we would make an API call to link the claim
-      // For now, we'll simulate a successful response
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // Generate a tracking ID for the linked claim
-      const trackingId = `TP-2025-${Math.floor(10000 + Math.random() * 90000)}`
+      const reposnse = await apiRequest(`${API_URL}third-party-claims/link-claim`, "PUT", {claimId, referenceNumber})
+      const trackingId = reposnse.tracking_id
 
       toast({
         title: "Claim Linked Successfully",
@@ -88,7 +87,7 @@ export default function LinkClaimPage() {
               <Label htmlFor="claim-id">Claim ID</Label>
               <Input
                 id="claim-id"
-                placeholder="e.g., CL-2025-001"
+                placeholder="e.g., KcKLM-2025-001"
                 value={claimId}
                 onChange={(e) => setClaimId(e.target.value)}
               />
@@ -98,7 +97,7 @@ export default function LinkClaimPage() {
               <Label htmlFor="reference-number">Reference Number</Label>
               <Input
                 id="reference-number"
-                placeholder="e.g., REF-12345"
+                placeholder="e.g., Kc3PT-12345"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
               />

@@ -655,14 +655,10 @@ export default function NewClaimPage() {
             response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
           }
         });
-        // Prompt for optional documents
         if (!values.documents?.length) {
-          const confirmSubmit = window.confirm(t("claims.confirm_no_documents")); // Add translation: "No documents uploaded. Submit anyway?"
+          const confirmSubmit = window.confirm(t("claims.confirm_no_documents"));
           if (!confirmSubmit) return;
         }
-        // if (formData.getAll("documents[0][file]").length) {
-        //   response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
-        // }
       }
 
       setCompletedSteps((prev) => [...prev, step]);
