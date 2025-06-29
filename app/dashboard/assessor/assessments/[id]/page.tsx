@@ -65,6 +65,7 @@ export default function AssessmentDetails({ params }: Props) {
         const assessment = {
           ...claim,
           ...assign,
+          claim,
           assessementInfo: claim.assessments,
           claimId: claim.code,
           vehicle: vehicle?.model + ' ' + vehicle?.make + ' ' + vehicle?.year,
@@ -272,7 +273,7 @@ export default function AssessmentDetails({ params }: Props) {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Building className="h-5 w-5 mr-2" /> Insurer Information
+                <Building className="h-5 w-5 mr-2" /> Insurance Information
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -417,13 +418,13 @@ export default function AssessmentDetails({ params }: Props) {
 
           <TabsContent value="timeline" className="space-y-4">
             <div className="space-y-4">
-              {assessment.timeline?.map((event) => (
+              {assessment.activities?.map((event) => (
                 <div key={event.id} className="flex items-start space-x-4">
                   <div className="mt-1 bg-primary w-2 h-2 rounded-full"></div>
                   <div className="flex-1">
                     <div className="text-sm text-muted-foreground">{event.date}</div>
                     <div className="font-medium">{event.event}</div>
-                    <div className="text-sm">{event.user}</div>
+                    <div className="text-sm">{event.user?.info}</div>
                   </div>
                 </div>
               ))}

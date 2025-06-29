@@ -579,7 +579,7 @@ export default function DriverClaimsPage() {
                           <div key={doc.id} className="flex items-center justify-between text-sm">
                             <div className="flex items-center">
                               {getDocumentIcon(doc.mime_type)}
-                              <span className="ml-2">{doc.file_name}</span>
+                              <span className="ml-2">{doc.category?.name} {doc.mime_type}</span>
                             </div>
                             <Button
                               variant="ghost"

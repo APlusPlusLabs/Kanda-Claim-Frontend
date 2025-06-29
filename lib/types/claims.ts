@@ -106,6 +106,7 @@ export interface Garage {
   claim_id: string;
   name: string;
   phone: string;
+  email?: string;
   repair_estimate: number;
   rating?: number,
   address: string;
@@ -212,12 +213,20 @@ export const defaultClaim: Claim = {
     tenant: {
       id: "",
       name: "",
-      users: []
+      users: [],
+      email: "",
+      phone: "",
+      address: "",
+      website: "",
+      contact_person: null,
+      description: "",
+      min_amount_multisignature: 0
     },
     avatar: "",
     status: "",
     last_login: "",
-    garage_id: ""
+    garage_id: "",
+    info: ""
   },
   department: {},
   created_at: "",
@@ -227,6 +236,107 @@ export const defaultClaim: Claim = {
   tenant: {
     id: "",
     name: "",
-    users: []
+    users: [],
+    email: "",
+    phone: "",
+    address: "",
+    website: "",
+    contact_person: null,
+    description: "",
+    min_amount_multisignature: 0
   }
 };
+
+export interface Contract {
+  id: string;
+  code: string;
+  tenant_id: string;
+  bid_id: string;
+  garage_id: string;
+  claim_id: string;
+  terms: string;
+  document: string;
+  status: string;
+  contract_value: number;
+  expires_at: string;
+  created_by: string;
+  signed_by: string;
+  signed_at: string;
+}
+export type PaymentStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'refunded'
+
+export interface Payment {
+  id: string
+  code: string
+  tenant_id: string
+  claim_id?: string | null
+  user_id: string
+  amount: number
+  currency: string
+  payment_method?: string | null
+  payment_code?: string | null
+  document?: string | null
+  status: PaymentStatus
+  transaction_reference?: string | null
+  payment_gateway?: string | null
+  gateway_response?: string | null
+  processed_at?: string | null
+  failure_reason?: string | null
+  contract_id?: string | null
+  created_at: string
+  updated_at: string
+
+  claim?: Claim
+  user?: User
+  contract?: Contract
+  tenant?: Tenant
+
+  formatted_amount?: string
+  is_refund?: boolean
+  is_completed?: boolean
+  is_pending?: boolean
+  is_failed?: boolean
+  status_color?: string
+}
+export type SettlementStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'completed'
+
+
+export interface Settlement {
+  id: string
+  code: string
+  tenant_id: string
+  claim_id: string
+  payment_id: string
+  user_id: string
+  settled_amount: number
+  settled_at?: string | null
+  status: SettlementStatus
+  settlement_notes?: string | null
+  approved_by?: string | null
+  requested_amount?: number | null
+  created_at: string
+  updated_at: string
+
+  claim?: Claim
+  payment?: Payment
+  user?: User
+  approver?: User
+  tenant?: Tenant
+
+  is_pending?: boolean
+  is_approved?: boolean
+  is_completed?: boolean
+  is_rejected?: boolean
+  formatted_amount?: string
+  settlement_days?: number
+}

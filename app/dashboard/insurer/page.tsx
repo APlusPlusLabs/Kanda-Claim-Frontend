@@ -29,6 +29,7 @@ import {
   Wrench,
   Settings,
   UserCog,
+  CreditCard,
 } from "lucide-react"
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts"
 import DashboardLayout from "@/components/dashboard-layout"
@@ -226,6 +227,9 @@ export default function InsurerDashboard() {
         { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },
 
         { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
+        
+        { name: "Contracts", href: "/dashboard/insurer/contracts", icon: <FileText className="h-5 w-5" /> },
+        { name: "Payments", href: "/dashboard/insurer/payments", icon: <CreditCard className="h-5 w-5" /> },
         { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
         { name: "Settings", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
@@ -707,7 +711,7 @@ export default function InsurerDashboard() {
               )}
             </div>
             <div className="mt-4 flex justify-center">
-              <Button variant="outline" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={()=> router.push('/dashboard/insurer/notifications')}>
                 View All Activities
               </Button>
             </div>

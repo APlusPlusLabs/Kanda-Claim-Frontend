@@ -8,13 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/components/ui/use-toast";
+import { FileText, Trash2, Upload } from "lucide-react";
 
 interface VehicleInfo {
   make: string;
@@ -60,6 +61,11 @@ export default function SubmitBidPage({ params }: Props) {
   const [bid, setBid] = useState<Bid>();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([])
+  const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([])
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [selectedDocuments, setSelectedDocuments] = useState<File[]>([]);
+  const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   // Form schema
   const submissionSchema = z.object({
     bid_id: z.string().min(1, "Bid required"),
@@ -74,6 +80,10 @@ export default function SubmitBidPage({ params }: Props) {
     ).min(1, "At least one cost breakdown item is required"),
     estimatedCompletionTime: z.string().min(1, "Estimated completion time is required"),
     notes: z.string().optional(),
+    photos: z.array(z.string()).optional(),
+    documents: z.array(z.string()).optional(),
+    uploadedPhotos: z.array(z.string()).optional(),
+    uploadedDocuments: z.array(z.string()).optional(),
   });
   const form = useForm<z.infer<typeof submissionSchema>>({
     resolver: zodResolver(submissionSchema),
@@ -84,6 +94,10 @@ export default function SubmitBidPage({ params }: Props) {
       costBreakdown: [],
       estimatedCompletionTime: "",
       notes: "",
+      photos: [],
+      documents: [],
+      uploadedPhotos: [],
+      uploadedDocuments: [],
     },
   });
 
@@ -148,7 +162,8 @@ export default function SubmitBidPage({ params }: Props) {
         user_id: user.id,
         proposed_cost: calculateTotalCost(),
         scope_of_work: values.costBreakdown.map(item => `${item.item} (${item.cost} RWF)`),
-        documents: [],
+        photos: values.photos,
+        documents: values.documents,
         estimated_completion_time: values.estimatedCompletionTime,
         cost_breakdown: values.costBreakdown,
         vehicle_info: bid?.vehicle_info,
@@ -156,6 +171,28 @@ export default function SubmitBidPage({ params }: Props) {
       };
 
       const response = await apiRequest(`${API_URL}bid-submissions`, "POST", payload);
+      const bidSummissionId = response.submission.id;
+      // 2. Upload all files with the bid ID
+      const uploadPromises = [];
+
+      if (selectedPhotos.length > 0) {
+        uploadPromises.push(uploadFilesToBid(selectedPhotos, bidSummissionId, 'bid-photo'));
+      }
+
+      if (selectedDocuments.length > 0) {
+        uploadPromises.push(uploadFilesToBid(selectedDocuments, bidSummissionId, 'bid-document'));
+      }
+
+      // Wait for all uploads to complete
+      if (uploadPromises.length > 0) {
+        await Promise.all(uploadPromises);
+      }
+
+      // 3. Clean up preview URLs to prevent memory leaks
+      photoPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+      setPhotoPreviewUrls([]);
+      setSelectedPhotos([]);
+      setSelectedDocuments([]);
 
       toast({
         title: "Bid Submission Created",
@@ -189,6 +226,80 @@ export default function SubmitBidPage({ params }: Props) {
       setIsSubmitting(false);
     }
   };
+  // Helper function to upload files after bid creation
+  const uploadFilesToBid = async (files: File[], bidSummissionId: string, type: 'bid-photo' | 'bid-document') => {
+    const uploadPromises = files.map(async (file) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append('type', type);
+      formData.append('user_id', user.id);
+      formData.append('tenant_id', user.tenant_id);
+      formData.append('table_id', bidSummissionId);
+      formData.append('table_name', "bids");
+
+      return apiRequest(`${API_URL}upload/${type === 'bid-photo' ? 'photos' : 'documents'}`, "POST", formData);
+    });
+
+    return Promise.all(uploadPromises);
+  };
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+
+      // Update selected files state
+      setSelectedPhotos(prev => [...prev, ...newFiles]);
+
+      // Create preview URLs for display
+      const newPreviewUrls = newFiles.map(file => URL.createObjectURL(file));
+      setPhotoPreviewUrls(prev => [...prev, ...newPreviewUrls]);
+
+      // Update form with file names for display purposes
+      const allPhotoNames = [...selectedPhotos, ...newFiles].map(file => file.name);
+      form.setValue("photos", allPhotoNames);
+      form.setValue("uploadedPhotos", allPhotoNames);
+    }
+  };
+
+  // Updated document upload handler - stores files client-side
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+
+      // Update selected files state
+      setSelectedDocuments(prev => [...prev, ...newFiles]);
+
+      // Update form with file names for display purposes
+      const allDocNames = [...selectedDocuments, ...newFiles].map(file => file.name);
+      form.setValue("documents", allDocNames);
+      form.setValue("uploadedDocuments", allDocNames);
+    }
+  };
+
+  // Helper function to remove a selected photo
+  const removePhoto = (index: number) => {
+    // Revoke the URL to prevent memory leak
+    URL.revokeObjectURL(photoPreviewUrls[index]);
+
+    // Remove from arrays
+    setSelectedPhotos(prev => prev.filter((_, i) => i !== index));
+    setPhotoPreviewUrls(prev => prev.filter((_, i) => i !== index));
+
+    // Update form
+    const remainingPhotoNames = selectedPhotos
+      .filter((_, i) => i !== index)
+      .map(file => file.name);
+    form.setValue("photos", remainingPhotoNames);
+  };
+
+  // Helper function to remove a selected document
+  const removeDocument = (index: number) => {
+    setSelectedDocuments(prev => prev.filter((_, i) => i !== index));
+
+    const remainingDocNames = selectedDocuments
+      .filter((_, i) => i !== index)
+      .map(file => file.name);
+    form.setValue("documents", remainingDocNames);
+  };
 
   if (isLoading) {
     return <div>Loading bid details...</div>;
@@ -204,7 +315,7 @@ export default function SubmitBidPage({ params }: Props) {
     //   variant: "destructive",
     // });
     // router.push('/dashboard/garage/bids')
-    return <div>Error NO GARAGE. <br /> Only Users who have a garage can access this. <br /> {JSON.stringify(user)}  <button onClick={()=> router.push('/dashboard/garage/bids')}>BACK</button></div>;
+    return <div>Error NO GARAGE. <br /> Only Users who have a garage can access this. <br /> {JSON.stringify(user)}  <button onClick={() => router.push('/dashboard/garage/bids')}>BACK</button></div>;
 
   }
   return (
@@ -267,10 +378,15 @@ export default function SubmitBidPage({ params }: Props) {
                   <div>
                     <Label>Claim</Label>
                     <Input type="text" value={bid.claim.code} readOnly />
-                  </div></div>
+                  </div>
+                </div>
+                <div>
+                  <Label>Damage Description</Label>
+                  <Input type="text" value={bid.damage_description} readOnly />
+                </div>
                 <div>
                   <Label>Vehicle Information</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label>Make</Label>
                       <Input type="text" value={bid.vehicle_info.make} readOnly />
@@ -283,15 +399,131 @@ export default function SubmitBidPage({ params }: Props) {
                       <Label>Year</Label>
                       <Input type="text" value={bid.vehicle_info.year} readOnly />
                     </div>
-                    <div>
+                    {/* <div>
                       <Label>License Plate</Label>
                       <Input type="text" value={bid.vehicle_info.license_plate} readOnly />
-                    </div>
+                    </div> */}
                   </div>
                 </div>
-                <div>
-                  <Label>Damage Description</Label>
-                  <Input type="text" value={bid.damage_description} readOnly />
+
+              </CardContent>
+            </Card>
+            {/* Photos and Documents Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Photos and Documents</CardTitle>
+                <CardDescription>Upload photos of the damage and relevant documents</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6">
+                  {/* Documents Section - Updated to use client-side files */}
+                  <FormField
+                    control={form.control}
+                    name="uploadedDocuments"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Related Documents <small>ex: QUOTATION</small></FormLabel>
+                        <div className="mt-2">
+                          <div
+                            className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted"
+                            onClick={() => document.getElementById("document-upload")?.click()}
+                          >
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                              <p className="text-sm text-muted-foreground">Upload QUOTATION, assessments documents, price lists...etc.</p>
+                            </div>
+                            <input
+                              id="document-upload"
+                              type="file"
+                              accept=".pdf,.doc,.docx,.xls,.xlsx"
+                              multiple
+                              className="hidden"
+                              onChange={handleDocumentUpload}
+                            />
+                          </div>
+                        </div>
+                        {selectedDocuments.length > 0 && (
+                          <ul className="mt-4 space-y-2">
+                            {selectedDocuments.map((doc, index) => (
+                              <li key={index} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                                <div className="flex items-center space-x-2">
+                                  <FileText className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm">{doc.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    ({(doc.size / 1024 / 1024).toFixed(2)} MB)
+                                  </span>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeDocument(index)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="uploadedPhotos"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Photos <small>ex: QUOTATION Screenshots</small></FormLabel>
+                        <div className="mt-2">
+                          <div
+                            className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted"
+                            onClick={() => document.getElementById("photo-upload")?.click()}
+                          >
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                              <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                            </div>
+                            <input
+                              id="photo-upload"
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={handlePhotoUpload}
+                            />
+                          </div>
+                        </div>
+                        {selectedPhotos.length > 0 && (
+                          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {selectedPhotos.map((photo, index) => (
+                              <div key={index} className="relative">
+                                <img
+                                  src={photoPreviewUrls[index] || "/placeholder.svg"}
+                                  alt={`Damage photo ${index + 1}`}
+                                  className="w-full h-24 object-cover rounded-md"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  className="absolute top-1 right-1 h-6 w-6 p-0"
+                                  onClick={() => removePhoto(index)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                                {/* Show file name below image */}
+                                <p className="text-xs text-muted-foreground mt-1 truncate">
+                                  {photo.name}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </CardContent>
             </Card>

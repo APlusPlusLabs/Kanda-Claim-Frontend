@@ -74,7 +74,7 @@ export default function MessagesPage() {
       try {
         setLoading(true)
         const response = await apiRequest(`${API_URL}messages/threads/${user?.id}`, "GET")
-        setConversations(response.data)
+        setConversations(response)
       } catch (error) {
         console.error("Error fetching conversations:", error)
       } finally {

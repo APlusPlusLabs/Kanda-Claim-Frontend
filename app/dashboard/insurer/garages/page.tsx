@@ -125,7 +125,7 @@ export default function GaragesPage() {
                     latitude: garage.latitude !== null ? Number(garage.latitude) : null,
                     longitude: garage.longitude !== null ? Number(garage.longitude) : null,
                 })));
-            } catch (error) {
+            } catch (error:any) {
                 console.error("Error fetching garages:", error);
                 toast({
                     title: "Error Loading Garages",
@@ -162,7 +162,7 @@ export default function GaragesPage() {
                 });
                 setIsGeolocating(false);
             },
-            (error) => {
+            (error:any) => {
                 console.error("Geolocation error:", error);
                 toast({
                     title: "Geolocation Error",

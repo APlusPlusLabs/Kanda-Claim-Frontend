@@ -1,457 +1,620 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Building2, User, LogOut, Car, Plus, Edit, Trash2 } from "lucide-react"
+import DashboardLayout from "@/components/dashboard-layout"
+import { useAuth } from "@/lib/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Vehicle } from "@/lib/types/claims"
+import { useRouter } from "next/navigation"
 
-export default function ProfilePage() {
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
+
+// Driver profile schema
+const driverSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(1, "Phone number is required")
+})
+
+// Vehicle schema
+const vehicleSchema = z.object({
+  license_plate: z.string().min(1, "License plate is required"),
+  make: z.string().min(1, "Make is required"),
+  model: z.string().min(1, "Model is required"),
+  year: z.string().transform((val) => Number(val)).pipe(z.number().min(1900).max(new Date().getFullYear() + 1)),
+  vin: z.string().min(1, "VIN is required"),
+})
+
+// Password schema
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+})
+
+export default function DriverProfile() {
+  const { user, apiRequest } = useAuth()
   const { toast } = useToast()
-  const [isEditing, setIsEditing] = useState(false)
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false)
+  const [isVehicleLoading, setIsVehicleLoading] = useState(false)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false)
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle|null>(null)
 
-  // Mock user data
-  const [userData, setUserData] = useState({
-    name: "Jean Mutabazi",
-    email: "jean.mutabazi@example.com",
-    phone: "+250 78 123 4567",
-    address: "KK 12 Ave, Kigali, Rwanda",
-    idNumber: "1198780012345678",
-    drivingLicense: "DL-RW-2018-123456",
-    insurancePolicy: "POL-SA-2023-78901",
-    avatar: "/placeholder.svg?height=128&width=128",
-    notifications: {
-      email: true,
-      sms: true,
-      app: true,
+  // Driver profile form
+  const driverForm = useForm({
+    resolver: zodResolver(driverSchema),
+    defaultValues: {
+      firstName: user?.first_name || "",
+      lastName: user?.last_name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
     },
-    language: "en",
   })
 
-  const handleSaveProfile = () => {
-    setIsEditing(false)
-    toast({
-      title: "Profile updated",
-      description: "Your profile information has been updated successfully.",
-    })
+  // Vehicle form
+  const vehicleForm = useForm({
+    resolver: zodResolver(vehicleSchema),
+    defaultValues: {
+      license_plate: "",
+      make: "",
+      model: "",
+      year: "",
+      vin: "",
+    },
+  })
+
+  // Password form
+  const passwordForm = useForm({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  })
+
+  // Fetch vehicles
+  const fetchVehicles = async () => {
+    try {
+      const response = await apiRequest(`${API_URL}vehicles/user/${user.id}`, "GET")
+      if (response.success) {
+        setVehicles(response.data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch vehicles:", error)
+    }
   }
 
-  const handleNotificationChange = (key: keyof typeof userData.notifications) => {
-    setUserData({
-      ...userData,
-      notifications: {
-        ...userData.notifications,
-        [key]: !userData.notifications[key],
-      },
+  useEffect(() => {
+    if (user?.id) {
+      fetchVehicles()
+    }
+  }, [user?.id])
+
+  const handleDriverUpdate = async (data) => {
+    setIsLoading(true)
+
+    try {
+      const userData = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        user_id: user.id
+      }
+
+      const response = await apiRequest(
+        `${API_URL}users/${user.id}`, 
+        "PUT", 
+        userData
+      )
+
+      if (response.success) {
+        toast({
+          title: "Profile Updated",
+          description: "Your driver profile has been updated successfully.",
+        })
+      } else {
+        throw new Error(response.message || "Failed to update profile")
+      }
+    } catch (error:any) {
+      console.error("Profile update error:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handlePasswordUpdate = async (data) => {
+    setIsPasswordLoading(true)
+
+    try {
+      const passwordData = {
+        current_password: data.currentPassword,
+        password: data.newPassword,
+        password_confirmation: data.confirmPassword,
+        user_id: user.id
+      }
+
+      const response = await apiRequest(
+        `${API_URL}users/${user.id}/password`, 
+        "PUT", 
+        passwordData
+      )
+
+        toast({
+          title: "Password Updated",
+          description: "Your password has been updated successfully.",
+        })
+        passwordForm.reset()
+     
+     router.push('/login')
+    } catch (error) {
+      console.error("Password update error:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update password. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsPasswordLoading(false)
+    }
+  }
+
+  const handleVehicleSubmit = async (data) => {
+    setIsVehicleLoading(true)
+
+    try {
+      const vehicleData = {
+        ...data,
+        tenant_id: user.tenant_id,
+        user_id: user.id,
+      }
+
+      let response
+      if (editingVehicle) {
+        response = await apiRequest(
+          `${API_URL}vehicles/${editingVehicle.id}`, 
+          "PUT", 
+          vehicleData
+        )
+      } else {
+        response = await apiRequest(
+          `${API_URL}vehicles`, 
+          "POST", 
+          vehicleData
+        )
+      }
+
+        toast({
+          title: editingVehicle ? "Vehicle Updated" : "Vehicle Added",
+          description: `Vehicle has been ${editingVehicle ? 'updated' : 'added'} successfully.`,
+        })
+        setVehicleDialogOpen(false)
+        setEditingVehicle(null)
+        vehicleForm.reset()
+        fetchVehicles()
+     
+    } catch (error:any) {
+      console.error("Vehicle save error:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save vehicle. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsVehicleLoading(false)
+    }
+  }
+
+  const handleEditVehicle = (vehicle: Vehicle) => {
+    setEditingVehicle(vehicle)
+    vehicleForm.reset({
+      license_plate: vehicle.license_plate,
+      make: vehicle.make,
+      model: vehicle.model,
+      year: vehicle.year.toString(),
+      vin: vehicle.vin,
     })
+    setVehicleDialogOpen(true)
+  }
+
+  const handleDeleteVehicle = async (vehicleId) => {
+    if (window.confirm("Are you sure you want to delete this vehicle?")) {
+      try {
+        const response = await apiRequest(`${API_URL}vehicles/${vehicleId}`, "DELETE")
+        if (response.success) {
+          toast({
+            title: "Vehicle Deleted",
+            description: "Vehicle has been deleted successfully.",
+          })
+          fetchVehicles()
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete vehicle.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const openAddVehicleDialog = () => {
+    setEditingVehicle(null)
+    vehicleForm.reset({
+      license_plate: "",
+      make: "",
+      model: "",
+      year: "",
+      vin: "",
+    })
+    setVehicleDialogOpen(true)
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">My Profile</h1>
-        <Button onClick={() => setIsEditing(!isEditing)}>{isEditing ? "Cancel" : "Edit Profile"}</Button>
-      </div>
+    <DashboardLayout
+      user={{
+        name: user?.first_name + " " + user?.last_name,
+        role: "Driver",
+        avatar: "/placeholder.svg?height=40&width=40",
+      }}
+      navigation={[
+        { name: "Dashboard", href: "/dashboard/driver", icon: <Building2 className="h-5 w-5" /> },
+        { name: "Profile", href: "/dashboard/driver/profile", icon: <User className="h-5 w-5" /> },
+      ]}
+      actions={[{ name: "Logout", href: "/logout", icon: <LogOut className="h-5 w-5" /> }]}
+    >
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Driver Profile</h1>
+            <p className="text-muted-foreground mt-2">Manage your profile information and vehicles</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src="/placeholder.svg?height=64&width=64" alt={user?.first_name} />
+              <AvatarFallback>
+                {user?.first_name?.[0]}{user?.last_name?.[0]}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </div>
 
-      <Tabs defaultValue="personal">
-        <TabsList>
-          <TabsTrigger value="personal">Personal Information</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="preferences">Preferences</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="profile" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="profile">Driver Information</TabsTrigger>
+            <TabsTrigger value="vehicles">My Vehicles</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="personal" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-              <CardDescription>Manage your personal details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex flex-col md:flex-row gap-6">
-                <div className="flex flex-col items-center space-y-4">
-                  <Avatar className="h-32 w-32">
-                    <AvatarImage src={userData.avatar} alt={userData.name} />
-                    <AvatarFallback>
-                      {userData.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  {isEditing && (
-                    <Button variant="outline" size="sm">
-                      Change Photo
+          <TabsContent value="profile">
+            <Form {...driverForm}>
+              <form onSubmit={driverForm.handleSubmit(handleDriverUpdate)}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Driver Information</CardTitle>
+                    <CardDescription>Update your personal information and driver details</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={driverForm.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled={isLoading} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={driverForm.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled={isLoading} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={driverForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input type="email" {...field} disabled={isLoading} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={driverForm.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled={isLoading} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                     
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end">
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? "Saving..." : "Save Changes"}
                     </Button>
+                  </CardFooter>
+                </Card>
+              </form>
+            </Form>
+          </TabsContent>
+
+          <TabsContent value="vehicles">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>My Vehicles</CardTitle>
+                  <CardDescription>Manage your registered vehicles</CardDescription>
+                </div>
+                <Button onClick={openAddVehicleDialog}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Vehicle
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {vehicles.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Car className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-500">No vehicles registered yet.</p>
+                    <Button onClick={openAddVehicleDialog} className="mt-4">
+                      Add Your First Vehicle
+                    </Button>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>License Plate</TableHead>
+                        <TableHead>Make</TableHead>
+                        <TableHead>Model</TableHead>
+                        <TableHead>Year</TableHead>
+                        <TableHead>VIN</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {vehicles.map((vehicle) => (
+                        <TableRow key={vehicle.id}>
+                          <TableCell className="font-medium">{vehicle.license_plate}</TableCell>
+                          <TableCell>{vehicle.make}</TableCell>
+                          <TableCell>{vehicle.model}</TableCell>
+                          <TableCell>{vehicle.year}</TableCell>
+                          <TableCell>{vehicle.vin}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditVehicle(vehicle)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteVehicle(vehicle.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="security">
+            <Form {...passwordForm}>
+              <form onSubmit={passwordForm.handleSubmit(handlePasswordUpdate)}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Security Settings</CardTitle>
+                    <CardDescription>Update your password and security preferences</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                      <FormField
+                        control={passwordForm.control}
+                        name="currentPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Current Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" {...field} disabled={isPasswordLoading} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={passwordForm.control}
+                        name="newPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>New Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" {...field} disabled={isPasswordLoading} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={passwordForm.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Confirm New Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" {...field} disabled={isPasswordLoading} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end">
+                    <Button type="submit" disabled={isPasswordLoading}>
+                      {isPasswordLoading ? "Updating..." : "Update Password"}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </form>
+            </Form>
+          </TabsContent>
+        </Tabs>
+
+        {/* Vehicle Dialog */}
+        <Dialog open={vehicleDialogOpen} onOpenChange={setVehicleDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingVehicle ? "Edit Vehicle" : "Add New Vehicle"}</DialogTitle>
+              <DialogDescription>
+                {editingVehicle ? "Update vehicle information" : "Enter the details of your new vehicle"}
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...vehicleForm}>
+              <form onSubmit={vehicleForm.handleSubmit(handleVehicleSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={vehicleForm.control}
+                    name="license_plate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>License Plate</FormLabel>
+                        <FormControl>
+                          <Input {...field} disabled={isVehicleLoading} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={vehicleForm.control}
+                    name="year"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Year</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} disabled={isVehicleLoading} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={vehicleForm.control}
+                    name="make"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Make</FormLabel>
+                        <FormControl>
+                          <Input {...field} disabled={isVehicleLoading} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={vehicleForm.control}
+                    name="model"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Model</FormLabel>
+                        <FormControl>
+                          <Input {...field} disabled={isVehicleLoading} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={vehicleForm.control}
+                  name="vin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>VIN</FormLabel>
+                      <FormControl>
+                        <Input {...field} disabled={isVehicleLoading} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </div>
-
-                <div className="flex-1 grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={userData.name}
-                      onChange={(e) => setUserData({ ...userData, name: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={userData.email}
-                      onChange={(e) => setUserData({ ...userData, email: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      value={userData.phone}
-                      onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Input
-                      id="address"
-                      value={userData.address}
-                      onChange={(e) => setUserData({ ...userData, address: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="id-number">National ID Number</Label>
-                    <Input
-                      id="id-number"
-                      value={userData.idNumber}
-                      onChange={(e) => setUserData({ ...userData, idNumber: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="driving-license">Driving License</Label>
-                    <Input
-                      id="driving-license"
-                      value={userData.drivingLicense}
-                      onChange={(e) => setUserData({ ...userData, drivingLicense: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            {isEditing && (
-              <CardFooter>
-                <Button onClick={handleSaveProfile}>Save Changes</Button>
-              </CardFooter>
-            )}
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Insurance Information</CardTitle>
-              <CardDescription>Your insurance policy details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="insurance-policy">Policy Number</Label>
-                  <Input id="insurance-policy" value={userData.insurancePolicy} disabled />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="insurance-provider">Insurance Provider</Label>
-                  <Input id="insurance-provider" value="Sanlam Alianz Insurance" disabled />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="policy-start">Policy Start Date</Label>
-                  <Input id="policy-start" value="01/01/2023" disabled />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="policy-end">Policy End Date</Label>
-                  <Input id="policy-end" value="31/12/2023" disabled />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="documents" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Documents</CardTitle>
-              <CardDescription>Manage your uploaded documents</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="bg-muted p-2 rounded">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-primary"
-                      >
-                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium">Driving License</p>
-                      <p className="text-sm text-muted-foreground">Uploaded on 15/01/2023</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm">
-                    View
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="bg-muted p-2 rounded">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-primary"
-                      >
-                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium">National ID</p>
-                      <p className="text-sm text-muted-foreground">Uploaded on 15/01/2023</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm">
-                    View
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="bg-muted p-2 rounded">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-primary"
-                      >
-                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium">Insurance Policy</p>
-                      <p className="text-sm text-muted-foreground">Uploaded on 15/01/2023</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm">
-                    View
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button>Upload New Document</Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="preferences" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>Manage how you receive notifications</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications">Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-                </div>
-                <Switch
-                  id="email-notifications"
-                  checked={userData.notifications.email}
-                  onCheckedChange={() => handleNotificationChange("email")}
                 />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="sms-notifications">SMS Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive notifications via SMS</p>
-                </div>
-                <Switch
-                  id="sms-notifications"
-                  checked={userData.notifications.sms}
-                  onCheckedChange={() => handleNotificationChange("sms")}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="app-notifications">In-App Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive notifications within the app</p>
-                </div>
-                <Switch
-                  id="app-notifications"
-                  checked={userData.notifications.app}
-                  onCheckedChange={() => handleNotificationChange("app")}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Language & Regional Settings</CardTitle>
-              <CardDescription>Manage your language and regional preferences</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="language">Language</Label>
-                <Select
-                  value={userData.language}
-                  onValueChange={(value) => setUserData({ ...userData, language: value })}
-                >
-                  <SelectTrigger id="language">
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                    <SelectItem value="rw">Kinyarwanda</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Password</CardTitle>
-              <CardDescription>Change your password</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="current-password">Current Password</Label>
-                <Input id="current-password" type="password" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <Input id="new-password" type="password" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm New Password</Label>
-                <Input id="confirm-password" type="password" />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button>Update Password</Button>
-            </CardFooter>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Two-Factor Authentication</CardTitle>
-              <CardDescription>Add an extra layer of security to your account</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="2fa">Enable Two-Factor Authentication</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Protect your account with an additional security layer
-                  </p>
-                </div>
-                <Switch id="2fa" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Login Sessions</CardTitle>
-              <CardDescription>Manage your active sessions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="bg-muted p-2 rounded">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-primary"
-                      >
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                        <line x1="8" y1="21" x2="16" y2="21" />
-                        <line x1="12" y1="17" x2="12" y2="21" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium">Current Session</p>
-                      <p className="text-sm text-muted-foreground">Kigali, Rwanda • Chrome on Windows</p>
-                    </div>
-                  </div>
-                  <div className="text-sm text-muted-foreground">Active now</div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button variant="destructive">Sign Out of All Devices</Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setVehicleDialogOpen(false)}
+                    disabled={isVehicleLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isVehicleLoading}>
+                    {isVehicleLoading ? "Saving..." : editingVehicle ? "Update Vehicle" : "Add Vehicle"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </DashboardLayout>
   )
 }

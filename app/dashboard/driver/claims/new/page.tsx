@@ -241,7 +241,7 @@ const stepValidationSchemas = [
     })).optional(),
     damages: z.array(z.object({
       type: z.string().min(2),
-      estimated_cost: z.number().optional(),
+      estimated_cost: z.any().optional(),
       owner_name: z.string().min(2),
       description: z.string().min(10),
     })).optional(),
@@ -620,7 +620,7 @@ export default function NewClaimPage() {
         const dataDamages = {
           damages: values.damages?.map((damage) => ({
             type: damage.type,
-            estimated_cost: damage.estimated_cost,
+            estimated_cost: Number(damage.estimated_cost),
             owner_name: damage.owner_name,
             description: damage.description,
           })),
@@ -1594,7 +1594,7 @@ export default function NewClaimPage() {
                             <FormItem>
                               <FormLabel>{t("form.estimated_cost")}*</FormLabel>
                               <FormControl>
-                                <Input placeholder={t("form.estimated_cost_placeholder")} {...field} />
+                                <Input type="number" placeholder={t("form.estimated_cost_placeholder")} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>

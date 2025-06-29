@@ -385,7 +385,7 @@ export default function GarageDashboard() {
                     </div>
 
                     <div className="mt-4 flex justify-end space-x-2">
-                      {repair.status === "awaiting_approval" ? (
+                      {repair.status !== "approved" ? (
                         <Button
                           variant="outline"
                           size="sm"

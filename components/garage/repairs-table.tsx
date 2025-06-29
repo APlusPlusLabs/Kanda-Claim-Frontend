@@ -50,6 +50,7 @@ interface RepairJob {
   id: string;
   code: string;
   claim_id: string;
+  claim_code: string;
   vehicle: {
     make: string;
     model: string;
@@ -410,7 +411,7 @@ export function RepairsTable() {
               sortedRepairs.map((repair) => (
                 <TableRow key={repair.id}>
                   <TableCell>{repair.code}</TableCell>
-                  <TableCell>{repair.claim_id}</TableCell>
+                  <TableCell>{repair.claim_code}</TableCell>
                   <TableCell>
                     {repair.vehicle.make} {repair.vehicle.model} ({repair.vehicle.license_plate})
                   </TableCell>

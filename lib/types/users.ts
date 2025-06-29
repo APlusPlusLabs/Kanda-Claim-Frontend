@@ -1,3 +1,5 @@
+import { Garage } from "./claims";
+
 export interface User {
     id: string;
     email: string;
@@ -16,7 +18,7 @@ export interface User {
     department_id?: string;
     department?: Department;
     garage_id: string;
-    garage?: { name: string, phone: string; address: string; latitude?: number; longitude?: number, openHous?: string; description?: string; }
+    garage?: Garage
 }
 export interface Role {
     id: string;
@@ -35,5 +37,13 @@ export interface Tenant {
     name: string;
     users: User[];
     departments?: Department[];
+    garages?: Garage[];
+    email: string,
+    phone: string,
+    address: string,
+    website: string,
+    contact_person: any,
+    description: string,
+    min_amount_multisignature: number
 };
 

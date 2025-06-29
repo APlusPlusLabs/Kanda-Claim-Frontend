@@ -11,6 +11,7 @@ import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/lib/auth-provider"
 import type { Bid } from "@/lib/types/bidding"
 import { toast } from "@/components/ui/use-toast"
+import { Download, Eye, FileText } from "lucide-react"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
@@ -21,7 +22,7 @@ interface Props {
 export default function GarageBidDetailsPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter()
-  const { user , apiRequest } = useAuth()
+  const { user, apiRequest } = useAuth()
 
   const [bid, setBid] = useState<Bid | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -87,17 +88,23 @@ export default function GarageBidDetailsPage({ params }: Props) {
             <CardDescription>Details about the bid</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label>Bid ID</Label>
-              <Input type="text" value={bid.code} readOnly />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Bid ID</Label>
+                <Input type="text" value={bid.code} readOnly />
+              </div>
+              <div>
+                <Label>Claim ID</Label>
+                <Input type="text" value={bid.claim.code} readOnly />
+              </div>
             </div>
             <div>
-              <Label>Claim ID</Label>
-              <Input type="text" value={bid.claim.code} readOnly />
+              <Label>Claim Damage Description</Label>
+              <Input type="text" value={bid.damage_description} readOnly />
             </div>
             <div>
               <Label>Vehicle Information</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label>Make</Label>
                   <Input type="text" value={bid.vehicle_info.make} readOnly />
@@ -110,16 +117,13 @@ export default function GarageBidDetailsPage({ params }: Props) {
                   <Label>Year</Label>
                   <Input type="text" value={bid.vehicle_info.year} readOnly />
                 </div>
-                <div>
+                {/* <div>
                   <Label>License Plate</Label>
                   <Input type="text" value={bid.vehicle_info.license_plate} readOnly />
-                </div>
+                </div> */}
               </div>
             </div>
-            <div>
-              <Label>Damage Description</Label>
-              <Input type="text" value={bid.damage_description} readOnly />
-            </div>
+           
             <div>
               <Label>Scope of Work</Label>
               <ul>
@@ -129,9 +133,34 @@ export default function GarageBidDetailsPage({ params }: Props) {
               </ul>
             </div>
             <div>
+              <Label>Bid Photos & Documents</Label>
+              <div className="grid grid-cols-4 gap-4">
+                {bid.documents?.map((item, index) => (
+                  <Card className="flex flex-col">
+                    <Button key={index} onClick={() => window.open(STORAGES_URL + item.file_path, '_blank')} >
+                    <FileText className="h-5 w-5" />  <Eye></Eye>    Document # {index + 1} <Download></Download>
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+              <div className="grid grid-cols-4 gap-4 mt-3">
+                {bid.photos?.map((item, index) => (
+                  <Card className="flex flex-col">
+                    <img key={index} src={STORAGES_URL + item.file_path} onClick={() => window.open(STORAGES_URL + item.file_path, '_blank')} />
+                    <div className="">
+                      {/* <small>{item.file_path.substring(item.file_path.indexOf('/')).replace(item.file_path.substring(item.file_path.indexOf('.')), "")}</small> */}
+                      <Button key={index} onClick={() => window.open(STORAGES_URL + item.file_path, '_blank')} className="w-full" >
+                        <Eye></Eye>    Photo # {index + 1} <Download></Download>
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+            {/* <div>
               <Label>Estimated Cost</Label>
               <Input type="text" value={bid.estimated_cost.toLocaleString()} readOnly />
-            </div>
+            </div> */}
           </CardContent>
         </Card>
 

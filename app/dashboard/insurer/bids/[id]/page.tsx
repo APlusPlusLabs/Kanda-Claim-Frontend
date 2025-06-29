@@ -43,7 +43,12 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import type { Bid, BidSubmission } from "@/lib/types/bidding"
-
+import { Form, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
@@ -66,6 +71,12 @@ const getStatusBadge = (status: string) => {
       return { variant: "outline" as const, icon: null }
   }
 }
+const assignFormDataSchama = z.object({
+  department_id: z.string().min(1, { message: "Department is required" }), // Changed from 2
+  assessor_id: z.string().min(1, { message: "Agent/Assessor is required" }), // Changed from 16
+  notes: z.string().optional(),
+});
+
 interface Props {
   params: Promise<{ id: string }>;
 }
@@ -78,7 +89,9 @@ export default function BidDetailsPage({ params }: Props) {
   const [selectedSubmission, setSelectedSubmission] = useState<BidSubmission | null>(null)
   const [bid, setBid] = useState<Bid | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
 
+  const [selectedClaim, setSelectedClaim] = useState<any>(null)
   // Fetch bid data
   useEffect(() => {
     const fetchBidData = async () => {
@@ -118,6 +131,11 @@ export default function BidDetailsPage({ params }: Props) {
   const handleAwardBid = (submission: BidSubmission) => {
     setSelectedSubmission(submission);
     setAwardDialogOpen(true);
+  };
+  // Handle awarding bid
+  const handleAssignAssessor = (submission: BidSubmission) => {
+    setSelectedSubmission(submission);
+    setIsAssignDialogOpen(true);
   };
 
   // Confirm award
@@ -160,6 +178,47 @@ export default function BidDetailsPage({ params }: Props) {
     });
   };
 
+  const assignForm = useForm<z.infer<typeof assignFormDataSchama>>({
+    resolver: zodResolver(assignFormDataSchama),
+    defaultValues: {
+      department_id: user.tenant.departments?.[0]?.id?.toString() || '',
+      assessor_id: user?.tenant?.users?.[0]?.id?.toString() || '',
+      notes: ''
+    },
+  });
+
+  const onSubmitAssignClaim = async (values: z.infer<typeof assignFormDataSchama>) => {
+    try {
+      const newAssignment = await apiRequest(`${API_URL}claims/assign/${bid?.claim_id}`, "POST", {
+        department_id: values.department_id,
+        assessor_id: values.assessor_id,
+        tenant_id: user?.tenant_id,
+        user_id: user?.id,
+        claim_id: bid?.claim_id,
+        notes: values.notes
+      });
+
+      const updatedClaim = {
+        ...bid?.claim,
+        department_id: values.department_id,
+        assignment: newAssignment
+      }
+      setSelectedClaim(updatedClaim)
+      setIsAssignDialogOpen(false)
+      toast({
+        title: "Assigned successfully",
+        description: `Successfully been assigned agent & department to claim ${bid?.claim.code}.`,
+      });
+
+      assignForm.reset();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to assign department & user to claim.",
+      });
+    }
+  };
   if (isLoading) {
     return (
       <DashboardLayout
@@ -224,7 +283,6 @@ export default function BidDetailsPage({ params }: Props) {
       </DashboardLayout>
     )
   }
-
   return (
     <DashboardLayout
       user={{
@@ -354,15 +412,15 @@ export default function BidDetailsPage({ params }: Props) {
                       {bid.photos?.map((photo, index) => (
                         <div key={index} className="relative group">
                           <img
-                            src={photo || "/placeholder.svg"}
+                            src={STORAGES_URL + photo.file_path || "/placeholder.svg"}
                             alt={`Damage photo ${index + 1}`}
                             className="w-full h-40 object-cover rounded-md"
                           />
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-md">
-                            <Button size="sm" variant="secondary">
+                            <Button size="sm" variant="secondary" onClick={() => window.open(STORAGES_URL + photo.file_path, '_blank')}>
                               <Eye className="h-4 w-4 mr-1" /> View
                             </Button>
-                            <Button size="sm" variant="secondary">
+                            <Button size="sm" variant="secondary" onClick={() => window.open(STORAGES_URL + photo.file_path, '_blank')}>
                               <Download className="h-4 w-4 mr-1" /> Download
                             </Button>
                           </div>
@@ -379,10 +437,18 @@ export default function BidDetailsPage({ params }: Props) {
                             <span>Document {index + 1}</span>
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={() => window.open(STORAGES_URL + doc.file_path, '_blank')}>
                               <Eye className="h-4 w-4 mr-1" /> View
                             </Button>
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = STORAGES_URL + doc.file_path;
+                              link.download = doc.file_path.substring(doc.file_path.indexOf('/')) || 'download';
+                              document.body.appendChild(link);
+                              link.target = '_blank';
+                              link.click();
+                              document.body.removeChild(link);
+                            }}>
                               <Download className="h-4 w-4 mr-1" /> Download
                             </Button>
                           </div>
@@ -487,6 +553,15 @@ export default function BidDetailsPage({ params }: Props) {
                             }}
                           >
                             <MessageSquare className="h-4 w-4 mr-1" /> Message
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => { handleAssignAssessor(submission) }}
+                            disabled={
+                              bid.status === "awarded" || bid.status === "completed" || bid.status === "cancelled"
+                            }
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-1" /> Assign Assessor
                           </Button>
                           <Button
                             size="sm"
@@ -595,7 +670,103 @@ export default function BidDetailsPage({ params }: Props) {
           </div>
         </div>
       </div>
+      {/* Assign Dialog */}
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Claim</DialogTitle>
+            <DialogDescription>Assign this claim to a department and responsible person.</DialogDescription>
+          </DialogHeader>
+          <Form {...assignForm}>
+            <form onSubmit={assignForm.handleSubmit(onSubmitAssignClaim)} className="space-y-4 py-4">
+              <div className="space-y-4 py-4">
+                <FormField
+                  control={assignForm.control}
+                  name="department_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="space-y-2">
+                        <FormLabel htmlFor="department_id">Department</FormLabel>
+                        <Select
+                          name="department_id"
+                          defaultValue={user.tenant.departments?.[0]?.id?.toString()}
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select assigned department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {user.tenant.departments?.map((department) => (
+                              <SelectItem key={department.id} value={department.id.toString()}>
+                                {department.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={assignForm.control}
+                  name="assessor_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="space-y-2">
+                        <FormLabel htmlFor="assessor_id">Responsible Person</FormLabel>
+                        <Select
+                          name="assessor_id"
+                          defaultValue={user?.tenant?.users?.[0]?.id?.toString()}
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select assigned person" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {user?.tenant?.users?.map((uza) => (
+                              <SelectItem key={uza.id} value={uza.id.toString()}>
+                                {uza.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={assignForm.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="space-y-2">
+                        <FormLabel htmlFor="notes">Any Note?</FormLabel>
+                        <Textarea
+                          {...field}
+                          rows={2}
+                          placeholder="Optional notes..."
+                        />
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Assign</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
       {/* Award Bid Dialog */}
       <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
         <DialogContent>

@@ -1,4 +1,4 @@
-import { Activity } from "./claims"
+import { Activity, Document } from "./claims"
 import { User } from "./users"
 
 export interface Bid {
@@ -16,8 +16,8 @@ export interface Bid {
   damage_description: string
   scope_of_work: string[]
   estimated_cost: number
-  photos: string[]
-  documents: string[]
+  photos: Document[]
+  documents: Document[]
   status: "open" | "in-progress" | "awarded" | "completed" | "cancelled"
   created_at: string
   updated_at: string

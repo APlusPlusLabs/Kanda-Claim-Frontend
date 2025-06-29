@@ -96,24 +96,24 @@ export default function NewBidPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [claims, setClaims] = useState<any[]>([]);
+  const [claims, setClaims] = useState<Claim[]>([]);
   useEffect(() => {
     const loadAssessments = async () => {
       setIsLoading(true);
       try {
-        const response = await apiRequest(`${API_URL}claims/${user.tenant_id}/not-approved`, "GET");
+        const response = await apiRequest(`${API_URL}assessments-completed/${user.tenant_id}`, "GET");
         if (!Array.isArray(response.data)) {
           throw new Error("Invalid response format: Expected an array");
         }
         const clmz: Claim[] = response.data
-          .map((clm: any) => {
-            const veh = clm.vehicles[0];
+          .filter((ass: any) => ass.claim && ass.vehicle)
+          .map((ass: any) => {
+            const clm = ass.claim;
+            const veh = ass.vehicle;
             const vehInfo = `${veh.model} ${veh.make} ${veh.year} (${veh.license_plate})`;
             return {
               id: clm.id,
               code: clm.code,
-              description: clm.description,
-              estimated_cost: clm.amount,
               customer: clm.user?.name || "Unknown",
               vehicle_info: vehInfo,
               vehicle: {
@@ -126,7 +126,7 @@ export default function NewBidPage() {
             };
           });
         setClaims(clmz);
-     //   setAssessments(response.data);
+        setAssessments(response.data);
       } catch (error) {
         console.error("Error loading assessments:", error);
         toast({
@@ -221,50 +221,49 @@ export default function NewBidPage() {
         license_plate: selectedClaim.vehicle.license_plate,
         vin: selectedClaim.vehicle.vin,
       });
-      form.setValue("damage_description", selectedClaim.description)
-      form.setValue("estimated_cost", selectedClaim.estimated_cost)
-      //   const selectedAssessment = assessments.find(ass => ass.claim_id === claim_id);
-      //   if (selectedAssessment) {
-      //     const reportData = selectedAssessment.report;
-      //     const report = typeof reportData === 'string' ? JSON.parse(reportData) : reportData;
-      //     if (report) {
-      //       const partsToReplace = report.partsToReplace || [];
-      //       const selectedParts = report.selectedParts || [];
-      //       const combinedParts = [...partsToReplace, ...selectedParts];
-      //       const newScopeItems = combinedParts.map(
-      //         (part: { name: string; cost: string }) => `${part.name} (${part.cost} RWF)`
-      //       );
-      //       setScopeItems(newScopeItems);
-      //       form.setValue("scope_of_work", newScopeItems);
 
-      //       // Pre-populate photos
-      //       const reportPhotos = (report.photos || []).map((photo: string) =>
-      //         photo.startsWith("http") ? photo : `${STORAGES_URL}${photo}`
-      //       );
-      //       setUploadedPhotos(reportPhotos);
-      //       form.setValue("photos", reportPhotos);
-      //       form.setValue("uploadedPhotos", reportPhotos);
+      const selectedAssessment = assessments.find(ass => ass.claim_id === claim_id);
+      if (selectedAssessment) {
+        const reportData = selectedAssessment.report;
+        const report = typeof reportData === 'string' ? JSON.parse(reportData) : reportData;
+        if (report) {
+          const partsToReplace = report.partsToReplace || [];
+          const selectedParts = report.selectedParts || [];
+          const combinedParts = [...partsToReplace, ...selectedParts];
+          const newScopeItems = combinedParts.map(
+            (part: { name: string; cost: string }) => `${part.name} (${part.cost} RWF)`
+          );
+          setScopeItems(newScopeItems);
+          form.setValue("scope_of_work", newScopeItems);
 
-      //       // Set estimated cost
-      //       form.setValue("estimated_cost", report.totalCost || 0);
-      //       // damage_description preset
-      //       form.setValue("damage_description", report.damage_description + "\n" + report.repairRecommendation)
-      //     } else {
-      //       setScopeItems([]);
-      //       form.setValue("scope_of_work", []);
-      //       form.setValue("photos", []);
-      //       form.setValue("uploadedPhotos", []);
-      //       setUploadedPhotos([]);
-      //       form.setValue("estimated_cost", 0);
-      //     }
-      //   } else {
-      //     setScopeItems([]);
-      //     form.setValue("scope_of_work", []);
-      //     form.setValue("photos", []);
-      //     form.setValue("uploadedPhotos", []);
-      //     setUploadedPhotos([]);
-      //     form.setValue("estimated_cost", 0);
-      //   }
+          // Pre-populate photos
+          const reportPhotos = (report.photos || []).map((photo: string) =>
+            photo.startsWith("http") ? photo : `${STORAGES_URL}${photo}`
+          );
+          setUploadedPhotos(reportPhotos);
+          form.setValue("photos", reportPhotos);
+          form.setValue("uploadedPhotos", reportPhotos);
+
+          // Set estimated cost
+          form.setValue("estimated_cost", report.totalCost || 0);
+          // damage_description preset
+          form.setValue("damage_description", report.damage_description + "\n" + report.repairRecommendation)
+        } else {
+          setScopeItems([]);
+          form.setValue("scope_of_work", []);
+          form.setValue("photos", []);
+          form.setValue("uploadedPhotos", []);
+          setUploadedPhotos([]);
+          form.setValue("estimated_cost", 0);
+        }
+      } else {
+        setScopeItems([]);
+        form.setValue("scope_of_work", []);
+        form.setValue("photos", []);
+        form.setValue("uploadedPhotos", []);
+        setUploadedPhotos([]);
+        form.setValue("estimated_cost", 0);
+      }
     }
   };
   // Handle adding scope item
@@ -606,7 +605,7 @@ export default function NewBidPage() {
                 <CardDescription>Enter details about the vehicle</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="vehicle_info.make"
@@ -646,8 +645,6 @@ export default function NewBidPage() {
                       </FormItem>
                     )}
                   />
-                  </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="vehicle_info.license_plate"
@@ -665,7 +662,7 @@ export default function NewBidPage() {
                     control={form.control}
                     name="vehicle_info.vin"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="md:col-span-2">
                         <FormLabel>VIN</FormLabel>
                         <FormControl>
                           <Input placeholder="Vehicle Identification Number" {...field} />
@@ -803,7 +800,7 @@ export default function NewBidPage() {
               </CardContent>
             </Card>
 
-
+           
             {/* Photos and Documents Section */}
             <Card>
               <CardHeader>
