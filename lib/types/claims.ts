@@ -176,6 +176,15 @@ export interface Claim {
   submitted_by: string;
   pending_reason?: string;
   assignment?: Assignment;
+  feedback?: {
+    id: string;
+    overall_rating: number;
+    process_rating?: number;
+    communication_rating?: number;
+    speed_rating?: number;
+    feedback_text?: string;
+    created_at: string;
+  };
 }
 export const defaultClaim: Claim = {
   id: "",

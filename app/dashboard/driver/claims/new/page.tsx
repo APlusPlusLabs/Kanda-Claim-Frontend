@@ -35,6 +35,13 @@ import {
   CheckCircle2,
   Plus,
   Trash2,
+  Badge,
+  Eye,
+  Loader2,
+  ChevronLeft,
+  Save,
+  ChevronRight,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -45,6 +52,7 @@ import { useAuth } from "@/lib/auth-provider";
 import { useLanguage } from "@/lib/language-context";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { GarageRecommendations } from "@/components/garage-recommendations";
+import { Separator } from "@/components/ui/separator";
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -87,19 +95,17 @@ const formSchema = z.object({
     phone: z.string().min(6, { message: "Valid phone number is required" }),
   }),
 
+  // New vehicle selection fields
+  vehicle_selection_mode: z.enum(["existing", "new"]).default("new"),
+  selected_vehicle_id: z.string().optional(),
+
   vehicle: z.object({
-    license_plate: z.string().min(2, { message: "Plate number is required" }),
-    make: z.string().min(2, { message: "Make is required" }),
-    model: z.string().min(2, { message: "Model is required" }),
-    vin: z.string().min(17, { message: "VIN (Vehicle Identification Number) is required & 17 characters" }),
-    year: z
-      .string()
-      .regex(/^\d{4}$/, { message: "Year must be a 4-digit number" })
-      .refine((val) => {
-        const year = parseInt(val);
-        return year >= 1900 && year <= new Date().getFullYear();
-      }, { message: "Year must be between 1900 and the current year" }),
-  }),
+    license_plate: z.string().optional(),
+    make: z.string().optional(),
+    model: z.string().optional(),
+    vin: z.string().optional(),
+    year: z.string().optional(),
+  }).optional(),
 
   // Step 3 - Police Information
   police_assignment: z.object({
@@ -174,8 +180,69 @@ const formSchema = z.object({
   ).optional(),
 
   additionalNotes: z.string().optional(),
-});
+}).superRefine((data, ctx) => {
+  // Conditional validation for vehicle section
+  if (data.vehicle_selection_mode === "existing") {
+    // When selecting existing vehicle, selected_vehicle_id is required
+    if (!data.selected_vehicle_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please select a vehicle",
+        path: ["selected_vehicle_id"],
+      });
+    }
+  } else if (data.vehicle_selection_mode === "new") {
+    // When entering new vehicle, all vehicle fields are required
+    if (!data.vehicle?.license_plate || data.vehicle.license_plate.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Plate number is required",
+        path: ["vehicle", "license_plate"],
+      });
+    }
 
+    if (!data.vehicle?.make || data.vehicle.make.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Make is required",
+        path: ["vehicle", "make"],
+      });
+    }
+
+    if (!data.vehicle?.model || data.vehicle.model.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Model is required",
+        path: ["vehicle", "model"],
+      });
+    }
+
+    if (!data.vehicle?.vin || data.vehicle.vin.length < 17) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "VIN (Vehicle Identification Number) is required & 17 characters",
+        path: ["vehicle", "vin"],
+      });
+    }
+
+    if (!data.vehicle?.year || !/^\d{4}$/.test(data.vehicle.year)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Year must be a 4-digit number",
+        path: ["vehicle", "year"],
+      });
+    } else {
+      const year = parseInt(data.vehicle.year);
+      if (year < 1900 || year > new Date().getFullYear()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Year must be between 1900 and the current year",
+          path: ["vehicle", "year"],
+        });
+      }
+    }
+  }
+})
 // validation schemas for all steps
 const stepValidationSchemas = [
   // Step 1
@@ -192,18 +259,106 @@ const stepValidationSchemas = [
   // Step 2
   z.object({
     driver_details: z.object({
-      has_license: z.boolean().optional().default(true),
-      surname: z.string().min(2),
-      name: z.string().min(2),
-      phone: z.string().min(6),
+      has_license: z.boolean().optional(),
+      license_number: z.string().optional(),
+      license_category: z.string().optional(),
+      license_issued_date: z.date().optional(),
+      surname: z.string().min(2, { message: "Surname is required" }),
+      name: z.string().min(2, { message: "Name is required" }),
+      phone: z.string().min(6, { message: "Valid phone number is required" }),
     }),
+    vehicle_selection_mode: z.enum(["existing", "new"]),
+    selected_vehicle_id: z.string().optional(),
     vehicle: z.object({
-      license_plate: z.string().min(2),
-      make: z.string().min(2),
-      model: z.string().min(2),
-      vin: z.string().min(17),
-      year: z.string().regex(/^\d{4}$/),
-    }),
+      license_plate: z.string().optional(),
+      make: z.string().optional(),
+      model: z.string().optional(),
+      vin: z.string().optional(),
+      year: z.string().optional(),
+    }).optional(),
+  }).superRefine((data, ctx) => {
+    // Validate license fields if has_license is true
+    if (data.driver_details.has_license) {
+      if (!data.driver_details.license_number) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "License number is required",
+          path: ["driver_details", "license_number"],
+        });
+      }
+      if (!data.driver_details.license_category) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "License category is required",
+          path: ["driver_details", "license_category"],
+        });
+      }
+      if (!data.driver_details.license_issued_date) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "License issue date is required",
+          path: ["driver_details", "license_issued_date"],
+        });
+      }
+    }
+
+    // Conditional validation for vehicle section
+    if (data.vehicle_selection_mode === "existing") {
+      // When selecting existing vehicle, only validate that one is selected
+      if (!data.selected_vehicle_id) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Please select a vehicle",
+          path: ["selected_vehicle_id"],
+        });
+      }
+    } else if (data.vehicle_selection_mode === "new") {
+      // When entering new vehicle, validate all vehicle fields
+      if (!data.vehicle?.license_plate || data.vehicle.license_plate.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Plate number is required",
+          path: ["vehicle", "license_plate"],
+        });
+      }
+      if (!data.vehicle?.make || data.vehicle.make.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Make is required",
+          path: ["vehicle", "make"],
+        });
+      }
+      if (!data.vehicle?.model || data.vehicle.model.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Model is required",
+          path: ["vehicle", "model"],
+        });
+      }
+      if (!data.vehicle?.vin || data.vehicle.vin.length < 17) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "VIN (Vehicle Identification Number) is required & 17 characters",
+          path: ["vehicle", "vin"],
+        });
+      }
+      if (!data.vehicle?.year || !/^\d{4}$/.test(data.vehicle.year)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Year must be a 4-digit number",
+          path: ["vehicle", "year"],
+        });
+      } else {
+        const year = parseInt(data.vehicle.year);
+        if (year < 1900 || year > new Date().getFullYear()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Year must be between 1900 and the current year",
+            path: ["vehicle", "year"],
+          });
+        }
+      }
+    }
   }),
   // Step 3
   z.object({
@@ -254,6 +409,21 @@ const stepValidationSchemas = [
     })).optional(),
   }),
   // Step 7
+  // z.object({
+  //   documents: z.array(z.object({
+  //     type: z.enum([
+  //       "driver_license",
+  //       "vehicle_registration",
+  //       "accident_scene",
+  //       "vehicle_damage",
+  //       "police_report",
+  //       "witness_statement",
+  //       "other",
+  //     ]),
+  //     file: fileSchema,
+  //   })).optional(),
+  // }),
+  // Step 7
   z.object({
     documents: z.array(z.object({
       type: z.enum([
@@ -265,7 +435,10 @@ const stepValidationSchemas = [
         "witness_statement",
         "other",
       ]),
-      file: fileSchema,
+      file: fileSchema.optional(), // Make optional for existing files
+      existing_file_id: z.string().optional(),
+      existing_file_name: z.string().optional(),
+      existing_file_url: z.string().optional(),
     })).optional(),
   }),
 ];
@@ -279,7 +452,11 @@ export default function NewClaimPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [stepErrors, setStepErrors] = useState<number[]>([]);
+  const [isLoadingClaimStatus, setIsLoadingClaimStatus] = useState(true);
   const [claimId, setClaimId] = useState<string | null>(null);
+  const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
+  const [documentsToDelete, setDocumentsToDelete] = useState<string[]>([]);
+
   const [isSaving, setIsSaving] = useState(false);
   const [previews, setPreviews] = useState({
     driverLicensePhoto: "",
@@ -322,7 +499,227 @@ export default function NewClaimPage() {
       router.push('/login')
     }
   }, [user, toast]);
+  //if there is claim save in sesssion prepopulate field and activate step
+  useEffect(() => {
+    const initializeClaimStatus = async () => {
+      setIsLoadingClaimStatus(true);
 
+      // Check if there's a claim ID in localStorage or URL params
+      const savedClaimId = localStorage.getItem('current_claim_id') ||
+        new URLSearchParams(window.location.search).get('claim_id');
+
+      if (savedClaimId) {
+        try {
+          // Fetch claim completion status
+          const claimData = await checkClaimCompletionStatus(savedClaimId);
+
+          if (claimData) {
+            setClaimId(savedClaimId);
+
+            // Determine completed steps
+            const completed = getCompletedStepsFromClaimData(claimData);
+            setCompletedSteps(completed);
+
+            // Set current step to next incomplete step
+            const nextStep = getNextIncompleteStep(completed);
+            setStep(nextStep);
+
+            // Pre-populate form with existing data
+            populateFormWithClaimData(claimData);
+
+            toast({
+              title: t("claims.claim_resumed"),
+              description: t("claims.continuing_from_step") + ` ${nextStep}`,
+            });
+          } else {
+            // Claim not found, start fresh
+            localStorage.removeItem('current_claim_id');
+            setStep(1);
+            setCompletedSteps([]);
+          }
+        } catch (error) {
+          console.error("Error initializing claim status:", error);
+          localStorage.removeItem('current_claim_id');
+          setStep(1);
+          setCompletedSteps([]);
+        }
+      } else {
+        // No saved claim, start fresh
+        setStep(1);
+        setCompletedSteps([]);
+      }
+
+      setIsLoadingClaimStatus(false);
+    };
+
+    if (user?.id) {
+      initializeClaimStatus();
+    }
+  }, [user?.id]);
+
+  // existing claim data
+  const populateFormWithClaimData = (claimData: any) => {
+    // Step 1: Basic Info
+    if (claimData.claim_type_id) {
+      form.setValue("claim_type_id", claimData.claim_type_id);
+    }
+    if (claimData.policy_number) {
+      form.setValue("policyNumber", claimData.policy_number);
+    }
+    if (claimData.amount) {
+      form.setValue("amount", claimData.amount.toString());
+    }
+    if (claimData.priority) {
+      form.setValue("priority", claimData.priority);
+    }
+    if (claimData.accident_date) {
+      form.setValue("accidentDate", new Date(claimData.accident_date));
+    }
+    if (claimData.accident_time) {
+      form.setValue("accidentTime", claimData.accident_time);
+    }
+    if (claimData.accident_location) {
+      form.setValue("accidentLocation", claimData.accident_location);
+    }
+    if (claimData.accident_description) {
+      form.setValue("accidentDescription", claimData.accident_description);
+    }
+
+    // Step 2: Driver Details
+    if (claimData.driver_details) {
+      const driver = claimData.driver_details;
+      form.setValue("driver_details", {
+        has_license: driver.has_license,
+        license_number: driver.license_number || "",
+        license_category: driver.license_category || "",
+        license_issued_date: driver.license_issued_date ? new Date(driver.license_issued_date) : undefined,
+        surname: driver.surname || user.first_name,
+        name: driver.name || user.last_name,
+        phone: driver.phone || user.phone,
+      });
+    }
+
+    // Step 2: Vehicle Data
+    if (claimData.vehicles?.length > 0) {
+      const vehicle = claimData.vehicles[0]; // Get first vehicle
+      if (vehicle.user_id === user?.id) {
+        // User's existing vehicle
+        form.setValue("vehicle_selection_mode", "existing");
+        form.setValue("selected_vehicle_id", vehicle.id);
+      } else {
+        // New vehicle entered during claim
+        form.setValue("vehicle_selection_mode", "new");
+        form.setValue("vehicle", {
+          license_plate: vehicle.license_plate,
+          make: vehicle.make,
+          model: vehicle.model,
+          year: vehicle.year.toString(),
+          vin: vehicle.vin,
+        });
+      }
+    }
+
+    // Step 3: Police Assignment
+    if (claimData.police_assignment) {
+      const police = claimData.police_assignment;
+      form.setValue("police_assignment", {
+        police_visited: police.police_visited || false,
+        police_station: police.police_station || "",
+        police_officer_name: police.police_officer_name || "",
+        police_officer_phone: police.police_officer_phone || "",
+        police_report_number: police.police_report_number || "",
+      });
+    }
+
+    // Step 4: Other Vehicles
+    if (claimData.other_vehicles) {
+      const otherVehicles = claimData.other_vehicles.map((vehicle: any) => ({
+        license_plate: vehicle.license_plate || "",
+        make: vehicle.make || "",
+        type: vehicle.type || "",
+        owner_first_name: vehicle.owner_first_name || "",
+        owner_last_name: vehicle.owner_last_name || "",
+        owner_address: vehicle.owner_address || "",
+        insurer_name: vehicle.insurer_name || "",
+        policy_number: vehicle.policy_number || "",
+      }));
+      form.setValue("other_vehicles", otherVehicles);
+    }
+
+    // Step 5: Injuries
+    if (claimData.injuries) {
+      const injuries = claimData.injuries.map((injury: any) => ({
+        first_name: injury.first_name || "",
+        last_name: injury.last_name || "",
+        age: injury.age || 0,
+        phone: injury.phone || "",
+        profession: injury.profession || "",
+        injury_description: injury.injury_description || "",
+        is_deceased: injury.is_deceased || false,
+      }));
+      form.setValue("injuries", injuries);
+    }
+
+    // Step 5: Damages
+    if (claimData.damages) {
+      const damages = claimData.damages.map((damage: any) => ({
+        type: damage.type || "",
+        estimated_cost: damage.estimated_cost || 0,
+        owner_name: damage.owner_name || "",
+        description: damage.description || "",
+      }));
+      form.setValue("damages", damages);
+    }
+
+    // Step 6: Garages
+    if (claimData.garages) {
+      const garages = claimData.garages.map((garage: any) => ({
+        name: garage.name || "",
+        address: garage.address || "",
+      }));
+      form.setValue("garages", garages);
+    }
+
+    // Step 7: Documents
+    // if (claimData.documents) {
+    //   const documents = claimData.documents.map((document: any) => ({
+    //     type: document.type || "other",
+    //     file: document.file || null, // Note: Files might need special handling
+    //   }));
+    //   form.setValue("documents", documents);
+    // }
+    // if (claimData.documents) {
+    //   const documents = claimData.documents.map((document: any) => ({
+    //     type: document.type || "other",
+    //     file: null,
+    //     existing_file_id: document.id,
+    //     existing_file_name: document.file_name,
+    //     existing_file_url: document.file_url,
+    //   }));
+    //   form.setValue("documents", documents);
+
+    //   // You might want to store existing documents separately
+    //   setExistingDocuments(claimData.documents);
+    // }
+    if (claimData.documents) {
+      loadExistingDocuments(claimData.documents);
+
+      const documentEntries = claimData.documents.map((document: any) => ({
+        type: document.type || "other",
+        file: null,
+        existing_file_id: document.id,
+        existing_file_name: document.file_name || document.name,
+        existing_file_url: document.file_url || document.url,
+        is_existing: true,
+      }));
+      form.setValue("documents", documentEntries);
+    }
+
+    // Additional Notes (if exists)
+    if (claimData.additional_notes) {
+      form.setValue("additionalNotes", claimData.additional_notes);
+    }
+  };
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -343,6 +740,8 @@ export default function NewClaimPage() {
         name: user.last_name,
         phone: user.phone,
       },
+      vehicle_selection_mode: "new",
+      selected_vehicle_id: "",
       vehicle: {
         license_plate: "",
         make: "",
@@ -365,7 +764,6 @@ export default function NewClaimPage() {
       additionalNotes: "",
     },
   });
-
   // Field arrays for dynamic inputs
   const { fields: otherVehicleFields, append: appendOtherVehicle, remove: removeOtherVehicle } = useFieldArray({
     control: form.control,
@@ -394,15 +792,112 @@ export default function NewClaimPage() {
     }, str);
   };
 
+  // const validateStep = async (stepNumber: number) => {
+  //   try {
+  //     const currentSchema = stepValidationSchemas[stepNumber - 1];
+  //     const values = form.getValues();
+  //     const stepFields: any = {};
+  //     Object.keys(currentSchema.shape).forEach((key) => {
+  //       stepFields[key] = values[key as keyof typeof values];
+  //     });
+  //     await currentSchema.parseAsync(stepFields);
+  //     if (!completedSteps.includes(stepNumber)) {
+  //       setCompletedSteps((prev) => [...prev, stepNumber]);
+  //     }
+  //     if (stepErrors.includes(stepNumber)) {
+  //       setStepErrors((prev) => prev.filter((s) => s !== stepNumber));
+  //     }
+  //     return true;
+  //   } catch (error) {
+  //     if (!stepErrors.includes(stepNumber)) {
+  //       setStepErrors((prev) => [...prev, stepNumber]);
+  //     }
+  //     toast({
+  //       variant: "destructive",
+  //       title: `Kanda Claim - ${t("claims.validation_error")}`,
+  //       description: t("claims.please_complete_required: " + error),
+  //     });
+  //     return false;
+  //   }
+  // };
   const validateStep = async (stepNumber: number) => {
     try {
-      const currentSchema = stepValidationSchemas[stepNumber - 1];
       const values = form.getValues();
+      
+      // Special handling for Step 2 (Driver & Vehicle)
+      if (stepNumber === 2) {
+        // Always validate driver details
+        if (!values.driver_details?.surname || values.driver_details.surname.length < 2) {
+          throw new Error("Surname is required");
+        }
+        if (!values.driver_details?.name || values.driver_details.name.length < 2) {
+          throw new Error("Name is required");
+        }
+        if (!values.driver_details?.phone || values.driver_details.phone.length < 6) {
+          throw new Error("Valid phone number is required");
+        }
+        
+        // License validation if has_license is true
+        if (values.driver_details?.has_license) {
+          if (!values.driver_details?.license_number) {
+            throw new Error("License number is required");
+          }
+          if (!values.driver_details?.license_category) {
+            throw new Error("License category is required");
+          }
+          if (!values.driver_details?.license_issued_date) {
+            throw new Error("License issue date is required");
+          }
+        }
+        
+        // Vehicle validation based on selection mode
+        if (values.vehicle_selection_mode === "existing") {
+          if (!values.selected_vehicle_id) {
+            throw new Error("Please select a vehicle");
+          }
+        } else if (values.vehicle_selection_mode === "new") {
+          if (!values.vehicle?.license_plate || values.vehicle.license_plate.length < 2) {
+            throw new Error("Plate number is required");
+          }
+          if (!values.vehicle?.make || values.vehicle.make.length < 2) {
+            throw new Error("Make is required");
+          }
+          if (!values.vehicle?.model || values.vehicle.model.length < 2) {
+            throw new Error("Model is required");
+          }
+          if (!values.vehicle?.vin || values.vehicle.vin.length < 17) {
+            throw new Error("VIN (Vehicle Identification Number) is required & 17 characters");
+          }
+          if (!values.vehicle?.year || !/^\d{4}$/.test(values.vehicle.year)) {
+            throw new Error("Year must be a 4-digit number");
+          } else {
+            const year = parseInt(values.vehicle.year);
+            if (year < 1900 || year > new Date().getFullYear()) {
+              throw new Error("Year must be between 1900 and the current year");
+            }
+          }
+        } else {
+          throw new Error("Please select vehicle input mode");
+        }
+        
+        // Mark step as completed and return true
+        if (!completedSteps.includes(stepNumber)) {
+          setCompletedSteps((prev) => [...prev, stepNumber]);
+        }
+        if (stepErrors.includes(stepNumber)) {
+          setStepErrors((prev) => prev.filter((s) => s !== stepNumber));
+        }
+        return true;
+      }
+      
+      // Standard schema validation for all other steps
+      const currentSchema = stepValidationSchemas[stepNumber - 1];
       const stepFields: any = {};
       Object.keys(currentSchema.shape).forEach((key) => {
         stepFields[key] = values[key as keyof typeof values];
       });
       await currentSchema.parseAsync(stepFields);
+      
       if (!completedSteps.includes(stepNumber)) {
         setCompletedSteps((prev) => [...prev, stepNumber]);
       }
@@ -417,12 +912,19 @@ export default function NewClaimPage() {
       toast({
         variant: "destructive",
         title: `Kanda Claim - ${t("claims.validation_error")}`,
-        description: t("claims.please_complete_required: " + error),
+        description: error instanceof Error ? error.message : String(error),
       });
       return false;
     }
   };
-
+  const getStepStatusIcon = (stepNumber: number) => {
+    if (stepErrors.includes(stepNumber)) {
+      return <AlertCircle className="h-4 w-4 text-destructive" />;
+    } else if (completedSteps.includes(stepNumber)) {
+      return <CheckCircle2 className="h-4 w-4 text-primary" />;
+    }
+    return null;
+  };
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -477,15 +979,6 @@ export default function NewClaimPage() {
     }
   };
 
-  const getStepStatusIcon = (stepNumber: number) => {
-    if (stepErrors.includes(stepNumber)) {
-      return <AlertCircle className="h-4 w-4 text-destructive" />;
-    } else if (completedSteps.includes(stepNumber)) {
-      return <CheckCircle2 className="h-4 w-4 text-primary" />;
-    }
-    return null;
-  };
-
   const handleGarageSelection = (garage: any) => {
     appendGarage({
       id: garage.id,
@@ -496,7 +989,20 @@ export default function NewClaimPage() {
     });
     setShowGarageRecommendations(false);
   };
-
+  // Handle vehicle selection
+  const handleVehicleSelection = (vehicleId: string) => {
+    const selectedVehicle = user.vehicles?.find(v => v.id === vehicleId);
+    if (selectedVehicle) {
+      // Clear vehicle form fields since we're using existing vehicle
+      form.setValue("vehicle", {
+        license_plate: "",
+        make: "",
+        model: "",
+        vin: "",
+        year: ""
+      });
+    }
+  };
   const saveStep = async () => {
     if (isSaving) return;
     if (step > 1 && !claimId) {
@@ -509,6 +1015,7 @@ export default function NewClaimPage() {
       return;
     }
     setIsSaving(true);
+    setIsSubmitting(true);
     try {
       const currentStepValid = await validateStep(step);
       if (!currentStepValid) {
@@ -542,6 +1049,7 @@ export default function NewClaimPage() {
         response = await apiRequest(`${API_URL}claims`, "POST", data);
         if (!response.id) throw new Error("Claim ID not returned from API");
         setClaimId(response.id);
+        localStorage.setItem('current_claim_id', response.id);
       } else if (step === 2) {
         if (values.driver_details) {
           const driver = values.driver_details;
@@ -554,8 +1062,12 @@ export default function NewClaimPage() {
           };
           await apiRequest(`${API_URL}claims/${claimId}/driver-details`, "POST", driverData);
         }
+        let vehicleId;
 
-        if (values.vehicle) {
+        if (values.vehicle_selection_mode === "existing" && values.selected_vehicle_id) {
+          // Use existing vehicle
+          vehicleId = values.selected_vehicle_id;
+        } else if (values.vehicle_selection_mode === "new" && values.vehicle) {
           const vehicle = values.vehicle;
           const vehicleData = {
             license_plate: vehicle.license_plate,
@@ -565,11 +1077,21 @@ export default function NewClaimPage() {
             vin: vehicle.vin,
             user_id: user?.id,
             tenant_id: user?.tenant_id,
-            claim_id: claimId,
           };
-          await apiRequest(`${API_URL}vehicles`, "POST", vehicleData);
+
+          const createdVehicle = await apiRequest(`${API_URL}vehicles`, "POST", vehicleData);
+          vehicleId = createdVehicle.id;
         }
-      } else if (step === 3) {
+        if (vehicleId) {
+          const claimVehicleData = {
+            claim_id: claimId,
+            vehicle_id: vehicleId,
+            tenant_id: user?.tenant_id,
+          };
+          await apiRequest(`${API_URL}claims/${claimId}/vehicle`, "POST", claimVehicleData);
+        }
+      }
+      else if (step === 3) {
         const police = values.police_assignment
         if (police) {
           const data = {
@@ -646,18 +1168,37 @@ export default function NewClaimPage() {
           }
         }
       } else if (step === 7) {
-        values.documents?.forEach(async (doc, index) => {
+        const documents = values.documents || [];
+        const newDocuments = documents.filter((doc: any) => doc.file && !doc.is_existing);
+
+        // Upload new documents
+        for (const doc of newDocuments) {
           if (doc.file) {
             const formData = new FormData();
-            formData.append('type', doc.type);
             formData.append('file', doc.file);
+            formData.append('type', doc.type);
             formData.append('claim_id', claimId + "");
-            response = await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
+            formData.append('tenant_id', user?.tenant_id);
+
+            await apiRequest(`${API_URL}claims/${claimId}/documents`, "POST", formData);
           }
-        });
-        if (!values.documents?.length) {
-          const confirmSubmit = window.confirm(t("claims.confirm_no_documents"));
-          if (!confirmSubmit) return;
+        }
+
+        for (const documentId of documentsToDelete) {
+          try {
+            await apiRequest(`${API_URL}claims/${claimId}/documents/${documentId}`, "DELETE");
+          } catch (error) {
+            console.error("Error deleting document:", error);
+          }
+        }
+
+        setDocumentsToDelete([]);
+
+        // Update additional notes
+        if (values.additionalNotes) {
+          await apiRequest(`${API_URL}claims/${claimId}/notes`, "POST", {
+            notes: values.additionalNotes
+          });
         }
       }
 
@@ -668,8 +1209,10 @@ export default function NewClaimPage() {
       });
 
       if (step < 7) {
-        setStep(step + 1); // Advance to next step (e.g., Step 7 after Step 6)
+        setStep(step + 1);
       } else if (step === 7) {
+        await apiRequest(`${API_URL}claims/${claimId}/status`, "PATCH", { status: "submitted" });
+        localStorage.removeItem('current_claim_id');
         toast({
           title: "Claim Submitted",
           description: "Your claim, including documents, has been successfully submitted.",
@@ -685,11 +1228,116 @@ export default function NewClaimPage() {
       });
     } finally {
       setIsSaving(false);
+      setIsSubmitting(false);
     }
   };
+
+
+  // Function to check claim completion status
+  const checkClaimCompletionStatus = async (claimId: string) => {
+    try {
+      const response = await apiRequest(`${API_URL}claims/${claimId}/completion-status`, "GET");
+      return response;
+    } catch (error) {
+      console.error("Error checking claim completion status:", error);
+      return null;
+    }
+  };
+
+  // steps are completed based on claim data
+  const getCompletedStepsFromClaimData = (claimData: any) => {
+    const completed: number[] = [];
+
+    // Step 1: Basic info (always completed if claim exists)
+    if (claimData.id) {
+      completed.push(1);
+    }
+
+    // Step 2: Driver and vehicle info
+    if (claimData.driver_details && claimData.vehicles?.length > 0) {
+      completed.push(2);
+    }
+
+    // Step 3: Police info
+    if (claimData.police_assignment) {
+      completed.push(3);
+    }
+
+    // Step 4: Other vehicles (check if step was visited, even with empty array)
+    if (claimData.other_vehicles !== undefined) {
+      completed.push(4);
+    }
+
+    // Step 5: Injuries and damages (check if step was visited)
+    if (claimData.injuries !== undefined && claimData.damages !== undefined) {
+      completed.push(5);
+    }
+
+    // Step 6: Garage info (check if step was visited)
+    if (claimData.garages !== undefined) {
+      completed.push(6);
+    }
+
+    // Step 7: Documents (check if step was visited)
+    if (claimData.documents !== undefined) {
+      completed.push(7);
+    }
+
+    return completed;
+  };
+
+  // Function to get the next incomplete step
+  const getNextIncompleteStep = (completedSteps: number[]) => {
+    for (let i = 1; i <= 7; i++) {
+      if (!completedSteps.includes(i)) {
+        return i;
+      }
+    }
+    return 7; // All steps completed, show last step
+  };
+
+  const isImageFile = (filename: string) => {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+    return imageExtensions.some(ext => filename.toLowerCase().endsWith(ext));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleRemoveExistingDocument = (documentId: string) => {
+    // Add to delete list
+    setDocumentsToDelete(prev => [...prev, documentId]);
+
+    // Remove from existing documents display
+    setExistingDocuments(prev => prev.filter(doc => doc.id !== documentId));
+    toast({
+      title: t("documents.document_removed"),
+      description: t("documents.document_will_be_deleted"),
+    });
+  };
+
+  const loadExistingDocuments = (documents: any[]) => {
+    const existingDocs = documents.map((doc: any) => ({
+      id: doc.id,
+      type: doc.type,
+      file_name: doc.file_name || doc.name || 'Unknown file',
+      file_url: doc.file_url || doc.url,
+      file_size: doc.file_size || doc.size || 0,
+      uploaded_at: doc.created_at || doc.uploaded_at,
+      is_existing: true,
+    }));
+
+    setExistingDocuments(existingDocs);
+  };
+
   return (
     <DashboardLayout
-      user={{ name: user.name, role: user.role.name +" @ "+user.tenant.name, avatar: '/placeholder.svg' }}
+      user={{ name: user.name, role: user.role.name + " @ " + user.tenant.name, avatar: '/placeholder.svg' }}
       navigation={[
         {
           name: `Kanda Claim - ${t("nav.dashboard")}`,
@@ -708,39 +1356,54 @@ export default function NewClaimPage() {
     >
       <div className="container mx-auto p-4">
         <div className="mb-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-2">
-            {[
-              { number: 1, title: t("claims.basic_info") },
-              { number: 2, title: t("claims.driver_vehicle_info") },
-              { number: 3, title: t("claims.police_info") },
-              { number: 4, title: t("claims.other_vehicles") },
-              { number: 5, title: t("claims.injuries_damages") },
-              { number: 6, title: t("claims.garage_info") },
-              { number: 7, title: t("claims.documents_photos") },
-            ].map((s) => (
-              <button
-                key={s.number}
-                type="button"
-                onClick={() => setStep(s.number)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 border transition-colors w-full md:w-auto justify-center md:justify-start",
-                  step === s.number
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : completedSteps.includes(s.number)
-                      ? "bg-primary/20 text-primary hover:bg-primary/30 border-primary/30"
-                      : stepErrors.includes(s.number)
-                        ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/30"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80 border-muted",
-                )}
-              >
-                <span className="flex items-center justify-center w-8 h-8 bg-background/20 text-sm font-medium">
-                  {s.number}
-                </span>
-                <span className="hidden md:inline text-sm">{s.title}</span>
-                <span className="ml-auto">{getStepStatusIcon(s.number)}</span>
-              </button>
-            ))}
-          </div>
+          {isLoadingClaimStatus ? (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="flex flex-col md:flex-row justify-between items-center gap-2">
+              {[
+                { number: 1, title: t("claims.basic_info") },
+                { number: 2, title: t("claims.driver_vehicle_info") },
+                { number: 3, title: t("claims.police_info") },
+                { number: 4, title: t("claims.other_vehicles") },
+                { number: 5, title: t("claims.injuries_damages") },
+                { number: 6, title: t("claims.garage_info") },
+                { number: 7, title: t("claims.documents_photos") },
+              ].map((s) => (
+                <button
+                  key={s.number}
+                  type="button"
+                  onClick={() => {
+                    // Only allow navigation to completed steps or the next incomplete step
+                    const nextIncomplete = getNextIncompleteStep(completedSteps);
+                    if (completedSteps.includes(s.number) || s.number === nextIncomplete) {
+                      setStep(s.number);
+                    }
+                  }}
+                  disabled={!completedSteps.includes(s.number) && s.number > getNextIncompleteStep(completedSteps)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 border transition-colors w-full md:w-auto justify-center md:justify-start",
+                    step === s.number
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : completedSteps.includes(s.number)
+                        ? "bg-primary/20 text-primary hover:bg-primary/30 border-primary/30"
+                        : stepErrors.includes(s.number)
+                          ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/30"
+                          : s.number > getNextIncompleteStep(completedSteps)
+                            ? "bg-muted/50 text-muted-foreground/50 border-muted/50 cursor-not-allowed"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80 border-muted",
+                  )}
+                >
+                  <span className="flex items-center justify-center w-8 h-8 bg-background/20 text-sm font-medium">
+                    {s.number}
+                  </span>
+                  <span className="hidden md:inline text-sm">{s.title}</span>
+                  <span className="ml-auto">{getStepStatusIcon(s.number)}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <h1 className="text-3xl font-bold">Kanda Claim - {t("claims.new")}</h1>
@@ -929,6 +1592,299 @@ export default function NewClaimPage() {
                   <div className="border p-4 rounded-md space-y-4">
                     <div className="flex justify-between items-center">
                       <h3 className="font-medium">{t("form.driver_details")}</h3>
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name={`driver_details.has_license`}
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>{t("form.has_license")}</FormLabel>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    {form.watch(`driver_details.has_license`) && (
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name={`driver_details.license_number`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("form.license_number")}*</FormLabel>
+                              <FormControl>
+                                <Input placeholder={t("form.license_number_placeholder")} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name={`driver_details.license_category`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.license_category")}*</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("form.select_category")} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="A">A</SelectItem>
+                                    <SelectItem value="B">B</SelectItem>
+                                    <SelectItem value="C">C</SelectItem>
+                                    <SelectItem value="D">D</SelectItem>
+                                    <SelectItem value="E">E</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`driver_details.license_issued_date`}
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col">
+                                <FormLabel>{t("form.issue_date")}*</FormLabel>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                          "w-full pl-3 text-left font-normal",
+                                          !field.value && "text-muted-foreground",
+                                        )}
+                                      >
+                                        {field.value ? format(field.value, "PPP") : <span>{t("form.pick_date")}</span>}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={field.value}
+                                      onSelect={(date) => field.onChange(date)}
+                                      disabled={(date) => date > new Date()}
+                                      initialFocus
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`driver_details.surname`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.driver_surname")}*</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("form.driver_surname_placeholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`driver_details.name`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.driver_name")}*</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("form.driver_name_placeholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name={`driver_details.phone`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("form.driver_phone")}*</FormLabel>
+                          <FormControl>
+                            <Input type="tel" placeholder="+250 788 123 456" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="border p-4 rounded-md space-y-4 mt-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-medium">{t("form.vehicle_details")}</h3>
+                    </div>
+
+                    {/* Vehicle Selection Mode */}
+                    <FormField
+                      control={form.control}
+                      name="vehicle_selection_mode"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>{t("form.vehicle_selection")}</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="flex flex-row space-y-2"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="existing" id="existing" />
+                                <label htmlFor="existing">{t("form.select_existing_vehicle")}</label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="new" id="new" />
+                                <label htmlFor="new">{t("form.enter_new_vehicle")}</label>
+                              </div>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Existing Vehicle Selection */}
+                    {form.watch("vehicle_selection_mode") === "existing" && (
+                      <FormField
+                        control={form.control}
+                        name="selected_vehicle_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("form.select_vehicle")}*</FormLabel>
+                            <Select onValueChange={(value) => {
+                              field.onChange(value);
+                              handleVehicleSelection(value);
+                            }} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={t("form.choose_vehicle")} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {user.vehicles.map((vehicle) => (
+                                  <SelectItem key={vehicle.id} value={vehicle.id}>
+                                    {vehicle.license_plate} - {vehicle.make} {vehicle.model} ({vehicle.year})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {/* New Vehicle Form - Show when mode is 'new' or no existing vehicles */}
+                    {(form.watch("vehicle_selection_mode") === "new" || user.vehicles.length === 0) && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="vehicle.license_plate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.vehicle_plate_number")}*</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.vehicle_plate_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="vehicle.vin"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.vin")}*</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.vin_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="vehicle.make"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.vehicle_make")}*</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.vehicle_make_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="vehicle.model"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.vehicle_model")}*</FormLabel>
+                                <FormControl>
+                                  <Input placeholder={t("form.vehicle_model_placeholder")} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="vehicle.year"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("form.vehicle_year")}*</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    placeholder={t("form.vehicle_year_placeholder")}
+                                    {...field}
+                                    onChange={(e) => field.onChange(e.target.value)}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {/* {step === 2 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("claims.driver_vehicle_info")}</CardTitle>
+                  <CardDescription>{t("claims.driver_details")}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="border p-4 rounded-md space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-medium">{t("form.driver_details")}</h3>
 
                     </div>
                     <FormField
@@ -1077,9 +2033,9 @@ export default function NewClaimPage() {
                         name={`vehicle.license_plate`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t("form.vehicle_license_plate")}*</FormLabel>
+                            <FormLabel>{t("form.vehicle_plate_number")}*</FormLabel>
                             <FormControl>
-                              <Input placeholder={t("form.vehicle_license_plate_placeholder")} {...field} />
+                              <Input placeholder={t("form.vehicle_plate_placeholder")} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1149,7 +2105,7 @@ export default function NewClaimPage() {
                   </div>
                 </CardContent>
               </Card>
-            )}
+            )} */}
             {/* police statements */}
             {step === 3 && (
               <Card>
@@ -1803,7 +2759,7 @@ export default function NewClaimPage() {
               </Card>
             )}
             {/* documents */}
-            {step === 7 && (
+            {/* {step === 7 && (
               <Card>
                 <CardHeader>
                   <CardTitle>{t("claims.documents_photos")}</CardTitle>
@@ -1913,9 +2869,208 @@ export default function NewClaimPage() {
                   />
                 </CardContent>
               </Card>
-            )}
+            )} */}
+            {step === 7 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("claims.documents_photos")}</CardTitle>
+                  <CardDescription>{t("claims.documents_details")}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
 
-            <div className="flex justify-between">
+                  {/* Show existing documents section if any */}
+                  {existingDocuments.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-lg">{t("documents.existing_documents")}</h3>
+                        <Badge variant="secondary">{existingDocuments.length} {t("documents.files")}</Badge>
+                      </div>
+
+                      {/* Group existing documents by type */}
+                      {[
+                        { type: "driver_license", label: t("form.driver_license") },
+                        { type: "vehicle_registration", label: t("form.vehicle_registration") },
+                        { type: "accident_scene", label: t("form.accident_scene_photos") },
+                        { type: "vehicle_damage", label: t("form.vehicle_damage_photos") },
+                        { type: "police_report", label: t("form.police_report") },
+                        { type: "witness_statement", label: t("form.witness_statements") },
+                        { type: "other", label: t("form.additional_documents") },
+                      ].map(({ type, label }) => {
+                        const existingOfType = existingDocuments.filter(doc => doc.type === type);
+                        if (existingOfType.length === 0) return null;
+
+                        return (
+                          <div key={`existing-${type}`} className="space-y-2">
+                            <h4 className="font-medium text-sm text-muted-foreground">{label}</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {existingOfType.map((doc) => (
+                                <div key={doc.id} className="relative rounded-md overflow-hidden border border-border group">
+                                  <AspectRatio ratio={1} className="bg-muted">
+                                    {isImageFile(doc.file_name) ? (
+                                      <img
+                                        src={doc.file_url || "/placeholder.svg"}
+                                        alt={doc.file_name}
+                                        className="object-cover w-full h-full"
+                                      />
+                                    ) : (
+                                      <div className="flex flex-col items-center justify-center w-full h-full bg-muted">
+                                        <FileText className="h-8 w-8 text-muted-foreground mb-2" />
+                                        <span className="text-xs text-center px-2 font-medium">
+                                          {doc.file_name}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {/* Document actions overlay */}
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => window.open(doc.file_url, '_blank')}
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => handleRemoveExistingDocument(doc.id)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </AspectRatio>
+
+                                  {/* Document info */}
+                                  <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-2">
+                                    <p className="text-xs font-medium truncate">{doc.file_name}</p>
+                                    <p className="text-xs opacity-80">
+                                      {formatFileSize(doc.file_size || 0)}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <Separator className="my-6" />
+                    </div>
+                  )}
+
+                  {/* Add new documents section */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-lg">{t("documents.add_new_documents")}</h3>
+
+                    {[
+                      { type: "driver_license", label: t("form.driver_license"), accept: "image/*" },
+                      { type: "vehicle_registration", label: t("form.vehicle_registration"), accept: "image/*" },
+                      { type: "accident_scene", label: t("form.accident_scene_photos"), accept: "image/*", multiple: true },
+                      { type: "vehicle_damage", label: t("form.vehicle_damage_photos"), accept: "image/*", multiple: true },
+                      { type: "police_report", label: t("form.police_report"), accept: ".pdf,.doc,.docx" },
+                      { type: "witness_statement", label: t("form.witness_statements"), accept: ".pdf,.doc,.docx", multiple: true },
+                      { type: "other", label: t("form.additional_documents"), accept: ".jpg,.png,.pdf,.doc,.docx", multiple: true },
+                    ].map(({ type, label, accept, multiple }) => (
+                      <FormItem key={type}>
+                        <FormLabel>{label} {type.includes("optional") ? "(optional)" : ""}</FormLabel>
+                        <div className="mt-2 flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="file"
+                              accept={accept}
+                              id={type}
+                              className={multiple ? "sr-only" : ""}
+                              multiple={multiple}
+                              onChange={(e) => handleFileChange(e, type)}
+                            />
+                            <label
+                              htmlFor={type}
+                              className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                            >
+                              {multiple ? <ImageIcon className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                              {multiple ? t("action.add_photos") : t("action.upload")}
+                            </label>
+                          </div>
+                          {previews[type as keyof typeof previews] && (
+                            <div className="mt-2">
+                              {Array.isArray(previews[type as keyof typeof previews]) ? (
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                  {(previews[type as keyof typeof previews] as string[]).map((preview, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="relative rounded-md overflow-hidden border border-border group"
+                                    >
+                                      <AspectRatio ratio={1} className="bg-muted">
+                                        <img
+                                          src={preview || "/placeholder.svg"}
+                                          alt={`${type} ${idx + 1}`}
+                                          className="object-cover w-full h-full"
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="destructive"
+                                          size="icon"
+                                          className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          onClick={() => removeFile(documentFields.findIndex((d) => d.type === type && d.file?.name === preview.split("/").pop()), type)}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </AspectRatio>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="relative rounded-md overflow-hidden border border-border">
+                                  <AspectRatio ratio={16 / 10}>
+                                    <img
+                                      src={previews[type as keyof typeof previews] as string || "/placeholder.svg"}
+                                      alt={label}
+                                      className="object-cover w-full h-full"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="icon"
+                                      className="absolute top-1 right-1 h-6 w-6"
+                                      onClick={() => removeFile(documentFields.findIndex((d) => d.type === type), type)}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </AspectRatio>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <FormDescription className="mt-1">{t(`form.${type}_description`)}</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    ))}
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="additionalNotes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("form.additional_notes")} (optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={t("form.additional_notes_placeholder")}
+                            className="min-h-[120px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            )}
+            {/* <div className="flex justify-between">
               {step > 1 && (
                 <Button type="button" variant="outline" onClick={() => setStep(step - 1)} className="mx-6">
                   {t("action.previous")}
@@ -1930,6 +3085,85 @@ export default function NewClaimPage() {
                   {step < 7 ? t("action.save_and_next") : isSubmitting ? t("action.submitting") : t("action.submit_claim")}
                 </Button>
               )}
+            </div> */}
+            <div className="flex justify-between">
+              {step > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(step - 1)}
+                  className="mx-6"
+                  disabled={isSubmitting}
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  {t("action.previous")}
+                </Button>
+              )}
+
+              {/* <Button
+                type="button"
+                onClick={saveStep}
+                disabled={isSubmitting || isLoadingClaimStatus}
+                className={cn(
+                  "mx-6 ml-auto transition-all duration-200",
+                  isSubmitting && "opacity-90"
+                )}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span className="animate-pulse">
+                      {step < 7 ? t("action.saving") : t("action.submitting")}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {step < 7 ? (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        {t("action.save_and_next")}
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        {t("action.submit_claim")}
+                      </>
+                    )}
+                  </>
+                )}
+              </Button> */}
+              <Button
+                type="button"
+                onClick={saveStep}
+                disabled={isSubmitting}
+                className="mx-6 ml-auto min-w-[140px]"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>{step < 7 ? t("action.saving") : t("action.submitting")}</span>
+                    <span className="text-xs opacity-70">
+                      {Math.round((step / 7) * 100)}%
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    {step < 7 ? (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        {t("action.save_and_next")}
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        {t("action.submit_claim")}
+                      </>
+                    )}
+                  </>
+                )}
+              </Button>
             </div>
           </form>
         </Form>

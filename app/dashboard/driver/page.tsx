@@ -372,8 +372,8 @@ function ClaimsTabContent({
   return (
     <DashboardLayout
       user={{
-        name: user?.name ? `${user.name} ` : "User name",
-        role: user?.role.name,
+        name: user.name,
+        role: user?.role.name+" @ "+ user.tenant.name,
         avatar: user?.avatar ? user?.avatar : "/placeholder.svg?height=40&width=40",
       }}
       navigation={[

@@ -329,7 +329,8 @@ export default function NotificationsPage() {
           onOpenChange={setIsPickupDialogOpen}
           onConfirm={handlePickupConfirm}
           vehicle={selectedNotification.vehicle}
-        />
+          apiRequest={apiRequest}
+          tenant_id={user.tenant_id} claim={selectedNotification.claim}        />
       )}
 
       {selectedNotification && (
@@ -337,7 +338,10 @@ export default function NotificationsPage() {
           open={isRatingDialogOpen}
           onOpenChange={setIsRatingDialogOpen}
           garage={selectedNotification.garage}
-          //onSubmit={handleRateGarage}
+        //  onSubmit={handleRateGarage}
+          apiRequest={apiRequest}
+          tenant_id={user.tenant_id}
+          user_id={user.id}
         />
       )}
     </DashboardLayout>

@@ -14,23 +14,26 @@ import { Textarea } from "@/components/ui/textarea"
 import { StarRating } from "@/components/star-rating"
 import { Building2, ThumbsUp } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { Garage } from "@/lib/types/claims"
+
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 interface GarageRatingDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  garage: {
-    name: string
-    address: string
-  }
+  garage: Garage
+  apiRequest: (url: string, method: string, body?: any) => Promise<any>
+  tenant_id: string
+  user_id: string
 }
 
-export function GarageRatingDialog({ open, onOpenChange, garage }: GarageRatingDialogProps) {
+export function GarageRatingDialog({ open, onOpenChange, garage, apiRequest, tenant_id, user_id }: GarageRatingDialogProps) {
   const [rating, setRating] = useState(0)
   const [feedback, setFeedback] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (rating === 0) {
       toast({
         title: "Rating required",
@@ -41,18 +44,36 @@ export function GarageRatingDialog({ open, onOpenChange, garage }: GarageRatingD
     }
 
     setIsSubmitting(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
+
+    try {
+      const reviewData = {
+        garage_id: garage.id,
+        rating: rating,
+        comment: feedback || null,
+        tenant_id,
+        user_id
+      }
+
+      const response = await apiRequest(`${API_URL}api/garage-reviews`, "POST", reviewData)
+
       toast({
         title: "Thank you for your feedback!",
         description: "Your rating has been submitted successfully.",
       })
+
       onOpenChange(false)
-      // Reset form
       setRating(0)
       setFeedback("")
-    }, 1000)
+    } catch (error) {
+      console.error("Error submitting review:", error)
+      toast({
+        title: "Error",
+        description: "There was an error submitting your review. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (

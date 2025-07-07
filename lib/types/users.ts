@@ -1,4 +1,4 @@
-import { Garage } from "./claims";
+import { Garage, Vehicle } from "./claims";
 
 export interface User {
     id: string;
@@ -18,7 +18,8 @@ export interface User {
     department_id?: string;
     department?: Department;
     garage_id: string;
-    garage?: Garage
+    garage?: Garage;
+    vehicles?: Vehicle[]
 }
 export interface Role {
     id: string;

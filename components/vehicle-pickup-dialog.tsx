@@ -11,29 +11,49 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Car, CheckCircle2 } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { Claim, Vehicle } from "@/lib/types/claims"
+
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 interface VehiclePickupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
-  vehicle: {
-    make: string
-    model: string
-    plateNumber: string
-    garage: string
-  }
+  vehicle: Vehicle
+  apiRequest: (url: string, method: string, body?: any) => Promise<any>
+  tenant_id: string,
+  claim: Claim
 }
 
-export function VehiclePickupDialog({ open, onOpenChange, onConfirm, vehicle }: VehiclePickupDialogProps) {
+export function VehiclePickupDialog({ open, onOpenChange, onConfirm, vehicle, apiRequest, tenant_id, claim }: VehiclePickupDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setIsSubmitting(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
+
+    try {
+      const endpoint = `${API_URL}claims/${vehicle.id}/pickup`
+      const response = await apiRequest(endpoint, "POST")
+
+      toast({
+        title: "Vehicle Pickup Confirmed",
+        description: "Your vehicle has been marked as picked up.",
+      })
+
+      onOpenChange(false)
       onConfirm()
-    }, 1000)
+    } catch (error) {
+      console.error("Error confirming vehicle pickup:", error)
+      toast({
+        title: "Error",
+        description: "There was an error confirming your vehicle pickup. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -57,9 +77,9 @@ export function VehiclePickupDialog({ open, onOpenChange, onConfirm, vehicle }: 
               <div className="text-muted-foreground">Model:</div>
               <div>{vehicle.model}</div>
               <div className="text-muted-foreground">Plate Number:</div>
-              <div>{vehicle.plateNumber}</div>
+              <div>{vehicle.license_plate}</div>
               <div className="text-muted-foreground">Garage:</div>
-              <div>{vehicle.garage}</div>
+              <div className="flex flex-row">{claim.garages?.map(gr => (<strong>{gr.name}</strong>))}</div>
             </div>
           </div>
         </div>

@@ -30,7 +30,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User| any>();
+  const [user, setUser] = useState<User | any>();
   const [token, setToken] = useState<String | null>(null);
   const [tenantId, setTenantId] = useState<String | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               department: parsedUser.department,
               garage_id: parsedUser.garage_id,
               garage: parsedUser.garage,
+              vehicles: parsedUser.vehicles
             });
           }
         }
@@ -113,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // Login function
-  async function login(data: { email: string; password: string; redirect?: true;}) {
+  async function login(data: { email: string; password: string; redirect?: true; }) {
     data
     try {
       const response = await fetch(`${API_URL}login`, {
@@ -152,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         department: uzer.department,
         garage_id: uzer.garage_id,
         garage: uzer.garage,
+        vehicles: uzer.vehicles,
       });
       setToken(JSON.stringify(result.token))
       setTenantId(JSON.stringify(uzer.tenant_id))
