@@ -50,29 +50,6 @@ const fraudMetricsData = [
   { metric: "Recovery Rate", value: 80 },
 ];
 
-const customerSatisfactionData = [
-  { month: "Jan", satisfaction: 85 },
-  { month: "Feb", satisfaction: 87 },
-  { month: "Mar", satisfaction: 84 },
-  { month: "Apr", satisfaction: 86 },
-  { month: "May", satisfaction: 88 },
-  { month: "Jun", satisfaction: 90 },
-  { month: "Jul", satisfaction: 92 },
-  { month: "Aug", satisfaction: 91 },
-  { month: "Sep", satisfaction: 93 },
-  { month: "Oct", satisfaction: 92 },
-  { month: "Nov", satisfaction: 94 },
-  { month: "Dec", satisfaction: 95 },
-].map((item) => ({ ...item, month: `2025-${item.month}` }));
-
-const processingEfficiencyData = [
-  { stage: "Initial Review", current: 1.2, previous: 1.8 },
-  { stage: "Assessment", current: 3.5, previous: 4.2 },
-  { stage: "Approval", current: 2.1, previous: 2.8 },
-  { stage: "Repair", current: 4.2, previous: 5.1 },
-  { stage: "Settlement", current: 1.0, previous: 1.6 },
-];
-
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
@@ -80,8 +57,8 @@ export default function AnalyticsPage() {
   const { user, apiRequest } = useAuth()
   const { toast } = useToast();
   const [dateRange, setDateRange] = useState({
-    from: new Date(2025, 0, 1),
-    to: new Date(),
+    from: new Date(new Date().getFullYear(), 0, 1), // January 1st of current year
+    to: new Date(new Date().getFullYear(), 11, 31), // December 31st of current year
   });
   const [period, setPeriod] = useState("year");
   const [sortField, setSortField] = useState("claims");
@@ -91,7 +68,14 @@ export default function AnalyticsPage() {
   const [claimsByStatus, setClaimsByStatus] = useState<any[]>([]);
   const [topGarages, setTopGarages] = useState<any[]>([]);
   const [monthlyComparison, setMonthlyComparison] = useState<any[]>([]);
+  const [customerSatisfaction, setCustomerSatisfaction] = useState<any[]>([]);
+  const [processingEfficiency, setProcessingEfficiency] = useState<any[]>([]);
   const [settlementTime, setSettlementTime] = useState<any[]>([]);
+  const [performanceMetrics, setPerformanceMetrics] = useState({
+    avg_processing_time: { current: 0, change: 0, is_improvement: false },
+    claims_per_agent: { current: 0, change: 0, is_improvement: false },
+    first_response_time: { current: 0, change: 0, is_improvement: false }
+  });
   const [summary, setSummary] = useState({
     totalClaims: { value: 0, change: 0 },
     totalPayout: { value: 0, change: 0 },
@@ -118,6 +102,9 @@ export default function AnalyticsPage() {
           monthlyComparisonRes,
           settlementTimeRes,
           summaryRes,
+          customerSatisfactionRes,
+          processingEfficiencyRes,
+          performanceMetricsRes
         ] = await Promise.all([
           apiRequest(`${API_URL}analytics/${user.tenant_id}/claims-by-month${param}`, "GET"),
           apiRequest(`${API_URL}analytics/${user.tenant_id}/claims-by-type${param}`, "GET"),
@@ -126,6 +113,9 @@ export default function AnalyticsPage() {
           apiRequest(`${API_URL}analytics/${user.tenant_id}/monthly-comparison${param}`, "GET"),
           apiRequest(`${API_URL}analytics/${user.tenant_id}/settlement-time-by-type${param}`, "GET"),
           apiRequest(`${API_URL}analytics/${user.tenant_id}/summary${param}`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/customer-satisfaction${param}`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/processing-efficiency${param}`, "GET"),
+          apiRequest(`${API_URL}analytics/${user.tenant_id}/performance-metrics${param}`, "GET"),
         ]);
 
         setClaimsByMonth(claimsByMonthRes);
@@ -135,6 +125,9 @@ export default function AnalyticsPage() {
         setMonthlyComparison(monthlyComparisonRes);
         setSettlementTime(settlementTimeRes);
         setSummary(summaryRes);
+        setCustomerSatisfaction(customerSatisfactionRes)
+        setProcessingEfficiency(processingEfficiencyRes)
+        setPerformanceMetrics(performanceMetricsRes)
       } catch (error) {
         toast({ title: "Error", description: "Failed to load analytics data", variant: "destructive" });
       } finally {
@@ -566,12 +559,12 @@ export default function AnalyticsPage() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={monthlyComparison} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="month" />
+                            <XAxis dataKey="thisYear.month" />
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Bar dataKey="thisYear" fill="#8884d8" name="This Year" />
-                            <Bar dataKey="lastYear" fill="#82ca9d" name="Last Year" />
+                            <Bar dataKey="thisYear.count" fill="#8884d8" name="Claims this year" />
+                            <Bar dataKey="lastYear.count" fill="#82ca9d" name="Claims Last Year" />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -587,12 +580,12 @@ export default function AnalyticsPage() {
                           </TableHeader>
                           <TableBody>
                             {monthlyComparison.slice(0, 6).map((item) => {
-                              const change = item.lastYear ? ((item.thisYear - item.lastYear) / item.lastYear * 100) : 0;
+                              const change = item.lastYear ? ((item.thisYear.count - item.lastYear.count) / item.lastYear.count * 100) : 100;
                               return (
                                 <TableRow key={item.month}>
-                                  <TableCell>{item.month}</TableCell>
-                                  <TableCell className="text-right">{item.thisYear}</TableCell>
-                                  <TableCell className="text-right">{item.lastYear}</TableCell>
+                                  <TableCell>{item.thisYear.month}</TableCell>
+                                  <TableCell className="text-right">{item.thisYear.count}</TableCell>
+                                  <TableCell className="text-right">{item.lastYear.count}</TableCell>
                                   <TableCell className="text-right">
                                     <span className={change >= 0 ? "text-green-500" : "text-red-500"}>
                                       {change >= 0 ? "+" : ""}{change.toFixed(1)}%
@@ -643,13 +636,12 @@ export default function AnalyticsPage() {
                           </TableHeader>
                           <TableBody>
                             {settlementTime.map((item) => {
-                              const benchmark = item.name === "Theft" ? 30 : item.name === "Natural Disaster" ? 25 : 15;
-                              const performance = ((benchmark - item.value) / benchmark * 100);
+                              const performance = ((item.benchmark - item.value) / item.benchmark * 100);
                               return (
                                 <TableRow key={item.name}>
                                   <TableCell>{item.name}</TableCell>
                                   <TableCell className="text-right">{item.value}</TableCell>
-                                  <TableCell className="text-right">{benchmark}</TableCell>
+                                  <TableCell className="text-right">{item.benchmark}</TableCell>
                                   <TableCell className="text-right">
                                     <span className={performance >= 0 ? "text-green-500" : "text-red-500"}>
                                       {performance >= 0 ? "+" : ""}{performance.toFixed(1)}%
@@ -785,20 +777,30 @@ export default function AnalyticsPage() {
                               <TableHead>Month</TableHead>
                               <TableHead className="text-right">Satisfaction</TableHead>
                               <TableHead className="text-right">Change</TableHead>
+                              <TableHead className="text-right">Reviews</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {customerSatisfactionData.slice(0, 6).map((item, index) => {
-                              const prevMonth = index > 0 ? customerSatisfactionData[index - 1].satisfaction : item.satisfaction;
-                              const change = ((item.satisfaction - prevMonth) / prevMonth * 100);
+                            {customerSatisfaction.slice(0, 6).map((item, index) => {
+                              // Calculate change from previous month
+                              const prevMonth = index > 0 ? customerSatisfaction[index - 1].satisfaction : item.satisfaction;
+                              const change = index > 0 ? ((item.satisfaction - prevMonth) / prevMonth * 100) : 0;
+
                               return (
-                                <TableRow key={item.month}>
+                                <TableRow key={`${item.month}-${index}`}>
                                   <TableCell>{item.month}</TableCell>
                                   <TableCell className="text-right">{item.satisfaction}%</TableCell>
                                   <TableCell className="text-right">
-                                    <span className={change >= 0 ? "text-green-500" : "text-red-500"}>
-                                      {change >= 0 ? "+" : ""}{change.toFixed(1)}%
-                                    </span>
+                                    {index > 0 ? (
+                                      <span className={change >= 0 ? "text-green-500" : "text-red-500"}>
+                                        {change >= 0 ? "+" : ""}{change.toFixed(1)}%
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right text-sm text-gray-600">
+                                    {item.feedback_count}
                                   </TableCell>
                                 </TableRow>
                               );
@@ -806,13 +808,35 @@ export default function AnalyticsPage() {
                           </TableBody>
                         </Table>
                       </div>
+
                       <div className="mt-4 space-y-4">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">Current Satisfaction</span>
-                          <span className="text-sm font-medium">95%</span>
+                          <span className="text-sm font-medium">
+                            {customerSatisfaction.length > 0 ? `${customerSatisfaction[customerSatisfaction.length - 1].satisfaction}%` : '0%'}
+                          </span>
                         </div>
-                        <Progress value={95} className="h-2" />
+                        <Progress
+                          value={customerSatisfaction.length > 0 ? customerSatisfaction[customerSatisfaction.length - 1].satisfaction : 0}
+                          className="h-2"
+                        />
+
+                        {/* Additional info section */}
+                        <div className="flex items-center justify-between text-sm text-gray-600">
+                          <span>Total Reviews This Month</span>
+                          <span>
+                            {customerSatisfaction.length > 0 ? customerSatisfaction[customerSatisfaction.length - 1].feedback_count : 0}
+                          </span>
+                        </div>
+
+                        {customerSatisfaction.length > 0 && customerSatisfaction[customerSatisfaction.length - 1].raw_rating && (
+                          <div className="flex items-center justify-between text-sm text-gray-600">
+                            <span>Average Rating</span>
+                            <span>{customerSatisfaction[customerSatisfaction.length - 1].raw_rating}/5.0</span>
+                          </div>
+                        )}
                       </div>
+
                     </CardContent>
                   </Card>
 
@@ -865,7 +889,7 @@ export default function AnalyticsPage() {
                     <CardDescription>Claims processing time and efficiency metrics</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                       <div className="space-y-2">
                         <h4 className="text-sm font-medium">Avg. Processing Time</h4>
                         <div className="text-2xl font-bold">12 days</div>
@@ -893,6 +917,73 @@ export default function AnalyticsPage() {
                           <span className="text-muted-foreground ml-1">from last quarter</span>
                         </div>
                       </div>
+                    </div> */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Avg. Processing Time</h4>
+                        <div className="text-2xl font-bold">
+                          {performanceMetrics.avg_processing_time.current > 0
+                            ? `${performanceMetrics.avg_processing_time.current} days`
+                            : 'N/A'
+                          }
+                        </div>
+                        <div className="flex items-center text-sm">
+                          {performanceMetrics.avg_processing_time.is_improvement ? (
+                            <TrendingDown className="h-4 w-4 mr-1 text-green-500" />
+                          ) : (
+                            <TrendingUp className="h-4 w-4 mr-1 text-red-500" />
+                          )}
+                          <span className={`font-medium ${performanceMetrics.avg_processing_time.is_improvement ? 'text-green-500' : 'text-red-500'}`}>
+                            {performanceMetrics.avg_processing_time.change > 0 ? '+' : ''}
+                            {performanceMetrics.avg_processing_time.change} days
+                          </span>
+                          <span className="text-muted-foreground ml-1">from last quarter</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Claims per Agent</h4>
+                        <div className="text-2xl font-bold">
+                          {performanceMetrics.claims_per_agent.current > 0
+                            ? `${performanceMetrics.claims_per_agent.current} claims`
+                            : 'N/A'
+                          }
+                        </div>
+                        <div className="flex items-center text-sm">
+                          {performanceMetrics.claims_per_agent.is_improvement ? (
+                            <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4 mr-1 text-red-500" />
+                          )}
+                          <span className={`font-medium ${performanceMetrics.claims_per_agent.is_improvement ? 'text-green-500' : 'text-red-500'}`}>
+                            {performanceMetrics.claims_per_agent.change > 0 ? '+' : ''}
+                            {performanceMetrics.claims_per_agent.change} claims
+                          </span>
+                          <span className="text-muted-foreground ml-1">from last quarter</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">First Response Time</h4>
+                        <div className="text-2xl font-bold">
+                          {performanceMetrics.first_response_time.current > 0
+                            ? `${performanceMetrics.first_response_time.current} hours`
+                            : 'N/A'
+                          }
+                        </div>
+                        <div className="flex items-center text-sm">
+                          {performanceMetrics.first_response_time.is_improvement ? (
+                            <TrendingDown className="h-4 w-4 mr-1 text-green-500" />
+                          ) : (
+                            <TrendingUp className="h-4 w-4 mr-1 text-red-500" />
+                          )}
+                          <span className={`font-medium ${performanceMetrics.first_response_time.is_improvement ? 'text-green-500' : 'text-red-500'}`}>
+                            {performanceMetrics.first_response_time.change > 0 ? '+' : ''}
+                            {performanceMetrics.first_response_time.change} hours
+                          </span>
+                          <span className="text-muted-foreground ml-1">from last quarter</span>
+                        </div>
+                      </div>
                     </div>
                     <div className="mt-4">
                       <Table>
@@ -905,8 +996,8 @@ export default function AnalyticsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {processingEfficiencyData.map((item) => {
-                            const change = ((item.previous - item.current) / item.previous * 100);
+                          {processingEfficiency.map((item) => {
+                            const change = ((item.previous ?? item.current - item.current) / item.previous ?? item.current * 100);
                             return (
                               <TableRow key={item.stage}>
                                 <TableCell>{item.stage}</TableCell>

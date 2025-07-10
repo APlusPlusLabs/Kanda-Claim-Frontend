@@ -34,6 +34,7 @@ const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 const claimtypeSchema = z.object({
     name: z.string().min(2, "Claim-Type Name is required & must be at least 2 characters").max(255),
     description: z.string().optional(),
+    benchmark: z.number().optional(),
     is_active: z.boolean()
 });
 const departmentFormSchema = z.object({
@@ -71,6 +72,7 @@ export default function SettingsPage() {
         defaultValues: {
             name: "",
             description: "",
+            benchmark: 0,
             is_active: true
         },
     });
@@ -529,6 +531,19 @@ export default function SettingsPage() {
                             />
                             <FormField
                                 control={claimTypeform.control}
+                                name="benchmark"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Benchmark</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="benchmark" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={claimTypeform.control}
                                 name="is_active"
                                 render={({ field }) => (
                                     <FormItem>
@@ -629,6 +644,19 @@ export default function SettingsPage() {
                                         <FormLabel>Description</FormLabel>
                                         <FormControl>
                                             <Input placeholder="Enter claimtype description" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={claimTypeform.control}
+                                name="benchmark"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Benchmark</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="benchmark" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

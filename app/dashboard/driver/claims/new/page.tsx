@@ -826,7 +826,6 @@ export default function NewClaimPage() {
       
       // Special handling for Step 2 (Driver & Vehicle)
       if (stepNumber === 2) {
-        // Always validate driver details
         if (!values.driver_details?.surname || values.driver_details.surname.length < 2) {
           throw new Error("Surname is required");
         }
@@ -1017,7 +1016,7 @@ export default function NewClaimPage() {
     setIsSaving(true);
     setIsSubmitting(true);
     try {
-      const currentStepValid = await validateStep(step);
+      const currentStepValid = (step === 2 && form.getValues().vehicle_selection_mode === "existing")? true : await validateStep(step);
       if (!currentStepValid) {
         toast({
           variant: "destructive",

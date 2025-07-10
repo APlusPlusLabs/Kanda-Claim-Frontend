@@ -1,8 +1,9 @@
 import { useKPIs } from '@/hooks/useKPIs';
 import { Progress } from '@radix-ui/react-progress';
-import { TrendingUp, TrendingDown, Loader2, Link } from 'lucide-react';
-import { Button } from 'react-day-picker';
+import { TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import Link from 'next/link';
 
 const KPICard = () => {
   const { kpiData, loading, error } = useKPIs();
@@ -101,7 +102,7 @@ const KPICard = () => {
         </div>
 
         <div className="pt-2">
-          <Button variant="outline" size="sm" className="w-full" asChild>
+          <Button variant="outline" size="sm" className="w-full" asChild title='View all KPI'>
             <Link href="/dashboard/insurer/analytics">View All KPIs</Link>
           </Button>
         </div>

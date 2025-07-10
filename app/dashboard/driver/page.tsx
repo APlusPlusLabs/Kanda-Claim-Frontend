@@ -14,6 +14,8 @@ import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
+import { FeedbackModal } from "@/components/FeedbackModal";
+import { defaultClaim } from "@/lib/types/claims";
 
 
 
@@ -103,7 +105,7 @@ const statusConfig = [
   {
     value: "active",
     label: "Active",
-    filter: (claim: Claim) => ["Draft", "Submitted", "Under Review", "Approved"].includes(claim.status),
+    filter: (claim: Claim) => ["draft", "submitted", "under review", "investigation", "review", "approved"].includes(claim.status.toLowerCase()),
     emptyState: {
       icon: <Clock className="h-12 w-12 text-muted-foreground mb-4" />,
       title: "No Active Claims",
@@ -113,7 +115,7 @@ const statusConfig = [
   {
     value: "completed",
     label: "Completed",
-    filter: (claim: Claim) => claim.status === "Closed", // Map "Closed" to "Completed"
+    filter: (claim: Claim) => ["completed", "Completed"].includes(claim.status),
     emptyState: {
       icon: <CheckCircle2 className="h-12 w-12 text-muted-foreground mb-4" />,
       title: "No Completed Claims",
@@ -123,7 +125,7 @@ const statusConfig = [
   {
     value: "rejected",
     label: "Rejected",
-    filter: (claim: Claim) => claim.status === "Rejected",
+    filter: (claim: Claim) => ["rejected", "Rejected"].includes(claim.status),
     emptyState: {
       icon: <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />,
       title: "No Rejected Claims",
@@ -163,6 +165,8 @@ export default function DriverDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [selectedClaim, setSelectedClaim] = useState<Claim>()
 
   const fetchClaims = useCallback(async () => {
     try {
@@ -230,7 +234,7 @@ export default function DriverDashboard() {
 
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "active" && ["Draft", "Submitted", "Under Review", "Approved"].includes(claim.status)) ||
+      (statusFilter === "active" && ["draft", "submitted", "under review", "investigation", "review", "approved"].includes(claim.status.toLowerCase())) ||
       (statusFilter === "completed" && claim.status === "Closed") ||
 
       (statusFilter === "rejected" && claim.status === "Rejected");
@@ -260,120 +264,128 @@ export default function DriverDashboard() {
     );
   }
 
-// Reusable ClaimsTabContent component
-function ClaimsTabContent({
-  claims,
-  status,
-  emptyState,
-  openClaimDetails,
-  getStatusBadge,
-}: {
-  claims: Claim[];
-  status: string;
-  emptyState: { icon: JSX.Element; title: string; message: string };
-  openClaimDetails: (claim: Claim) => void;
-  getStatusBadge: (status: string) => JSX.Element;
-}) {
-  const isCompletedOrRejected = ["completed", "rejected"].includes(status);
+  // Reusable ClaimsTabContent component
+  function ClaimsTabContent({
+    claims,
+    status,
+    emptyState,
+    openClaimDetails,
+    getStatusBadge,
+  }: {
+    claims: Claim[];
+    status: string;
+    emptyState: { icon: JSX.Element; title: string; message: string };
+    openClaimDetails: (claim: Claim) => void;
+    getStatusBadge: (status: string) => JSX.Element;
+  }) {
+    const isCompletedOrRejected = ["completed", "rejected", "Completed", "Rejected"].includes(status);
 
-  return (
-    <TabsContent value={status} className="space-y-4">
-      {claims.length > 0 ? (
-        claims.map((claim) => (
-          <Card key={claim.id}>
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold">Claim #{claim.code ?? "N/A"}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {claim.vehicles?.[0]?.model ?? "N/A"} {claim.vehicles?.[0]?.make ?? ""} - {claim.vehicles?.[0]?.year ?? ""} (
-                    {claim.vehicles?.[0]?.license_plate ?? "N/A"}) •{" "}
-                    {claim.accident_date && claim.accident_time
-                      ? `${format(new Date(claim.accident_date), "yyyy-MM-dd")} at ${claim.accident_time}`
-                      : "N/A"}
-                  </p>
-                </div>
-                <div className="mt-2 md:mt-0">
-                  {isCompletedOrRejected ? (
-                    status === "completed" ? (
-                      <Badge className="w-fit bg-green-500">
-                        <CheckCircle2 className="h-3 w-3 mr-1" /> Completed
-                      </Badge>
+    return (
+      <TabsContent value={status} className="space-y-4">
+        {claims.length > 0 ? (
+          claims.map((claim) => (
+            <Card key={claim.id}>
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">Claim #{claim.code ?? "N/A"}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {claim.vehicles?.[0]?.model ?? "N/A"} {claim.vehicles?.[0]?.make ?? ""} - {claim.vehicles?.[0]?.year ?? ""} (
+                      {claim.vehicles?.[0]?.license_plate ?? "N/A"}) •{" "}
+                      {claim.accident_date && claim.accident_time
+                        ? `${format(new Date(claim.accident_date), "yyyy-MM-dd")} at ${claim.accident_time}`
+                        : "N/A"}
+                    </p>
+                  </div>
+                  <div className="mt-2 md:mt-0">
+                    {isCompletedOrRejected ? (
+                      status === "completed" ? (
+                        <>
+                          <Badge className="w-fit bg-green-500">
+                            <CheckCircle2 className="h-3 w-3 mr-1" /> Completed
+                          </Badge>
+
+                        </>
+                      ) : (
+                        <Badge className="w-fit" variant="destructive">
+                          <XCircle className="h-3 w-3 mr-1" /> Rejected
+                        </Badge>
+                      )
                     ) : (
-                      <Badge className="w-fit" variant="destructive">
-                        <XCircle className="h-3 w-3 mr-1" /> Rejected
-                      </Badge>
-                    )
-                  ) : (
-                    getStatusBadge(claim.status)
+                      getStatusBadge(claim.status)
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-sm mb-4">{claim.description ?? "No description available"}</p>
+
+                {!isCompletedOrRejected && (
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span>Progress</span>
+                      <span>{claim.progress ?? 0}%</span>
+                    </div>
+                    <Progress value={claim.progress ?? 0} className="h-2" />
+                  </div>
+                )}
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between">
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Insurer:</span> {claim.insurer?.name ?? "N/A"}
+                  </div>
+                  {!status.includes("rejected") && (
+                    <div className="text-sm mt-2 md:mt-0">
+                      <span className="text-muted-foreground">
+                        {status === "completed" ? "Final Amount:" : "Estimated Amount:"}
+                      </span>{" "}
+                      {(claim.amount ?? 0).toLocaleString()} {claim.currency ?? "N/A"}
+                    </div>
                   )}
                 </div>
-              </div>
 
-              <p className="text-sm mb-4">{claim.description ?? "No description available"}</p>
-
-              {!isCompletedOrRejected && (
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span>Progress</span>
-                    <span>{claim.progress ?? 0}%</span>
-                  </div>
-                  <Progress value={claim.progress ?? 0} className="h-2" />
-                </div>
-              )}
-
-              <div className="flex flex-col md:flex-row md:items-center justify-between">
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Insurer:</span> {claim.insurer?.name ?? "N/A"}
-                </div>
-                {!status.includes("rejected") && (
-                  <div className="text-sm mt-2 md:mt-0">
-                    <span className="text-muted-foreground">
-                      {status === "completed" ? "Final Amount:" : "Estimated Amount:"}
-                    </span>{" "}
-                    {(claim.amount ?? 0).toLocaleString()} {claim.currency ?? "N/A"}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 flex justify-end space-x-2">
-                <Button variant="outline" size="sm" onClick={() => openClaimDetails(claim)}>
-                  <Eye className="mr-2 h-4 w-4" /> View Details
-                </Button>
-                {!isCompletedOrRejected && (
-                  <Button size="sm" onClick={() => router.push(`/dashboard/driver/claims/edit/${claim.id}`)}>
-                    <FileText className="mr-2 h-4 w-4" /> Update Claim
+                <div className="mt-4 flex justify-end space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => openClaimDetails(claim)}>
+                    <Eye className="mr-2 h-4 w-4" /> View Details
                   </Button>
-                )}
+                  {!isCompletedOrRejected && (
+                    <Button size="sm" onClick={() => router.push(`/dashboard/driver/claims/edit/${claim.id}`)}>
+                      <FileText className="mr-2 h-4 w-4" /> Update Claim
+                    </Button>
+                  )}
+                  {isCompletedOrRejected && (
+                    <Button onClick={() => { setFeedbackModalOpen(true), setSelectedClaim(claim) }}>
+                      <Plus></Plus> FeedBack Review
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="flex flex-col items-center justify-center py-8">
+                {emptyState.icon}
+                <h3 className="text-lg font-semibold mb-2">{emptyState.title}</h3>
+                <p className="text-sm text-muted-foreground mb-4">{emptyState.message}</p>
+                <Button asChild>
+                  <Link href="/dashboard/driver/claims/new">
+                    <Plus className="mr-2 h-4 w-4" /> Submit New Claim
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
-        ))
-      ) : (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="flex flex-col items-center justify-center py-8">
-              {emptyState.icon}
-              <h3 className="text-lg font-semibold mb-2">{emptyState.title}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{emptyState.message}</p>
-              <Button asChild>
-                <Link href="/dashboard/driver/claims/new">
-                  <Plus className="mr-2 h-4 w-4" /> Submit New Claim
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </TabsContent>
-  );
-}
+        )}
+      </TabsContent>
+    );
+  }
 
   return (
     <DashboardLayout
       user={{
         name: user.name,
-        role: user?.role.name+" @ "+ user.tenant.name,
+        role: user?.role.name + " @ " + user.tenant.name,
         avatar: user?.avatar ? user?.avatar : "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
@@ -475,7 +487,15 @@ function ClaimsTabContent({
           ))}
         </Tabs>
 
-
+        {/* Feedback Modal */}
+        <FeedbackModal
+          open={feedbackModalOpen}
+          onOpenChange={setFeedbackModalOpen}
+          claim={selectedClaim}
+          onFeedbackSubmitted={() => {
+            window.location.reload();
+          }}
+        />
       </div>
     </DashboardLayout>
   )
