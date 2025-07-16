@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("Register data", data);
         console.log("Register errorResponse", errorResponse);
         throw new Error(
-          errorResponse.errors?.[0]?.message || "Registration failed"
+          errorResponse.error || errorResponse.errors || "Registration failed"
         );
       }
 
@@ -128,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("Login data", data);
         console.log("Login errorResponse", errorResponse);
         throw new Error(
-          errorResponse.errors?.[0]?.message || "Login failed"
+          errorResponse.error || "Login failed"
         );
       }
 
@@ -231,7 +231,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await fetch(url, options);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+     //   throw new Error(`HTTP error! Status: ${response.status}`);
+        const errorResponse = await response.json();
+        console.log("request error for data", data);
+        console.log("request errorResponse", errorResponse);
+        throw new Error(
+          errorResponse.error || errorResponse.errors  || "request failed"
+        );
       }
 
       // Check if the response is JSON

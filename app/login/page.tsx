@@ -55,7 +55,7 @@ export default function LoginPage() {
       toast({
         variant: "destructive",
         title: "Login failed ",
-        description: "Please check your credentials and try again. "+error,
+        description: error + "\nPlease check your credentials and try again. ",
       })
     } finally {
       setIsLoading(false)
@@ -98,7 +98,7 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              
+
               <Button
                 type="submit"
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"

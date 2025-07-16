@@ -236,11 +236,11 @@ export default function SettlementsPage() {
 
     const handleSettlementAction = async (settlementId: string, action: string, data = {}) => {
         setActionLoading(true)
-
+        const byfield = action === 'reject' ? `${action}ed_by` : `${action}d_by`
         try {
             const actionData = {
                 ...data,
-                [`${action}ed_by`]: user.id,
+                [byfield]: user.id,
             }
 
             const url = `${API_URL}tenants/${user.tenant_id}/settlements/${settlementId}/${action}`

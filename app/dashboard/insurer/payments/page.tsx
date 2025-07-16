@@ -34,7 +34,8 @@ const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 // Payment form schema
 const paymentSchema = z.object({
     claim_id: z.string().optional(),
-    contract_id: z.string().optional(), garage_id: z.string().optional(),
+    contract_id: z.string().optional(),
+    garage_id: z.string().optional(),
     user_id: z.string().min(1, "User is required"),
     amount: z.string().transform((val) => Number(val)).pipe(z.number().min(0.01, "Amount must be greater than 0")),
     currency: z.string().length(3, "Currency must be 3 characters"),
@@ -92,6 +93,7 @@ export default function PaymentsPage() {
     const [claimContracts, setClaimContracts] = useState([])
     const [availableGarages, setAvailableGarages] = useState([])
     const [isClaimLoading, setIsClaimLoading] = useState(false)
+    const [garages, setGarages] = useState<Garage[]>([])
     const [filters, setFilters] = useState({
         status: "all",
         payment_method: "all",
@@ -146,6 +148,8 @@ export default function PaymentsPage() {
                 setPayments(response.data.data || response.data)
                 setFilteredPayments(response.data.data || response.data)
             }
+            const garagesRes = await apiRequest(`${API_URL}garages/${user.tenant_id}`, "GET")
+            setGarages(garagesRes)
         } catch (error: any) {
             console.error("Failed to fetch payments:", error)
         } finally {
@@ -155,16 +159,16 @@ export default function PaymentsPage() {
     const fetchClaimContracts = async (claimId) => {
         try {
             setIsClaimLoading(true)
-            const response = await apiRequest(`${API_URL}tenants/${user.tenant_id}/contracts/claim/${claimId}`, "GET")
+            const response = await apiRequest(`${API_URL}tenants/${user.tenant_id}/contracts/by/claim/${claimId}`, "GET")
             if (response.success) {
                 setClaimContracts(response.data)
 
                 if (response.data.length > 0) {
-                    const contract = response.data[0] 
+                    const contract = response.data[0]
                     form.setValue('garage_id', contract.garage_id)
                     form.setValue('contract_id', contract.id)
                 } else {
-                    
+
                     form.setValue('garage_id', '')
                     form.setValue('contract_id', '')
                 }
@@ -625,7 +629,7 @@ export default function PaymentsPage() {
                         <h1 className="text-3xl font-bold">Payments Management</h1>
                         <p className="text-muted-foreground mt-2">Manage insurance claim payments and transactions</p>
                     </div>
-                    
+
                     <Button onClick={openAddDialog}>
                         <Plus className="h-4 w-4 mr-2" />
                         Create Payment
@@ -1007,7 +1011,6 @@ export default function PaymentsPage() {
                                     />
                                 </div>
 
-                                {/* Garage Selection - Smart Logic */}
                                 {selectedClaim && (
                                     <div className="space-y-2">
                                         <Label>Garage Selection</Label>

@@ -235,7 +235,7 @@ export default function MultiSignatureClaimsPage() {
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4">
+          {/* <TabsContent value="all" className="space-y-4">
             {loading ? (
               // Loading skeletons
               Array(3)
@@ -366,18 +366,493 @@ export default function MultiSignatureClaimsPage() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
+          </TabsContent> */}
 
-          {/* Other tab contents would be similar but with filtered data */}
-          <TabsContent value="pending" className="space-y-4">
-            {/* Similar content as "all" but filtered for pending claims */}
-          </TabsContent>
-          <TabsContent value="approved" className="space-y-4">
-            {/* Similar content as "all" but filtered for approved claims */}
-          </TabsContent>
-          <TabsContent value="rejected" className="space-y-4">
-            {/* Similar content as "all" but filtered for rejected claims */}
-          </TabsContent>
+
+<TabsContent value="all" className="space-y-4">
+  {loading ? (
+    // Loading skeletons
+    Array(3)
+      .fill(0)
+      .map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+              <div>
+                <Skeleton className="h-6 w-48 mb-2" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <Skeleton className="h-6 w-24 mt-2 md:mt-0" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+            <div className="mt-4 flex justify-end space-x-2">
+              <Skeleton className="h-9 w-24" />
+            </div>
+          </CardContent>
+        </Card>
+      ))
+  ) : filteredClaims.length > 0 ? (
+    filteredClaims.map((claim) => (
+      <Card key={claim.id}>
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold">{claim.title}</h3>
+              <p className="text-sm text-muted-foreground">
+                Claim: {claim.code} • {claim.date}
+              </p>
+            </div>
+            <Badge
+              className="mt-2 md:mt-0 w-fit"
+              variant={
+                claim.status === "approved"
+                  ? "default"
+                  : claim.status === "rejected"
+                    ? "destructive"
+                    : "secondary"
+              }
+            >
+              {claim.status === "pending_approval"
+                ? "Pending Approval"
+                : claim.status === "approved"
+                  ? "Approved"
+                  : "Rejected"}
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="text-sm">
+              <span className="text-muted-foreground">Customer:</span> {claim.customer}
+            </div>
+            <div className="text-sm">
+              <span className="text-muted-foreground">Amount:</span> {claim.amount.toLocaleString()} RWF
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-sm text-muted-foreground">{claim.description}</p>
+          </div>
+
+          <div className="mt-4">
+            <div className="text-sm font-medium mb-2">Approval Status:</div>
+            <div className="flex flex-wrap gap-2">
+              {claim.approvers.map((approver) => (
+                <Badge
+                  key={approver.id}
+                  variant={
+                    approver.status === "approved"
+                      ? "outline"
+                      : approver.status === "rejected"
+                        ? "destructive"
+                        : "secondary"
+                  }
+                  className={
+                    approver.status === "approved"
+                      ? "bg-green-50 text-green-700 border-green-200"
+                      : approver.status === "rejected"
+                        ? "bg-red-50 text-red-700 border-red-200"
+                        : ""
+                  }
+                >
+                  {approver.name} ({approver.role}):&nbsp;
+                  {approver.status === "approved" ? (
+                    <CheckCircle2 className="h-3 w-3 inline ml-1" />
+                  ) : approver.status === "rejected" ? (
+                    <XCircle className="h-3 w-3 inline ml-1" />
+                  ) : (
+                    <Clock className="h-3 w-3 inline ml-1" />
+                  )}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <Button onClick={() => handleViewClaim(claim)}>
+              <Eye className="mr-2 h-4 w-4" />
+              View Workflow
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    ))
+  ) : (
+    <Card>
+      <CardContent className="p-6 text-center">
+        <div className="flex flex-col items-center justify-center py-8">
+          <FileSignature className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Claims Found</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            No multi-signature claims match your current filters.
+          </p>
+          <Button
+            onClick={() => {
+              setStatusFilter("all")
+              setDateFilter("all")
+            }}
+          >
+            Clear Filters
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )}
+</TabsContent>
+
+<TabsContent value="pending" className="space-y-4">
+  {loading ? (
+    // Loading skeletons
+    Array(3)
+      .fill(0)
+      .map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+              <div>
+                <Skeleton className="h-6 w-48 mb-2" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <Skeleton className="h-6 w-24 mt-2 md:mt-0" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+            <div className="mt-4 flex justify-end space-x-2">
+              <Skeleton className="h-9 w-24" />
+            </div>
+          </CardContent>
+        </Card>
+      ))
+  ) : filteredClaims.filter(claim => claim.status === "pending_approval").length > 0 ? (
+    filteredClaims
+      .filter(claim => claim.status === "pending_approval")
+      .map((claim) => (
+        <Card key={claim.id}>
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">{claim.title}</h3>
+                <p className="text-sm text-muted-foreground">
+                  Claim: {claim.code} • {claim.date}
+                </p>
+              </div>
+              <Badge className="mt-2 md:mt-0 w-fit" variant="secondary">
+                Pending Approval
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="text-sm">
+                <span className="text-muted-foreground">Customer:</span> {claim.customer}
+              </div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Amount:</span> {claim.amount.toLocaleString()} RWF
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-sm text-muted-foreground">{claim.description}</p>
+            </div>
+
+            <div className="mt-4">
+              <div className="text-sm font-medium mb-2">Approval Progress:</div>
+              <div className="flex flex-wrap gap-2">
+                {claim.approvers.map((approver) => (
+                  <Badge
+                    key={approver.id}
+                    variant={
+                      approver.status === "approved"
+                        ? "outline"
+                        : approver.status === "rejected"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                    className={
+                      approver.status === "approved"
+                        ? "bg-green-50 text-green-700 border-green-200"
+                        : approver.status === "rejected"
+                          ? "bg-red-50 text-red-700 border-red-200"
+                          : ""
+                    }
+                  >
+                    {approver.name} ({approver.role}):&nbsp;
+                    {approver.status === "approved" ? (
+                      <CheckCircle2 className="h-3 w-3 inline ml-1" />
+                    ) : approver.status === "rejected" ? (
+                      <XCircle className="h-3 w-3 inline ml-1" />
+                    ) : (
+                      <Clock className="h-3 w-3 inline ml-1" />
+                    )}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => handleViewClaim(claim)}>
+                <Eye className="mr-2 h-4 w-4" />
+                Review
+              </Button>
+              <Button onClick={() => handleViewClaim(claim)}>
+                <FileSignature className="mr-2 h-4 w-4" />
+                Process Approval
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))
+  ) : (
+    <Card>
+      <CardContent className="p-6 text-center">
+        <div className="flex flex-col items-center justify-center py-8">
+          <Clock className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Pending Claims</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            All multi-signature claims have been processed or there are no pending approvals.
+          </p>
+          <Button onClick={handleCreateNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create New Claim
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )}
+</TabsContent>
+
+<TabsContent value="approved" className="space-y-4">
+  {loading ? (
+    // Loading skeletons
+    Array(3)
+      .fill(0)
+      .map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+              <div>
+                <Skeleton className="h-6 w-48 mb-2" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <Skeleton className="h-6 w-24 mt-2 md:mt-0" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+            <div className="mt-4 flex justify-end space-x-2">
+              <Skeleton className="h-9 w-24" />
+            </div>
+          </CardContent>
+        </Card>
+      ))
+  ) : filteredClaims.filter(claim => claim.status === "approved").length > 0 ? (
+    filteredClaims
+      .filter(claim => claim.status === "approved")
+      .map((claim) => (
+        <Card key={claim.id}>
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">{claim.title}</h3>
+                <p className="text-sm text-muted-foreground">
+                  Claim: {claim.code} • {claim.date}
+                </p>
+              </div>
+              <Badge className="mt-2 md:mt-0 w-fit bg-green-50 text-green-700 border-green-200">
+                <CheckCircle2 className="mr-1 h-3 w-3" />
+                Approved
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="text-sm">
+                <span className="text-muted-foreground">Customer:</span> {claim.customer}
+              </div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Amount:</span> {claim.amount.toLocaleString()} RWF
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-sm text-muted-foreground">{claim.description}</p>
+            </div>
+
+            <div className="mt-4">
+              <div className="text-sm font-medium mb-2">Approval History:</div>
+              <div className="flex flex-wrap gap-2">
+                {claim.approvers
+                  .filter(approver => approver.status === "approved")
+                  .map((approver) => (
+                    <Badge
+                      key={approver.id}
+                      variant="outline"
+                      className="bg-green-50 text-green-700 border-green-200"
+                    >
+                      {approver.name} ({approver.role})
+                      <CheckCircle2 className="h-3 w-3 inline ml-1" />
+                    </Badge>
+                  ))}
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => handleViewClaim(claim)}>
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </Button>
+              <Button variant="outline">
+                <FileSignature className="mr-2 h-4 w-4" />
+                Download Report
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))
+  ) : (
+    <Card>
+      <CardContent className="p-6 text-center">
+        <div className="flex flex-col items-center justify-center py-8">
+          <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Approved Claims</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            No multi-signature claims have been fully approved yet.
+          </p>
+          <Button onClick={handleCreateNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create New Claim
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )}
+</TabsContent>
+
+<TabsContent value="rejected" className="space-y-4">
+  {loading ? (
+    // Loading skeletons
+    Array(3)
+      .fill(0)
+      .map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+              <div>
+                <Skeleton className="h-6 w-48 mb-2" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <Skeleton className="h-6 w-24 mt-2 md:mt-0" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+            <div className="mt-4 flex justify-end space-x-2">
+              <Skeleton className="h-9 w-24" />
+            </div>
+          </CardContent>
+        </Card>
+      ))
+  ) : filteredClaims.filter(claim => claim.status === "rejected").length > 0 ? (
+    filteredClaims
+      .filter(claim => claim.status === "rejected")
+      .map((claim) => (
+        <Card key={claim.id}>
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">{claim.title}</h3>
+                <p className="text-sm text-muted-foreground">
+                  Claim: {claim.code} • {claim.date}
+                </p>
+              </div>
+              <Badge className="mt-2 md:mt-0 w-fit" variant="destructive">
+                <XCircle className="mr-1 h-3 w-3" />
+                Rejected
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="text-sm">
+                <span className="text-muted-foreground">Customer:</span> {claim.customer}
+              </div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Amount:</span> {claim.amount.toLocaleString()} RWF
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-sm text-muted-foreground">{claim.description}</p>
+            </div>
+
+            <div className="mt-4">
+              <div className="text-sm font-medium mb-2">Rejection Details:</div>
+              <div className="flex flex-wrap gap-2">
+                {claim.approvers.map((approver) => (
+                  <Badge
+                    key={approver.id}
+                    variant={
+                      approver.status === "approved"
+                        ? "outline"
+                        : approver.status === "rejected"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                    className={
+                      approver.status === "approved"
+                        ? "bg-green-50 text-green-700 border-green-200"
+                        : approver.status === "rejected"
+                          ? "bg-red-50 text-red-700 border-red-200"
+                          : ""
+                    }
+                  >
+                    {approver.name} ({approver.role}):&nbsp;
+                    {approver.status === "approved" ? (
+                      <CheckCircle2 className="h-3 w-3 inline ml-1" />
+                    ) : approver.status === "rejected" ? (
+                      <XCircle className="h-3 w-3 inline ml-1" />
+                    ) : (
+                      <Clock className="h-3 w-3 inline ml-1" />
+                    )}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => handleViewClaim(claim)}>
+                <Eye className="mr-2 h-4 w-4" />
+                View Rejection Details
+              </Button>
+              <Button variant="outline">
+                <FileSignature className="mr-2 h-4 w-4" />
+                Resubmit Claim
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))
+  ) : (
+    <Card>
+      <CardContent className="p-6 text-center">
+        <div className="flex flex-col items-center justify-center py-8">
+          <XCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Rejected Claims</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            No multi-signature claims have been rejected.
+          </p>
+          <Button onClick={handleCreateNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create New Claim
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )}
+</TabsContent>
         </Tabs>
 
         {/* Multi-Signature Workflow Dialog */}

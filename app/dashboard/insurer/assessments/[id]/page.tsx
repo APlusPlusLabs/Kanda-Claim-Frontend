@@ -147,7 +147,6 @@ export default function AssessmentDetailsPage({ params }: Props) {
         { name: "Dashboard", href: "/dashboard/insurer", icon: <ClipboardCheck className="h-5 w-5" /> },
         { name: "Assessments", href: "/dashboard/insurer/assessments", icon: <FileText className="h-5 w-5" /> },
         { name: "Messages", href: "/dashboard/insurer/messages", icon: <MessageSquare className="h-5 w-5" /> },
-        { name: "Schedule", href: "/dashboard/insurer/schedule", icon: <Calendar className="h-5 w-5" /> },
         { name: "Notifications", href: "/dashboard/insurer/notifications", icon: <Bell className="h-5 w-5" /> },
         { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
       ]}
@@ -339,7 +338,7 @@ export default function AssessmentDetailsPage({ params }: Props) {
           </TabsContent>
           <TabsContent value="photos" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {assessment.photos?.map((photo) => (
+              {assessment.report?.photos?.map((photo) => (
                 <div key={photo.id} className="border rounded-lg overflow-hidden">
                   <img src={STORAGES_URL + photo.file_path || "/placeholder.svg"} alt={photo.file_name} className="w-full h-auto" />
                   <div className="p-2">
