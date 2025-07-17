@@ -23,7 +23,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Car, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ErrorBoundary } from 'react-error-boundary';
 import DashboardLayout from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-provider';
@@ -903,7 +902,6 @@ export default function EditClaimPage() {
     }, [step, form.control]);
 
     return (
-        <ErrorBoundary FallbackComponent={ErrorFallback}>
             <DashboardLayout
                 user={{ name: user?.name || 'Driver', role: 'Driver', avatar: '/placeholder.svg' }}
                 navigation={[
@@ -2063,6 +2061,6 @@ export default function EditClaimPage() {
                     </Form>
                 </div>
             </DashboardLayout>
-        </ErrorBoundary>
+        
     );
 }

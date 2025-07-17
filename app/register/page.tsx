@@ -122,7 +122,7 @@ export default function RegisterPage() {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load insurance companies. Please try again.",
+          description: error+" Failed to load insurance companies. Please try again.",
         })
       }
     }
@@ -165,7 +165,7 @@ export default function RegisterPage() {
       toast({
         variant: "destructive",
         title: "Registration failed",
-        description: "There was an error creating your account. Please try again.",
+        description: error+ ": Please try again.",
       })
     } finally {
       setIsLoading(false)

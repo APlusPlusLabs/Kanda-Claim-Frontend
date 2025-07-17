@@ -27,14 +27,7 @@ import { X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { Assignment, Claim, Message, defaultClaim } from "@/lib/types/claims"
-// import { ErrorBoundary } from 'react-error-boundary';
 
-// const ErrorFallback = ({ error }) => (
-//   <div>
-//     <h2>Something went wrong</h2>
-//     <p>{error.message}</p>
-//   </div>
-// );
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
@@ -172,7 +165,6 @@ export default function ClaimDetailsPage({ params }: Props) {
   }
 
   return (
-    // <ErrorBoundary FallbackComponent={ErrorFallback}>
     <DashboardLayout
       user={{
         name: user?.name || 'Driver name',
@@ -521,6 +513,5 @@ export default function ClaimDetailsPage({ params }: Props) {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
-    // </ErrorBoundary>
   )
 }
