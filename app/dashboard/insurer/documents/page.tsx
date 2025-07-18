@@ -62,7 +62,7 @@ import { DocumentCategory, Document, Claim } from "@/lib/types/claims"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
-const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
+const STORAGES_URL = process.env.NEXT_PUBLIC_STORAGES_URL
 
 
 const documentCategories: DocumentCategory[] = [

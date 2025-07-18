@@ -52,7 +52,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
-const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
+const STORAGES_URL = process.env.NEXT_PUBLIC_STORAGES_URL
 
 // Get status badge variant
 const getStatusBadge = (status: string) => {

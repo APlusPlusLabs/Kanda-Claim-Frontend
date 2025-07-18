@@ -147,6 +147,14 @@ export default function RegisterPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
+      if(values.role!== "insurer" && !values.tenantId){
+        toast({
+          variant: "destructive",
+          title: t('auth.select_insurance'),
+          description: "Error: "+t('auth.select_insurance'),
+        })
+        return 
+      }
       await register({
         ...values,
         tenantId: values.role !== "insurer" ? values.tenantId : undefined,
@@ -165,7 +173,7 @@ export default function RegisterPage() {
       toast({
         variant: "destructive",
         title: "Registration failed",
-        description: error+ ": Please try again.",
+        description: error+ " . Please try again.",
       })
     } finally {
       setIsLoading(false)
@@ -406,7 +414,7 @@ export default function RegisterPage() {
                 />
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading || (tenants.length === 0 && !isInsurer)}>
+              <Button type="submit" className="w-full" disabled={isLoading || (tenantId===null && !isInsurer)}>
                 {isLoading ? "Creating account..." : "Register"}
               </Button>
             </form>

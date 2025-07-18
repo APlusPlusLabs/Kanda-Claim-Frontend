@@ -19,6 +19,7 @@ const translations: Record<Language, TranslationKeys> = {
       didntreceive: "Didnt Receive Code? ",
       resend: "Resend the Code",
       codeis6: "Auth CODE is 6 Characters",
+      select_insurance: "Please Select Insurance Company"
     },
     nav: {
       dashboard: "Dashboard",
@@ -324,6 +325,7 @@ const translations: Record<Language, TranslationKeys> = {
       didntreceive: "Didnt Receive Code? ",
       resend: "Resend the Code",
       codeis6: "Auth CODE is 6 Characters",
+      select_insurance: "Svp, Selection le compagnie d'assurance"
     },
     nav: {
       dashboard: "Tableau de Bord",
@@ -631,6 +633,7 @@ const translations: Record<Language, TranslationKeys> = {
       didntreceive: "Ntiwabonye Code? ",
       resend: "Ongera uyihabwe Code",
       codeis6: "CODE ninyuguti 6",
+      select_insurance: "Muhitemo Ikigo cy'ubwishingizi mukorana"
     },
     nav: {
       dashboard: "Ibiro",

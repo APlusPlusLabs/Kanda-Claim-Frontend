@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useCallback, useEffect } from "react"
+import React, { useEffect } from "react"
 
 import { useState } from "react"
 import Link from "@/Next.js/link"
@@ -13,9 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   ClipboardCheck,
   FileText,
-  MessageSquare,
-  Bell,
-  User,
   LogOut,
   Search,
   Calendar,
@@ -26,14 +23,12 @@ import {
 import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/lib/auth-provider"
 import router from "next/router"
-import { toast } from "sonner"
-import { Assessment } from "@/lib/types/claims"
 import { useToast } from "@/components/ui/use-toast"
 import { format } from "date-fns"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
 
-const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
+const STORAGES_URL = process.env.NEXT_PUBLIC_STORAGES_URL;
 export default function AssessmentsPage() {
   const { toast } = useToast()
   const { user, apiRequest } = useAuth()
