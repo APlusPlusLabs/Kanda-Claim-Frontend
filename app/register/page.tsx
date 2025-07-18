@@ -59,10 +59,10 @@ const formSchema = z
     message: "Insurance company name is required and must be at least 2 characters.",
     path: ["insuranceCompanyName"],
   })
-  .refine((data) => (data.role !== "insurer" && !data.tenantId), {
-    message: "Please select an insurance company.",
-    path: ["tenantId"],
-  })
+// .refine((data) => (data.role !== "insurer" && !data.tenantId), {
+//   message: "Please select an insurance company.",
+//   path: ["tenantId"],
+// })
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -173,7 +173,7 @@ export default function RegisterPage() {
       toast({
         variant: "destructive",
         title: "Registration failed",
-        description: error + " . Please try again.",
+        description: JSON.stringify(error) + " . Please try again.",
       })
     } finally {
       setIsLoading(false)
