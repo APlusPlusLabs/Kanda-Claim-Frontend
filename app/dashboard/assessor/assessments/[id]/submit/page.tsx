@@ -33,9 +33,6 @@ import { useToast } from "@/components/ui/use-toast"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
-interface Props {
-  params: Promise<{ id: string }>;
-}
 
 interface Part {
   id: number;
@@ -53,9 +50,12 @@ interface Photo {
   file?: File;
 }
 
+interface Props {
+  params: Promise<{ id: string }>;
+}
 export default function SubmitAssessment({ params }: Props) {
+  const { id } = use(params);  
   const router = useRouter()
-  const { id } = use(params);
   const { user, apiRequest } = useAuth()
   const { toast } = useToast()
 

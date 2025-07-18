@@ -19,6 +19,7 @@ const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
 interface Props {
   params: Promise<{ id: string }>;
 }
+
 export default function GarageBidDetailsPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter()

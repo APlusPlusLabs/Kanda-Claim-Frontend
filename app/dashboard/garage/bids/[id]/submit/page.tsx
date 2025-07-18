@@ -49,6 +49,7 @@ const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
 
 
 
+
 interface Props {
   params: Promise<{ id: string }>;
 }

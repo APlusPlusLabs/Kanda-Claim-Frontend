@@ -80,6 +80,7 @@ const assignFormDataSchama = z.object({
 interface Props {
   params: Promise<{ id: string }>;
 }
+
 export default function BidDetailsPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter()

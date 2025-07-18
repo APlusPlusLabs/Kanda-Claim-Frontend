@@ -21,6 +21,7 @@ const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 interface Props {
   params: Promise<{ id: string }>;
 }
+
 export default function ScheduleAssessment({ params }: Props) {
   const router = useRouter()
   const { id } = use(params);
