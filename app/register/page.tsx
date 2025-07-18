@@ -59,10 +59,10 @@ const formSchema = z
     message: "Insurance company name is required and must be at least 2 characters.",
     path: ["insuranceCompanyName"],
   })
-// .refine((data) => data.role === "insurer" || (data.role !== "insurer" && data.tenantId), {
-//   message: "Please select an insurance company.",
-//   path: ["tenantId"],
-// })
+  .refine((data) => (data.role !== "insurer" && !data.tenantId), {
+    message: "Please select an insurance company.",
+    path: ["tenantId"],
+  })
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -122,7 +122,7 @@ export default function RegisterPage() {
         toast({
           variant: "destructive",
           title: "Error",
-          description: error+" Failed to load insurance companies. Please try again.",
+          description: error + " Failed to load insurance companies. Please try again.",
         })
       }
     }
@@ -147,13 +147,13 @@ export default function RegisterPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      if(values.role!== "insurer" && !values.tenantId){
+      if (values.role !== "insurer" && !values.tenantId) {
         toast({
           variant: "destructive",
           title: t('auth.select_insurance'),
-          description: "Error: "+t('auth.select_insurance'),
+          description: "Error: " + t('auth.select_insurance'),
         })
-        return 
+        return
       }
       await register({
         ...values,
@@ -173,7 +173,7 @@ export default function RegisterPage() {
       toast({
         variant: "destructive",
         title: "Registration failed",
-        description: error+ " . Please try again.",
+        description: error + " . Please try again.",
       })
     } finally {
       setIsLoading(false)
@@ -414,7 +414,7 @@ export default function RegisterPage() {
                 />
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading || (tenantId===null && !isInsurer)}>
+              <Button type="submit" className="w-full" disabled={isLoading || !form.formState.isValid}>
                 {isLoading ? "Creating account..." : "Register"}
               </Button>
             </form>
