@@ -134,6 +134,7 @@ export interface ClaimType {
   name: string;
   category: string;
   description: string;
+  benchmark: number;
   is_active: boolean;
   claims?: Claim[]
 }

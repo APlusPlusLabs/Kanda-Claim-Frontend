@@ -48,15 +48,21 @@ export default function LoginPage() {
         title: "Login successful",
         description: "Welcome back to Kanda Claim! ",
       })
-
-      // // Redirect based on role
-      // router.push(`/dashboard/${values.role}`)
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Login failed ",
-        description: error + "\nPlease check your credentials and try again. ",
-      })
+    } catch (error: any) {
+      // need activation
+      if (error.needs_activation) {
+        router.push(`/auth/activate-code?email=${encodeURIComponent(values.email)}`)
+        toast({
+          title: "Account Activation Required",
+          description: "Please check your email for the activation code or request a new one.",
+        })
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Login failed ",
+          description: error.message + "\nPlease check your credentials and try again. ",
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -111,7 +117,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
           <div className="text-sm text-center text-gray-500">
-            <Link href="/forgot-password" className="text-primary hover:underline">
+            <Link href="/auth/forgot-password" className="text-primary hover:underline">
               Forgot your password?
             </Link>
           </div>

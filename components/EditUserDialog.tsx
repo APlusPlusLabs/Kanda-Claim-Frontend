@@ -110,6 +110,7 @@ export function EditUserDialog({
         department_id: values.department_id,
         tenant_id: tenant_id,
         is_active: values.status === "active",
+        user_id: user.id
       });
 
       onSuccess({

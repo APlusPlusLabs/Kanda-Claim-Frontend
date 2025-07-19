@@ -36,7 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Building2, Search, UserPlus, UserCog, Shield, Users, UserCheck, UserX, HousePlus, FileText, Wrench, Plus, Edit } from "lucide-react";
+import { Building2, Search, UserPlus, UserCog, Shield, Users, UserCheck, UserX, HousePlus, FileText, Wrench, Plus, Edit, Settings } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-provider";
 import { useToast } from "@/components/ui/use-toast";
@@ -267,9 +267,9 @@ export default function UsersManagementPage() {
   // Filter users based on search query
   const filteredUsers = users.filter(
     (user) =>
-      user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user?.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user?.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (roles.find((r) => r.id === user.role_id)?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -349,9 +349,9 @@ export default function UsersManagementPage() {
       }}
       navigation={[
         { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
-        { name: "Users", href: "/dashboard/insurer/users", icon: <Users className="h-5 w-5" /> },
         { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
-        { name: "Bids", href: "/dashboard/insurer/bids", icon: <FileText className="h-5 w-5" /> },
+        { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
+        { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },
       ]}
     >
       <div className="space-y-6">

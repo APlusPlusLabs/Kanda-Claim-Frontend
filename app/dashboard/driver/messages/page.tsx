@@ -57,7 +57,7 @@ interface Conversation {
 }
 
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 export default function MessagesPage() {
   const { user, apiRequest } = useAuth();
@@ -74,21 +74,56 @@ export default function MessagesPage() {
       try {
         setLoading(true)
         const response = await apiRequest(`${API_URL}messages/threads/${user?.id}`, "GET")
-        setConversations(response)
+
+        // Debug: Log the response to see its structure
+        console.log("API Response:", response)
+
+        // Handle different possible response structures
+        let conversationsData: Conversation[] = []
+
+        if (Array.isArray(response)) {
+          // Response is directly an array
+          conversationsData = response
+        } else if (response && Array.isArray(response.data)) {
+          // Response has a data property containing the array
+          conversationsData = response.data
+        } else if (response && Array.isArray(response.conversations)) {
+          // Response has a conversations property containing the array
+          conversationsData = response.conversations
+        } else if (response && Array.isArray(response.threads)) {
+          // Response has a threads property containing the array
+          conversationsData = response.threads
+        } else {
+          // Unexpected response structure
+          console.warn("Unexpected API response structure:", response)
+          conversationsData = []
+        }
+
+        setConversations(conversationsData)
       } catch (error) {
         console.error("Error fetching conversations:", error)
+        setConversations([]) // Set empty array on error
       } finally {
         setLoading(false)
       }
     }
-    fetchConversations()
-  }, [])
 
-  // Filter conversations by search term
-  const filteredConversations = conversations.filter((conversation) =>
-    conversation.claim_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conversation.participants.some((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+    if (user?.id) {
+      fetchConversations()
+    }
+  }, [user?.id])
+
+  // Filter conversations by search term with safety check
+  const filteredConversations = Array.isArray(conversations)
+    ? conversations.filter((conversation) => {
+      // Add safety checks for conversation properties
+      const claimId = conversation?.claim_id?.toString().toLowerCase() || ''
+      const participantNames = conversation?.participants?.map(p => p?.name?.toLowerCase()).join(' ') || ''
+
+      return claimId.includes(searchTerm.toLowerCase()) ||
+        participantNames.includes(searchTerm.toLowerCase())
+    })
+    : []
 
   // Handle sending a new message
   const handleSendMessage = async () => {
@@ -228,18 +263,18 @@ export default function MessagesPage() {
                       >
                         <div className="flex items-start space-x-3">
                           <div className="relative">
-                          <div className="relative">
-                            <img
-                              src={"/placeholder.svg"}
-                              alt={conversation.claim_id}
-                              className="w-10 h-10 rounded-full"
-                            />
-                            {/* {conversation.unread && ( */}
+                            <div className="relative">
+                              <img
+                                src={"/placeholder.svg"}
+                                alt={conversation.claim_id}
+                                className="w-10 h-10 rounded-full"
+                              />
+                              {/* {conversation.unread && ( */}
                               <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
                                 {conversation.unread_count}
                               </span>
-                            {/* )} */}
-                          </div>
+                              {/* )} */}
+                            </div>
                             {conversation.unread_count > 0 && (
                               <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
                                 {conversation.unread_count}

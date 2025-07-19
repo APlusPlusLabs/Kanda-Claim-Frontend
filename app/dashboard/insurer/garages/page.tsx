@@ -24,7 +24,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, Settings } from "lucide-react";
+import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, Settings, UserCog } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 type Day = keyof GarageFormValues['openHours'];
@@ -33,7 +33,7 @@ const days: Day[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "sa
 const garageSchema = z.object({
     name: z.string().min(1, "Name is required").max(255),
     address: z.string().min(1, "Address is required"),
-    phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number"),
+    phone: z.string().min(4).regex(/^\+?[1-9]\d{1,12}$/, "Invalid phone number"),
     email: z.string().email("Invalid email address").max(255),
     rating: z.coerce.number().min(0).max(5).optional(),
     latitude: z.coerce.number().min(-90).max(90).optional(),
@@ -316,11 +316,9 @@ export default function GaragesPage() {
             }}
             navigation={[
                 { name: "Dashboard", href: "/dashboard/insurer", icon: null },
-                // { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
-                // { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
                 { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
                 { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
-                // { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
+                { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },
             ]}
         >
             <div className="space-y-6">

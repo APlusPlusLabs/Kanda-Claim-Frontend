@@ -25,17 +25,26 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, BriefcaseBusiness, HousePlus, Settings } from "lucide-react";
+import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, BriefcaseBusiness, HousePlus, Settings, UserCog } from "lucide-react";
 import { ClaimType } from "@/lib/types/claims";
 import { Department } from "@/lib/types/users";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
+
 const claimtypeSchema = z.object({
-    name: z.string().min(2, "Claim-Type Name is required & must be at least 2 characters").max(255),
-    description: z.string().optional(),
-    benchmark: z.number().optional(),
-    is_active: z.boolean()
+    name: z.string().min(1, "Claim-Type Name is required & must be at least 2 characters"),
+    description: z.string().min(1, "Description is required"),
+    benchmark: z.union([
+        z.number(),
+        z.string().transform((val) => Number(val))
+    ]).refine((val) => !isNaN(val) && val >= 0, {
+        message: "Benchmark must be a valid positive number"
+    }),
+    is_active: z.union([
+        z.boolean(),
+        z.string().transform((val) => val === "true")
+    ])
 });
 const departmentFormSchema = z.object({
     name: z.string().min(2, { message: "Department name must be at least 2 characters." }),
@@ -359,12 +368,9 @@ export default function SettingsPage() {
                 avatar: "/placeholder.svg?height=40&width=40",
             }}
             navigation={[
-                // { name: "Dashboard", href: "/dashboard/insurer", icon: null },
-                // { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
-                // { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
                 { name: "Garage Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
                 { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
-                // { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
+                { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },
             ]}
         >
             <div className="space-y-6">
@@ -395,6 +401,7 @@ export default function SettingsPage() {
                                     <TableRow>
                                         <TableHead></TableHead>
                                         <TableHead>Claim Type Name</TableHead>
+                                        <TableHead>BenchMark %</TableHead>
                                         <TableHead>is Active?</TableHead>
                                         <TableHead>Claim Type Description</TableHead>
                                     </TableRow>
@@ -419,6 +426,7 @@ export default function SettingsPage() {
                                                 </Button>
                                             </TableCell>
                                             <TableCell className="font-medium">{claimtype.name}</TableCell>
+                                            <TableCell className="font-medium">{claimtype.benchmark} %</TableCell>
                                             <TableCell>{claimtype.is_active ? "True" : "No"}</TableCell>
                                             <TableCell>{claimtype.description}</TableCell>
                                         </TableRow>
@@ -536,33 +544,42 @@ export default function SettingsPage() {
                                     <FormItem>
                                         <FormLabel>Benchmark</FormLabel>
                                         <FormControl>
-                                            <Input type="number" placeholder="benchmark" {...field} />
+                                            <Input
+                                                type="number"
+                                                placeholder="benchmark"
+                                                {...field}
+                                                onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                            <FormField
+
+                            {/* <FormField
                                 control={claimTypeform.control}
                                 name="is_active"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>is active ?</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormLabel>Is Active?</FormLabel>
+                                        <Select
+                                            onValueChange={(value) => field.onChange(value === "true")}
+                                            defaultValue={field.value ? "true" : "false"}
+                                        >
                                             <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="is Active?" />
+                                                    <SelectValue placeholder="Is Active?" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value={true}>Its Active</SelectItem>
-                                                <SelectItem value={false}>Its Not Active</SelectItem>
+                                                <SelectItem value="true">Its Active</SelectItem>
+                                                <SelectItem value="false">Its Not Active</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
                                     </FormItem>
                                 )}
-                            />
+                            /> */}
                             <DialogFooter>
                                 <Button type="submit" disabled={!claimTypeform.formState.isValid || isSubmiting}>Add ClaimType</Button>
                             </DialogFooter>
@@ -656,33 +673,42 @@ export default function SettingsPage() {
                                     <FormItem>
                                         <FormLabel>Benchmark</FormLabel>
                                         <FormControl>
-                                            <Input type="number" placeholder="benchmark" {...field} />
+                                            <Input
+                                                type="number"
+                                                placeholder="benchmark"
+                                                {...field}
+                                                onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                            <FormField
+
+                            {/* <FormField
                                 control={claimTypeform.control}
                                 name="is_active"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>is active ?</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormLabel>Is Active?</FormLabel>
+                                        <Select
+                                            onValueChange={(value) => field.onChange(value === "true")}
+                                            defaultValue={field.value ? "true" : "false"}
+                                        >
                                             <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="is Active?" />
+                                                    <SelectValue placeholder="Is Active?" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value={true}>Its Active</SelectItem>
-                                                <SelectItem value={false}>Its Not Active</SelectItem>
+                                                <SelectItem value="true">Its Active</SelectItem>
+                                                <SelectItem value="false">Its Not Active</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
                                     </FormItem>
                                 )}
-                            />
+                            /> */}
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => (createClaimTypeDialogOpen ? setCreateClaimTypeDialogOpen(false) : setEditClaimTypeDialogOpen(false))}>
                                     Cancel

@@ -53,6 +53,7 @@ import { useLanguage } from "@/lib/language-context";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { GarageRecommendations } from "@/components/garage-recommendations";
 import { Separator } from "@/components/ui/separator";
+import { Vehicle } from "@/lib/types/claims";
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -446,7 +447,7 @@ const stepValidationSchemas = [
 export default function NewClaimPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, apiRequest, webRequest, apiPOST } = useAuth();
+  const { user, apiRequest } = useAuth();
   const { t } = useLanguage();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -456,6 +457,7 @@ export default function NewClaimPage() {
   const [claimId, setClaimId] = useState<string | null>(null);
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
   const [documentsToDelete, setDocumentsToDelete] = useState<string[]>([]);
+  const [userVehicles, setUserVehicles] = useState<Vehicle[]>([])
 
   const [isSaving, setIsSaving] = useState(false);
   const [previews, setPreviews] = useState({
@@ -823,7 +825,7 @@ export default function NewClaimPage() {
   const validateStep = async (stepNumber: number) => {
     try {
       const values = form.getValues();
-      
+
       // Special handling for Step 2 (Driver & Vehicle)
       if (stepNumber === 2) {
         if (!values.driver_details?.surname || values.driver_details.surname.length < 2) {
@@ -835,7 +837,7 @@ export default function NewClaimPage() {
         if (!values.driver_details?.phone || values.driver_details.phone.length < 6) {
           throw new Error("Valid phone number is required");
         }
-        
+
         // License validation if has_license is true
         if (values.driver_details?.has_license) {
           if (!values.driver_details?.license_number) {
@@ -848,7 +850,7 @@ export default function NewClaimPage() {
             throw new Error("License issue date is required");
           }
         }
-        
+
         // Vehicle validation based on selection mode
         if (values.vehicle_selection_mode === "existing") {
           if (!values.selected_vehicle_id) {
@@ -878,7 +880,7 @@ export default function NewClaimPage() {
         } else {
           throw new Error("Please select vehicle input mode");
         }
-        
+
         // Mark step as completed and return true
         if (!completedSteps.includes(stepNumber)) {
           setCompletedSteps((prev) => [...prev, stepNumber]);
@@ -888,7 +890,7 @@ export default function NewClaimPage() {
         }
         return true;
       }
-      
+
       // Standard schema validation for all other steps
       const currentSchema = stepValidationSchemas[stepNumber - 1];
       const stepFields: any = {};
@@ -896,7 +898,7 @@ export default function NewClaimPage() {
         stepFields[key] = values[key as keyof typeof values];
       });
       await currentSchema.parseAsync(stepFields);
-      
+
       if (!completedSteps.includes(stepNumber)) {
         setCompletedSteps((prev) => [...prev, stepNumber]);
       }
@@ -990,7 +992,7 @@ export default function NewClaimPage() {
   };
   // Handle vehicle selection
   const handleVehicleSelection = (vehicleId: string) => {
-    const selectedVehicle = user.vehicles?.find(v => v.id === vehicleId);
+    const selectedVehicle = userVehicles?.find(v => v.id === vehicleId);
     if (selectedVehicle) {
       // Clear vehicle form fields since we're using existing vehicle
       form.setValue("vehicle", {
@@ -1016,7 +1018,7 @@ export default function NewClaimPage() {
     setIsSaving(true);
     setIsSubmitting(true);
     try {
-      const currentStepValid = (step === 2 && form.getValues().vehicle_selection_mode === "existing")? true : await validateStep(step);
+      const currentStepValid = (step === 2 && form.getValues().vehicle_selection_mode === "existing") ? true : await validateStep(step);
       if (!currentStepValid) {
         toast({
           variant: "destructive",
@@ -1080,6 +1082,13 @@ export default function NewClaimPage() {
 
           const createdVehicle = await apiRequest(`${API_URL}vehicles`, "POST", vehicleData);
           vehicleId = createdVehicle.id;
+
+          const updatedUser = {
+            ...user,
+            vehicles: [createdVehicle, ...(user.vehicles || [])]
+          };
+          setUserVehicles([createdVehicle, ...(user.vehicles || [])])
+          sessionStorage.setItem("sessuza", JSON.stringify(updatedUser));
         }
         if (vehicleId) {
           const claimVehicleData = {
@@ -1778,7 +1787,7 @@ export default function NewClaimPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {user.vehicles.map((vehicle) => (
+                                {userVehicles.map((vehicle) => (
                                   <SelectItem key={vehicle.id} value={vehicle.id}>
                                     {vehicle.license_plate} - {vehicle.make} {vehicle.model} ({vehicle.year})
                                   </SelectItem>
@@ -1792,7 +1801,7 @@ export default function NewClaimPage() {
                     )}
 
                     {/* New Vehicle Form - Show when mode is 'new' or no existing vehicles */}
-                    {(form.watch("vehicle_selection_mode") === "new" || user.vehicles.length === 0) && (
+                    {(form.watch("vehicle_selection_mode") === "new" || userVehicles.length === 0) && (
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
@@ -3170,5 +3179,4 @@ export default function NewClaimPage() {
     </DashboardLayout>
   );
 }
-
 
