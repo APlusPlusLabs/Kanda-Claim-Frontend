@@ -293,7 +293,7 @@ export default function InsurerDashboard() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Payout</CardTitle>
-              <CardDescription className="text-2xl font-bold">{totalPayout.toLocaleString()} RWF</CardDescription>
+              <CardDescription className="text-2xl font-bold">{totalPayout} RWF</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-xs text-muted-foreground">For completed claims</div>
@@ -444,7 +444,7 @@ export default function InsurerDashboard() {
                       </div>
                       <div className="text-sm">
                         <span className="text-muted-foreground">Estimated Amount:</span>{" "}
-                        {claim.estimatedAmount.toLocaleString()} RWF
+                        {claim.estimatedAmount} RWF
                       </div>
                     </div>
 
@@ -496,7 +496,7 @@ export default function InsurerDashboard() {
                       </div>
                       <div className="text-sm">
                         <span className="text-muted-foreground">Estimated Amount:</span>{" "}
-                        {claim.estimatedAmount.toLocaleString()} RWF
+                        {claim.estimatedAmount} RWF
                       </div>
                       <div className="text-sm">
                         <span className="text-muted-foreground">
@@ -569,7 +569,7 @@ export default function InsurerDashboard() {
                       </div>
                       <div className="text-sm">
                         <span className="text-muted-foreground">Final Amount:</span>{" "}
-                        {claim.finalAmount.toLocaleString()} RWF
+                        {claim.finalAmount} RWF
                       </div>
                     </div>
 

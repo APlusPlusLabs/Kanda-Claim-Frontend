@@ -230,7 +230,7 @@ export default function ClaimDetailsPage({ params }: Props) {
                   <span className="text-muted-foreground">
                     {claim.status === "Completed" ? "Final Amount:" : "Estimated Amount:"}
                   </span>{" "}
-                  {claim.amount.toLocaleString()} {claim?.currency}
+                  {claim.amount} {claim?.currency}
                 </div>
               </div>
             </div>
@@ -280,7 +280,7 @@ export default function ClaimDetailsPage({ params }: Props) {
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="text-muted-foreground">Estimated Amount:</div>
-                          <div>{claim.amount.toLocaleString()} {claim.currency}</div>
+                          <div>{claim.amount} {claim.currency}</div>
                         </div>
                       </div>
                     </div>

@@ -342,7 +342,7 @@ export default function ViewClientPage() {
                                                         <span className="text-muted-foreground">
                                                             {status === "completed" ? "Final Amount:" : "Estimated Amount:"}
                                                         </span>{" "}
-                                                        {(claim.amount ?? 0).toLocaleString()} {claim.currency ?? "N/A"}
+                                                        {(claim.amount ?? 0)} {claim.currency ?? "N/A"}
                                                     </div>
                                                 )}
                                             </div>

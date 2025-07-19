@@ -245,7 +245,7 @@ export default function InsurerClaimsPage() {
   const ApprovedClaims = sortedClaims.filter((claim) => claim.status === "Approved")
   const submittedClaims = sortedClaims.filter((claim) => claim.status === "Submitted")
   const underReviewClaims = sortedClaims.filter((claim) => claim.status === "Under Review")
-  const approvedClaims = sortedClaims.filter((claim) => (claim.status === "Repair Approved"|| claim.status === 'Approved'))
+  const approvedClaims = sortedClaims.filter((claim) => (claim.status === "Repair Approved" || claim.status === 'Approved'))
   const completedClaims = sortedClaims.filter((claim) => claim.status === "Completed")
   const rejectedClaims = sortedClaims.filter((claim) => claim.status === "Rejected")
 
@@ -523,7 +523,7 @@ export default function InsurerClaimsPage() {
       navigation={[
         { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
         { name: "Claims", href: "/dashboard/insurer/claims", icon: <FileText className="h-5 w-5" /> },
-        { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5"/> },
+        { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
         { name: "Bids", href: "/dashboard/insurer/bids", icon: <FileText className="h-5 w-5" /> },
       ]}
     >
@@ -869,7 +869,7 @@ export default function InsurerClaimsPage() {
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => openClaimDetails(claim)}
                         >
-                         <TableCell className="font-medium">
+                          <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span>{claim.code}</span>
                               <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
@@ -1016,7 +1016,7 @@ export default function InsurerClaimsPage() {
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => openClaimDetails(claim)}
                         >
-                         <TableCell className="font-medium">
+                          <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span>{claim.code}</span>
                               <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
@@ -1163,7 +1163,7 @@ export default function InsurerClaimsPage() {
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => openClaimDetails(claim)}
                         >
-                         <TableCell className="font-medium">
+                          <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span>{claim.code}</span>
                               <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
@@ -1302,7 +1302,7 @@ export default function InsurerClaimsPage() {
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => openClaimDetails(claim)}
                         >
-                        <TableCell className="font-medium">
+                          <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span>{claim.code}</span>
                               <span className="text-xs text-muted-foreground">{claim.policy_number}</span>
@@ -1451,7 +1451,7 @@ export default function InsurerClaimsPage() {
                           <span className="text-muted-foreground mr-1">{selectedClaim.status} :</span>
                           <Badge variant="outline" className="flex items-center gap-1">
                             {getResponsibleIcon(selectedClaim.department?.name)}
-                              {selectedClaim.department?.name} ({selectedClaim.assessments[0]?.assessor?.name})
+                            {selectedClaim.department?.name} ({selectedClaim.assessments[0]?.assessor?.name})
                           </Badge>
                         </span>
                       )}
@@ -1693,7 +1693,7 @@ export default function InsurerClaimsPage() {
                               <TableCell className="font-semibold text-right">
                                 {selectedClaim.damages
                                   .reduce((sum: number, damage: any) => sum + damage.estimated_cost, 0)
-                                  .toLocaleString()}{" "}
+                                }{" "}
                                 RWF
                               </TableCell>
                             </TableRow>
