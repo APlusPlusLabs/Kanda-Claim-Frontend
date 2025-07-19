@@ -170,14 +170,18 @@ export default function InsurerClaimsPage() {
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "pending" &&
-        (claim.status === "Pending Review" ||
-          claim.status === "Draft" ||
-          claim.status === "Submitted" ||
-          claim.status === "Assessment Scheduled" ||
-          claim.status === "Investigation")) ||
-      (statusFilter === "approved" && (claim.status === "Approved" || claim.status === "Repair Approved")) ||
-      (statusFilter === "completed" && claim.status === "Completed") ||
-      (statusFilter === "rejected" && claim.status === "Rejected")
+        (
+          claim.status.toLowerCase() === "pending review" ||
+          claim.status.toLowerCase() === "pending" ||
+          claim.status.toLowerCase() === "draft" ||
+          claim.status.toLowerCase() === "submitted" ||
+          claim.status.toLowerCase() === "assessment scheduled" ||
+          claim.status.toLowerCase() === "scheduled" ||
+          claim.status.toLowerCase() === "investigation")
+        ) ||
+      (statusFilter === "approved" && (claim.status.toLowerCase() === "approved" || claim.status === "repair approved")) ||
+      (statusFilter === "completed" && claim.status.toLowerCase() === "completed") ||
+      (statusFilter === "rejected" && claim.status.toLowerCase() === "rejected")
 
     const matchesPriority =
       priorityFilter === "all" ||
@@ -239,15 +243,15 @@ export default function InsurerClaimsPage() {
 
   const pendingClaims = sortedClaims.filter(
     (claim) =>
-      claim.status === "Pending Review" || claim.status === "Assessment Scheduled" || claim.status === "Investigation",
+      claim.status.toLowerCase() === "pending review" || claim.status.toLowerCase() === "assessment ccheduled" || claim.status.toLowerCase() === "investigation" || claim.status.toLowerCase() === "pending" || claim.status.toLowerCase() === "scheduled",
   )
-  const draftClaims = sortedClaims.filter((claim) => claim.status === "Draft")
-  const ApprovedClaims = sortedClaims.filter((claim) => claim.status === "Approved")
-  const submittedClaims = sortedClaims.filter((claim) => claim.status === "Submitted")
-  const underReviewClaims = sortedClaims.filter((claim) => claim.status === "Under Review")
-  const approvedClaims = sortedClaims.filter((claim) => (claim.status === "Repair Approved" || claim.status === 'Approved'))
-  const completedClaims = sortedClaims.filter((claim) => claim.status === "Completed")
-  const rejectedClaims = sortedClaims.filter((claim) => claim.status === "Rejected")
+  const draftClaims = sortedClaims.filter((claim) => claim.status.toLowerCase() === "draft")
+  const ApprovedClaims = sortedClaims.filter((claim) => claim.status.toLowerCase() === "approved")
+  const submittedClaims = sortedClaims.filter((claim) => claim.status.toLowerCase()=== "submitted")
+  const underReviewClaims = sortedClaims.filter((claim) => claim.status.toLowerCase() === "under review")
+  const approvedClaims = sortedClaims.filter((claim) => (claim.status.toLowerCase() === "repair approved" || claim.status === 'approved'))
+  const completedClaims = sortedClaims.filter((claim) => claim.status.toLowerCase() === "completed")
+  const rejectedClaims = sortedClaims.filter((claim) => claim.status.toLowerCase() === "rejected")
 
   const openClaimDetails = (claim: any) => {
     setSelectedClaim(claim)
