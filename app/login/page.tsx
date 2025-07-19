@@ -51,7 +51,7 @@ export default function LoginPage() {
     } catch (error: any) {
       // need activation
       if (error.needs_activation) {
-        router.push(`/auth/activate-code?email=${encodeURIComponent(values.email)}`)
+        router.push(`/auth/activate-account?email=${encodeURIComponent(values.email)}`)
         toast({
           title: "Account Activation Required",
           description: "Please check your email for the activation code or request a new one.",

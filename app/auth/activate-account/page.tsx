@@ -60,7 +60,7 @@ export default function ActivationCodePage() {
       if (uzer.role.name === "Insurer") {
         toast({
           title: "Account Activated Successfully!",
-          description: "You need to set up Company Departments, Claim types & Partner garages before continuing",
+          description: "Now, you need to set up Company Departments, Claim types & Partner garages",
         })
         window.location.assign("/dashboard/insurer/settings")
       } else {
@@ -131,7 +131,7 @@ export default function ActivationCodePage() {
           </div>
           <CardTitle className="text-2xl font-bold">Activate Your Account</CardTitle>
           <CardDescription>
-            Enter the 6-digit activation code sent to your email address
+            Enter the 6-character activation code we sent to your email inbox
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -142,7 +142,7 @@ export default function ActivationCodePage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email Address</FormLabel>
+                    <FormLabel>Your Email</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
@@ -166,7 +166,7 @@ export default function ActivationCodePage() {
                     <FormControl>
                       <Input
                         type="text"
-                        placeholder="Enter 6-digit code"
+                        placeholder="Enter 6-character code"
                         maxLength={6}
                         className="text-center text-lg tracking-widest font-mono uppercase"
                         {...field}
