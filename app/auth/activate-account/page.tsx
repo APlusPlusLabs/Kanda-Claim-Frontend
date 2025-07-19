@@ -45,7 +45,7 @@ export default function ActivationCodePage() {
   async function handleSubmitAuthCode(values: z.infer<typeof authCodeformSchema>) {
     setIsLoading(true)
     try {
-      const response = await apiRequest(`${API_URL}check-auth-code`, "POST", {
+      const response = await apiRequest(`${API_URL}users/check-auth-code`, "POST", {
         authCode: values.authCode,
         email: values.email
       })
@@ -99,7 +99,7 @@ export default function ActivationCodePage() {
 
     setIsResending(true)
     try {
-      await apiRequest(`${API_URL}send-auth-code`, "POST", { email })
+      await apiRequest(`${API_URL}users/send-auth-code`, "POST", { email })
 
       toast({
         title: "Code Sent",
