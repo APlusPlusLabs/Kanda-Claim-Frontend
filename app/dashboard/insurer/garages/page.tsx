@@ -24,7 +24,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, Settings, UserCog } from "lucide-react";
+import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, Settings, UserCog, Settings2Icon } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 type Day = keyof GarageFormValues['openHours'];
@@ -296,8 +296,9 @@ export default function GaragesPage() {
                     // { name: "Claims", href: "/dashboard/insurer/claims", icon: null },
                     // { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
                     { name: "Garages Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
-                    { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
-                    // { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
+                    { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },   
+                    { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },    
+                    { name: "Company Profile", href: "/dashboard/insurer/profile", icon: <Settings2Icon className="h-5 w-5" /> },
                 ]}
             >
                 <div className="flex justify-center items-center h-[60vh]">

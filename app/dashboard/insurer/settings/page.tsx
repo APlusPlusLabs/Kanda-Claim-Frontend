@@ -25,7 +25,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, BriefcaseBusiness, HousePlus, Settings, UserCog } from "lucide-react";
+import { Edit, Plus, MapPin, Phone, Mail, Star, Wrench, Trash2, BriefcaseBusiness, HousePlus, Settings, UserCog, Settings2Icon } from "lucide-react";
 import { ClaimType } from "@/lib/types/claims";
 import { Department } from "@/lib/types/users";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -350,7 +350,8 @@ export default function SettingsPage() {
                     // { name: "Bids", href: "/dashboard/insurer/bids", icon: null },
                     { name: "Garage Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
                     { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
-                    // { name: "Documents", href: "/dashboard/insurer/documents", icon: null },
+                    { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },    
+                    { name: "Company Profile", href: "/dashboard/insurer/profile", icon: <Settings2Icon className="h-5 w-5" /> },
                 ]}
             >
                 <div className="flex justify-center items-center h-[60vh]">
@@ -375,11 +376,15 @@ export default function SettingsPage() {
         >
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold">{user.tenant.name} Claim Types, Departments ...</h1>
+                    <h1 className="text-3xl font-bold">{user.tenant.name} Profile, Claim Types, Departments ...</h1>
                     <div className="flex items-end justify-between space-x-2">
+                        <Button onClick={() => router.push('/dashboard/insurer/profile')} className="space-x-2">
+                            <Settings2Icon className="h-4 w-4 mr-2" /> Company Profile
+                        </Button>
                         <Button onClick={() => setCreateClaimTypeDialogOpen(true)} className="space-x-2">
                             <Plus className="h-4 w-4 mr-2" /> ClaimType
                         </Button>
+
                         <Button onClick={() => setIsCreateDepartmentOpen(true)} className="space-x-2">
                             <Plus className="h-4 w-4 mr-2" /> Department
                         </Button>

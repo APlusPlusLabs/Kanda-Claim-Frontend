@@ -49,7 +49,9 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"
 export default function InsurerDashboard() {
   const router = useRouter()
   const { user, apiRequest } = useAuth()
-
+  const [logoPreview, setLogoPreview] = useState<string | null>(
+    user?.tenant?.logo ? `${API_URL}tenants/${user.tenant.id}/logo` : null
+  )
   const [claimsOverTime, setClaimsOverTime] = useState([])
   const [claimsByType, setClaimsByType] = useState([])
   const [claimsByStatus, setClaimsByStatus] = useState({
@@ -210,7 +212,7 @@ export default function InsurerDashboard() {
       user={{
         name: user.name,
         role: user.role.name + " @ " + user.tenant.name,
-        avatar: "/placeholder.svg?height=40&width=40",
+        avatar: logoPreview || "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
         { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },

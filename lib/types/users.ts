@@ -45,6 +45,9 @@ export interface Tenant {
     website: string,
     contact_person: any,
     description: string,
-    min_amount_multisignature: number
+    min_amount_multisignature: number,
+    logo: any;
+    stamp: any;
+    digital_signature: null;
 };
 

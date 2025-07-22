@@ -1,20 +1,21 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { Building2, User, Upload, X, Wrench, Settings2Icon, Settings, UserCog } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Building2, FileText, MessageSquare, Bell, User, LogOut } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/lib/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-import { SignaturePad } from "@/components/e-signature/signature-pad"
+
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
@@ -24,22 +25,6 @@ export default function InsurerProfile() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [isPasswordLoading, setIsPasswordLoading] = useState(false)
-
-
-  // File preview states
-  const [logoPreview, setLogoPreview] = useState<string | null>(
-    user?.tenant?.logo ? `${API_URL}tenants/${user.tenant.id}/logo` : null
-  )
-  const [stampPreview, setStampPreview] = useState<string | null>(
-    user?.tenant?.stamp ? `${API_URL}tenants/${user.tenant.id}/stamp` : null
-  )
-  const [signatureData, setSignatureData] = useState<string | null>(
-    user?.tenant?.digital_signature || null
-  )
-
-  // File states
-  const [logoFile, setLogoFile] = useState<File | null>(null)
-  const [stampFile, setStampFile] = useState<File | null>(null)
 
   const [formData, setFormData] = useState({
     companyName: user?.tenant?.name || "",
@@ -56,6 +41,7 @@ export default function InsurerProfile() {
     newPassword: "",
     confirmPassword: "",
     min_amount_multisignature: user?.tenant?.min_amount_multisignature || 5000000,
+    language: "en",
     timezone: "Africa/Kigali",
   })
 
@@ -68,83 +54,25 @@ export default function InsurerProfile() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'stamp') => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/svg+xml']
-    if (!validTypes.includes(file.type)) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a JPEG, PNG, JPG, or SVG file.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Create preview
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      if (type === 'logo') {
-        setLogoPreview(reader.result as string)
-        setLogoFile(file)
-      } else {
-        setStampPreview(reader.result as string)
-        setStampFile(file)
-      }
-    }
-    reader.readAsDataURL(file)
-  }
-
-
-
-
-
   const handleProfileUpdate = async (e: { preventDefault: () => void }) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      // Create FormData for file uploads
-      const formDataToSend = new FormData()
-
-      // Add tenant data
-      formDataToSend.append('name', formData.companyName)
-      formDataToSend.append('email', formData.email)
-      formDataToSend.append('phone', formData.phone)
-      formDataToSend.append('address', formData.address)
-      formDataToSend.append('website', formData.website)
-      formDataToSend.append('description', formData.bio)
-      formDataToSend.append('min_amount_multisignature', formData.min_amount_multisignature.toString())
-      formDataToSend.append('tenant_id', user.tenant_id + '')
-      formDataToSend.append('user_id', user.id + '')
-      formDataToSend.append('contact_person_id', user.id + '')
-
-      // Add files if present
-      if (logoFile) {
-        formDataToSend.append('logo', logoFile)
-      }
-      if (stampFile) {
-        formDataToSend.append('stamp', stampFile)
-      }
-      if (signatureData) {
-        formDataToSend.append('digital_signature', signatureData)
+      // Prepare tenant data
+      const tenantData = {
+        name: formData.companyName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        website: formData.website,
+        description: formData.bio,
+        min_amount_multisignature: formData.min_amount_multisignature,
+        tenant_id: user.tenant_id,
+        user_id: user.id,
       }
 
-      // Update tenant information
-      const tenantResponse = await apiRequest(`${API_URL}tenants/${user.tenant_id}`, 'POST', formDataToSend)
-      // const tenantResponse = await fetch(`${API_URL}tenants/${user.tenant.id}`, {
-      //   method: 'POST', 
-      //   headers: {
-      //     'Authorization': `Bearer ${ sessionStorage.getItem("ottqen")}`,
-      //   },
-      //   body: formDataToSend,
-      // })
-
-      const tenantResult = await tenantResponse
-
-      // Update user information
+      // Prepare user data (contact person info)
       const userData = {
         first_name: formData.contactPersonFirstName,
         last_name: formData.contactPersonLastName,
@@ -154,13 +82,21 @@ export default function InsurerProfile() {
         user_id: user.id,
       }
 
+      // Update tenant information
+      const tenantResponse = await apiRequest(
+        `${API_URL}tenants/${user.tenant.id}`,
+        "PUT",
+        tenantData
+      )
+
+      // Update user information
       const userResponse = await apiRequest(
         `${API_URL}users/${user.id}`,
         "PUT",
         userData
       )
 
-      if (tenantResult.success) {
+      if (tenantResponse.success && userResponse.success) {
         toast({
           title: "Profile Updated",
           description: "Your profile information has been updated successfully.",
@@ -229,7 +165,7 @@ export default function InsurerProfile() {
           newPassword: "",
           confirmPassword: "",
         }))
-
+        
         router.push('/login')
       } else {
         throw new Error(response.message || "Failed to update password")
@@ -251,14 +187,11 @@ export default function InsurerProfile() {
       user={{
         name: user?.name,
         role: user?.tenant?.name,
-        avatar: logoPreview || "/placeholder.svg?height=40&width=40",
+        avatar: "/placeholder.svg?height=40&width=40",
       }}
       navigation={[
         { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
-        { name: "Garage Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
-        { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
-        { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },    
-        { name: "Company Profile", href: "/dashboard/insurer/profile", icon: <Settings2Icon className="h-5 w-5" /> },
+        { name: "Profile", href: "/dashboard/insurer/profile", icon: <User className="h-5 w-5" /> },
       ]}
     >
       <div className="space-y-6">
@@ -269,7 +202,7 @@ export default function InsurerProfile() {
           </div>
           <div className="flex items-center space-x-4">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={logoPreview || "/placeholder.svg?height=64&width=64"} alt={user?.tenant?.name} />
+              <AvatarImage src="/placeholder.svg?height=64&width=64" alt={user?.tenant?.name} />
               <AvatarFallback>
                 {user?.tenant?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'CO'}
               </AvatarFallback>
@@ -280,7 +213,6 @@ export default function InsurerProfile() {
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList>
             <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="branding">Branding & Signature</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
           </TabsList>
 
@@ -344,7 +276,7 @@ export default function InsurerProfile() {
                         disabled={isLoading}
                       />
                     </div>
-                    {/* <div className="space-y-2">
+                    <div className="space-y-2">
                       <Label htmlFor="language">Language</Label>
                       <Select
                         value={formData.language}
@@ -360,7 +292,7 @@ export default function InsurerProfile() {
                           <SelectItem value="rw">Kinyarwanda</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div> */}
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -440,136 +372,6 @@ export default function InsurerProfile() {
                 </CardFooter>
               </Card>
             </form>
-          </TabsContent>
-
-          <TabsContent value="branding">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Company Logo</CardTitle>
-                  <CardDescription>Upload your company logo (JPEG, PNG, JPG, or SVG)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {logoPreview && (
-                      <div className="relative w-32 h-32">
-                        <img
-                          src={logoPreview}
-                          alt="Company logo"
-                          className="w-full h-full object-contain border rounded"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute -top-2 -right-2 h-6 w-6"
-                          onClick={() => {
-                            setLogoPreview(null)
-                            setLogoFile(null)
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-4">
-                      <Input
-                        id="logo"
-                        type="file"
-                        accept="image/jpeg,image/png,image/jpg,image/svg+xml"
-                        onChange={(e) => handleFileChange(e, 'logo')}
-                        className="hidden"
-                      />
-                      <Label
-                        htmlFor="logo"
-                        className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Logo
-                      </Label>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Company Stamp</CardTitle>
-                  <CardDescription>Upload your official company stamp (JPEG, PNG, JPG, or SVG)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {stampPreview && (
-                      <div className="relative w-32 h-32">
-                        <img
-                          src={stampPreview}
-                          alt="Company stamp"
-                          className="w-full h-full object-contain border rounded"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute -top-2 -right-2 h-6 w-6"
-                          onClick={() => {
-                            setStampPreview(null)
-                            setStampFile(null)
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-4">
-                      <Input
-                        id="stamp"
-                        type="file"
-                        accept="image/jpeg,image/png,image/jpg,image/svg+xml"
-                        onChange={(e) => handleFileChange(e, 'stamp')}
-                        className="hidden"
-                      />
-                      <Label
-                        htmlFor="stamp"
-                        className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Stamp
-                      </Label>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <CardContent>
-                <div className="space-y-4">
-                  {signatureData ? (
-                    <div className="relative">
-                      <img
-                        src={signatureData}
-                        alt="Digital signature"
-                        className="border rounded p-2 bg-white"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => setSignatureData(null)}
-                      >
-                        Clear Signature
-                      </Button>
-                    </div>
-                  ) : (
-                    <SignaturePad
-                      width={500}
-                      height={200}
-                      onChange={(signature) => setSignatureData(signature)}
-                      className="w-full"
-                    />
-                  )}
-                </div>
-              </CardContent>
-            </div>
           </TabsContent>
 
           <TabsContent value="security">
