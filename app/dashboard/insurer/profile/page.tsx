@@ -257,11 +257,11 @@ export default function InsurerProfile() {
         { name: "Dashboard", href: "/dashboard/insurer", icon: <Building2 className="h-5 w-5" /> },
         { name: "Garage Partners", href: "/dashboard/insurer/garages", icon: <Wrench className="h-5 w-5" /> },
         { name: "Settings (Departments & Claim Types)", href: "/dashboard/insurer/settings", icon: <Settings className="h-5 w-5" /> },
-        { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },    
+        { name: "Company Staff & Users", href: "/dashboard/insurer/users", icon: <UserCog className="h-5 w-5" /> },
         { name: "Company Profile", href: "/dashboard/insurer/profile", icon: <Settings2Icon className="h-5 w-5" /> },
       ]}
     >
-      <div className="space-y-6">
+      <div className="space-y-6 space-x-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Company Profile</h1>
@@ -569,6 +569,11 @@ export default function InsurerProfile() {
                   )}
                 </div>
               </CardContent>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
             </div>
           </TabsContent>
 

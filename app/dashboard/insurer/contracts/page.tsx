@@ -7,8 +7,9 @@ import {
   Building2, FileText, CreditCard, FileCheck, Plus, Edit, Trash2,
   CheckCircle, Calendar, DollarSign, X, Eye, Download,
   Car, Wrench, Handshake, Users,
-  ListOrdered
+  ListOrdered, Send, Stamp, PenTool
 } from 'lucide-react'
+import { SignaturePad } from "@/components/e-signature/signature-pad"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,6 +25,7 @@ import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/lib/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from 'next/navigation'
+import { Label } from '@radix-ui/react-label'
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
@@ -71,6 +73,11 @@ export default function FlexibleContractsPage() {
   const { user, apiRequest } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+  const [showSignatureDialog, setShowSignatureDialog] = useState(false)
+  const [selectedContractForSigning, setSelectedContractForSigning] = useState<any>(null)
+  const [signatureData, setSignatureData] = useState<string | null>(null)
+  const [sendEmailDialog, setSendEmailDialog] = useState(false)
+  const [emailForm, setEmailForm] = useState({ email: '', message: '' })
   const [contracts, setContracts] = useState([])
   const [contractsByType, setContractsByType] = useState({})
   const [contractDrafts, setContractDrafts] = useState([])
@@ -389,7 +396,82 @@ export default function FlexibleContractsPage() {
     if (!dateString) return "N/A"
     return new Date(dateString).toLocaleDateString()
   }
+  const handleSignContract = async (contractId: string, signature: string) => {
+    try {
+      const response = await apiRequest(
+        `${API_URL}tenants/${user.tenant_id}/contracts/${contractId}/sign`,
+        'POST',
+        { signature, party_type: 'insurer' }
+      )
 
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Contract signed successfully",
+        })
+        setShowSignatureDialog(false)
+        setSignatureData(null)
+        fetchContracts()
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign contract",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDownloadPdf = async (contractId: string) => {
+    try {
+      const response = await fetch(
+        `${API_URL}tenants/${user.tenant_id}/contracts/${contractId}/pdf`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      )
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `contract-${contractId}.pdf`
+      a.click()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download PDF",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSendContract = async (contractId: string) => {
+    try {
+      const response = await apiRequest(
+        `${API_URL}tenants/${user.tenant_id}/contracts/${contractId}/send`,
+        'POST',
+        emailForm
+      )
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Contract sent successfully",
+        })
+        setSendEmailDialog(false)
+        setEmailForm({ email: '', message: '' })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send contract",
+        variant: "destructive",
+      })
+    }
+  }
   const getContractTypeStats = () => {
     const types = Object.keys(contractsByType)
     return types.map(type => ({
@@ -1091,6 +1173,25 @@ export default function FlexibleContractsPage() {
                 </Card>
               </div>
             )}
+            {/* Add this inside your contract details modal */}
+            <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-gray-50 rounded">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Insurer Signature</p>
+                <p className="text-sm">
+                  {contract?.insurer_signed_at
+                    ? `Signed on ${formatDate(contract.insurer_signed_at)}`
+                    : 'Not signed yet'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Party Signature</p>
+                <p className="text-sm">
+                  {contract?.party_signed_at
+                    ? `Signed on ${formatDate(contract.party_signed_at)}`
+                    : 'Not signed yet'}
+                </p>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1415,7 +1516,7 @@ export default function FlexibleContractsPage() {
                             </TableCell>
                             <TableCell>{formatCurrency(contract.contract_value)}</TableCell>
                             <TableCell>{formatDate(contract.expires_at)}</TableCell>
-                            <TableCell className="text-right">
+                            {/* <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
                                   variant="ghost"
@@ -1459,6 +1560,87 @@ export default function FlexibleContractsPage() {
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
+                            </TableCell> */}
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openDetailsModal(contract)}
+                                  title="View Details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDownloadPdf(contract.id)}
+                                  title="Download PDF"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+
+                                {contract.status !== 'completed' && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedContractForSigning(contract)
+                                        setShowSignatureDialog(true)
+                                      }}
+                                      title="Sign Contract"
+                                    >
+                                      <PenTool className="h-4 w-4" />
+                                    </Button>
+
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => openEditDialog(contract)}
+                                      title="Edit"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+
+                                {(contract.status === 'active' || contract.status === 'draft') && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedContractForSigning(contract)
+                                      setSendEmailDialog(true)
+                                    }}
+                                    title="Send Contract"
+                                  >
+                                    <Send className="h-4 w-4" />
+                                  </Button>
+                                )}
+
+                                {contract.status === 'active' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleContractAction(contract.id, 'complete')}
+                                    disabled={actionLoading}
+                                    title="Complete Contract"
+                                  >
+                                    <FileCheck className="h-4 w-4" />
+                                  </Button>
+                                )}
+
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteContract(contract.id)}
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1483,6 +1665,103 @@ export default function FlexibleContractsPage() {
             setSelectedContract(null)
           }}
         />
+        {/* Signature Dialog */}
+        <Dialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Sign Contract</DialogTitle>
+              <DialogDescription>
+                Please sign below to approve contract {selectedContractForSigning?.code}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <p className="text-sm text-gray-600 mb-2">Contract Details:</p>
+                <p className="font-medium">{selectedContractForSigning?.code}</p>
+                <p className="text-sm">Value: {formatCurrency(selectedContractForSigning?.contract_value)}</p>
+              </div>
+
+              <div>
+                <Label>Your Signature</Label>
+                <SignaturePad
+                  width={500}
+                  height={200}
+                  onChange={(signature) => setSignatureData(signature)}
+                  className="mt-2"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowSignatureDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (signatureData && selectedContractForSigning) {
+                    handleSignContract(selectedContractForSigning.id, signatureData)
+                  }
+                }}
+                disabled={!signatureData}
+              >
+                Sign Contract
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Send Email Dialog */}
+        <Dialog open={sendEmailDialog} onOpenChange={setSendEmailDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Send Contract</DialogTitle>
+              <DialogDescription>
+                Send contract {selectedContractForSigning?.code} via email
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="email">Recipient Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={emailForm.email}
+                  onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })}
+                  placeholder="recipient@example.com"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="message">Message (Optional)</Label>
+                <Textarea
+                  id="message"
+                  value={emailForm.message}
+                  onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+                  placeholder="Add a personal message..."
+                  rows={4}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSendEmailDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedContractForSigning) {
+                    handleSendContract(selectedContractForSigning.id)
+                  }
+                }}
+                disabled={!emailForm.email}
+              >
+                Send Contract
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   )
