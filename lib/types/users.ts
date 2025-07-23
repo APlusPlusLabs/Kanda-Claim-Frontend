@@ -36,6 +36,7 @@ export interface Department {
 export interface Tenant {
     id: string;
     name: string;
+    tin: string;
     users: User[];
     departments?: Department[];
     garages?: Garage[];

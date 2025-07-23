@@ -43,6 +43,7 @@ export default function InsurerProfile() {
 
   const [formData, setFormData] = useState({
     companyName: user?.tenant?.name || "",
+    tin: user?.tenant?.tin || "",
     email: user?.tenant?.email || "",
     phone: user?.tenant?.phone || "",
     address: user?.tenant?.address || "",
@@ -111,6 +112,7 @@ export default function InsurerProfile() {
 
       // Add tenant data
       formDataToSend.append('name', formData.companyName)
+      formDataToSend.append('tin', formData.tin+"")
       formDataToSend.append('email', formData.email)
       formDataToSend.append('phone', formData.phone)
       formDataToSend.append('address', formData.address)
@@ -304,6 +306,16 @@ export default function InsurerProfile() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="tin">Company TIN Number</Label>
+                      <Input
+                        id="tin"
+                        name="tin"
+                        value={formData.tin}
+                        onChange={handleChange}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="email">Company Email</Label>
                       <Input
                         id="email"
@@ -375,7 +387,7 @@ export default function InsurerProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="bio">Company Description</Label>
+                    <Label htmlFor="bio">Company Tagline | Motto</Label>
                     <Textarea
                       id="bio"
                       name="bio"

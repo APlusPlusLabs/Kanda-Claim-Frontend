@@ -401,7 +401,7 @@ export default function FlexibleContractsPage() {
       const response = await apiRequest(
         `${API_URL}tenants/${user.tenant_id}/contracts/${contractId}/sign`,
         'POST',
-        { signature, party_type: 'insurer' }
+        { signature, party_type: 'insurer', 'user_id': user.id }
       )
 
       if (response.success) {
@@ -1104,7 +1104,7 @@ export default function FlexibleContractsPage() {
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">Important Dates</h3>
+                <h3 className="font-semibold mb-2">Dates</h3>
                 <dl className="space-y-2">
                   <div>
                     <dt className="text-sm text-muted-foreground">Created</dt>
@@ -1150,17 +1150,7 @@ export default function FlexibleContractsPage() {
               </div>
             )}
 
-            {/* Contract Terms */}
-            {contract.terms && (
-              <div>
-                <h3 className="font-semibold mb-2">Contract Terms</h3>
-                <Card>
-                  <CardContent className="pt-6">
-                    <p className="whitespace-pre-wrap">{contract.terms}</p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+            
 
             {/* Auto Renewal Settings */}
             {contract.auto_renew && (
@@ -1192,6 +1182,17 @@ export default function FlexibleContractsPage() {
                 </p>
               </div>
             </div>
+            {/* Contract Terms */}
+            {contract.terms && (
+              <div>
+                <h3 className="font-semibold mb-2">Contract Terms</h3>
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="whitespace-pre-wrap">{contract.terms}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
