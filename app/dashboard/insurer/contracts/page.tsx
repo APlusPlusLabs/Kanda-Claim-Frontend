@@ -366,6 +366,7 @@ export default function FlexibleContractsPage() {
   }
 
   const openEditDialog = (contract: any) => {
+    fetchAvailableItems(contract.contractable_type)
     setEditingContract(contract)
     form.reset({
       contract_type: contract.contract_type || "",
@@ -1150,7 +1151,7 @@ export default function FlexibleContractsPage() {
               </div>
             )}
 
-            
+
 
             {/* Auto Renewal Settings */}
             {contract.auto_renew && (
@@ -1595,7 +1596,6 @@ export default function FlexibleContractsPage() {
                                     >
                                       <PenTool className="h-4 w-4" />
                                     </Button>
-
                                     <Button
                                       variant="ghost"
                                       size="sm"
@@ -1632,6 +1632,7 @@ export default function FlexibleContractsPage() {
                                     <FileCheck className="h-4 w-4" />
                                   </Button>
                                 )}
+
 
                                 <Button
                                   variant="ghost"
