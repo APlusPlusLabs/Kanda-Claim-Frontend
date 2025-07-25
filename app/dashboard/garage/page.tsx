@@ -385,7 +385,7 @@ export default function GarageDashboard() {
                     </div>
 
                     <div className="mt-4 flex justify-end space-x-2">
-                      {(repair.status.toLowerCase() !== "approved" || repair.status.toLowerCase() !== "repair approved") ? (
+                      {/* {(repair.status.toLowerCase() !== "approved" || repair.status.toLowerCase() !== "repair approved") ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -397,11 +397,11 @@ export default function GarageDashboard() {
                         >
                           Update Estimate
                         </Button>
-                      ) : (
+                      ) : ( */}
                         <Button size="sm" onClick={() => handleStartRepair(repair.id)}>
                           Start Repair
                         </Button>
-                      )}
+                      {/* )} */}
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/dashboard/garage/repairs/${repair.id}`}>View Details</Link>
                       </Button>
