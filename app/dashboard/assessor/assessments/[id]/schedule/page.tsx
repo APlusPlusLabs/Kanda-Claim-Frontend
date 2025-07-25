@@ -28,7 +28,11 @@ export default function ScheduleAssessment({ params }: Props) {
   const { id } = use(params);
 
   const [scheduledDate, setScheduledDate] = useState<Date>(new Date())
-  const [time, setTime] = useState("10:00")
+  const [time, setTime] = useState(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 5); // Add 5 minutes
+    return now.toTimeString().slice(0, 5);
+  })
   const [duration, setDuration] = useState(2)
   const [location, setLocation] = useState("")
   const [notes, setNotes] = useState("")
@@ -130,7 +134,19 @@ export default function ScheduleAssessment({ params }: Props) {
       const [hours, minutes] = time.split(':');
       const scheduleDateTime = new Date(scheduledDate);
       scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
+      
+      // Validate the scheduled time is in the future
+      const now = new Date();
+      const minFutureTime = new Date(now.getTime() + 5 * 60000); // 5 minutes from now
+      
+      if (scheduleDateTime < minFutureTime) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "You cant schedule it for NOW, Please select a time at least 5 minutes from now",
+        });
+        return;
+      }
       const data = {
         scheduled_date: scheduleDateTime.toISOString(),
         location: location.trim(),
@@ -174,7 +190,18 @@ export default function ScheduleAssessment({ params }: Props) {
       setIsSubmitting(false);
     }
   }
+  const getMinTime = () => {
+    const now = new Date();
+    const selectedDateString = scheduledDate.toDateString();
+    const todayString = now.toDateString();
 
+    if (selectedDateString === todayString) {
+      // If today is selected, return current time + 5 minutes
+      now.setMinutes(now.getMinutes() + 5);
+      return now.toTimeString().slice(0, 5);
+    }
+    return "00:00"; // No restriction for future dates
+  }
   if (loading) {
     return (
       <div className="space-y-4">
@@ -246,7 +273,7 @@ export default function ScheduleAssessment({ params }: Props) {
               <CardDescription>Provide details for scheduling the assessment</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+              {/* <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="date">Date</Label>
                   <DatePickerWithLimits date={scheduledDate} setDate={setScheduledDate} />
@@ -258,6 +285,32 @@ export default function ScheduleAssessment({ params }: Props) {
                     type="time"
                     id="time"
                     value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    required
+                  />
+                </div>
+              </div> */}
+              <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="date">Date</Label>
+                  <DatePickerWithLimits
+                    date={scheduledDate}
+                    setDate={(date) => {
+                      setScheduledDate(date);
+                      if (date.toDateString() === new Date().toDateString()) {
+                        setTime(getMinTime());
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="time">Time</Label>
+                  <Input
+                    type="time"
+                    id="time"
+                    value={time}
+                    min={getMinTime()}
                     onChange={(e) => setTime(e.target.value)}
                     required
                   />

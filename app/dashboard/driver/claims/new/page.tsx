@@ -482,6 +482,7 @@ export default function NewClaimPage() {
 
         ]);
         setClaimTypes(claimTypesRes);
+        setUserVehicles(user.vehicles)
       } catch (error) {
         toast({
           variant: "destructive",
@@ -994,7 +995,6 @@ export default function NewClaimPage() {
   const handleVehicleSelection = (vehicleId: string) => {
     const selectedVehicle = userVehicles?.find(v => v.id === vehicleId);
     if (selectedVehicle) {
-      // Clear vehicle form fields since we're using existing vehicle
       form.setValue("vehicle", {
         license_plate: "",
         make: "",
@@ -1406,7 +1406,7 @@ export default function NewClaimPage() {
                   <span className="flex items-center justify-center w-8 h-8 bg-background/20 text-sm font-medium">
                     {s.number}
                   </span>
-                  <span className="hidden md:inline text-sm">{s.title}</span>
+                  <span className="md:inline text-sm">{s.title}</span>
                   <span className="ml-auto">{getStepStatusIcon(s.number)}</span>
                 </button>
               ))}

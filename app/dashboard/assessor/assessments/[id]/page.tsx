@@ -380,12 +380,12 @@ export default function AssessmentDetails({ params }: Props) {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {assessment.documents?.map((doc) => (
                     <tr key={doc.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{doc.file_name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{doc.category.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.mime_type}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.size}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.created_at}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={()=>window.open(STORAGES_URL + doc.file_path, '_blank')}>
                           View
                         </Button>
                       </td>
@@ -398,15 +398,16 @@ export default function AssessmentDetails({ params }: Props) {
 
           <TabsContent value="messages" className="space-y-4">
             <div className="space-y-4">
-              {assessment.threads?.messages?.map((message) => (
+              {assessment.claim?.messages?.map((message) => (
                 <div key={message.id} className="border rounded-lg p-4">
                   <div className="flex justify-between mb-2">
                     <div className="font-medium">
-                      {message.sender} <span className="text-muted-foreground">({message.role})</span>
+                      {message.user.name} 
+                      {/* <span className="text-muted-foreground">({message.user.role.name})</span> */}
                     </div>
-                    <div className="text-sm text-muted-foreground">{message.timestamp}</div>
+                    <div className="text-sm text-muted-foreground">{message.created_at}</div>
                   </div>
-                  <p>{message.message}</p>
+                  <p>{message.event}</p>
                 </div>
               ))}
             </div>
