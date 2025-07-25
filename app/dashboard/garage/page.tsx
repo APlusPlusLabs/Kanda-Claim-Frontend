@@ -334,7 +334,7 @@ export default function GarageDashboard() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
               <CardDescription className="text-2xl font-bold">
-                {completedRepairs.reduce((sum, repair) => sum + (repair.final_amount || 0), 0).toLocaleString()} RWF
+                {completedRepairs.reduce((sum, repair) => sum + (repair.final_amount || 0), 0)} RWF
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -380,7 +380,7 @@ export default function GarageDashboard() {
                       </div>
                       <div className="text-sm">
                         <span className="text-muted-foreground">Estimated Amount:</span>{" "}
-                        {repair.final_amount.toLocaleString()} RWF
+                        {repair.final_amount} RWF
                       </div>
                     </div>
 
@@ -464,7 +464,7 @@ export default function GarageDashboard() {
                       </div>
                       <div className="text-sm">
                         <span className="text-muted-foreground">Estimated Amount:</span>{" "}
-                        {repair.estimated_amount.toLocaleString()} RWF
+                        {repair.estimated_amount} RWF
                       </div>
                     </div>
 
@@ -540,7 +540,7 @@ export default function GarageDashboard() {
                       </div>
                       <div className="text-sm">
                         <span className="text-muted-foreground">Final Amount:</span>{" "}
-                        {(repair.final_amount || 0).toLocaleString()} RWF
+                        {(repair.final_amount || 0)} RWF
                       </div>
                     </div>
 
