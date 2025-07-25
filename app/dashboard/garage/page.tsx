@@ -105,13 +105,13 @@ export default function GarageDashboard() {
         const response = await apiRequest(`${API_URL}repair-jobs/${user.tenant_id}/${user.garage_id}`,"GET");
        
         const pending = response.filter((job: RepairJob) =>
-          ["awaiting_approval", "approved", "pending"].includes(job.status)
+          ["awaiting_approval", "approved", "pending","repair approved"].includes(job.status.toLowerCase())
         );
         const active = response.filter((job: RepairJob) =>
           ["in_progress","pending"].includes(job.status)
         );
         const completed = response.filter((job: RepairJob) =>
-          ["completed"].includes(job.status)
+          ["completed"].includes(job.status.toLowerCase())
         );
   
         setPendingRepairs(pending);
