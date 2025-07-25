@@ -427,7 +427,7 @@ export default function AssessmentDetailsPage({ params }: Props) {
         </Tabs>
 
         <div className="flex justify-end space-x-2">
-          {assessment.status === "pending" && (
+          {/* {assessment.status === "pending" && (
             <Button asChild>
               <Link href={`/dashboard/insurer/assessments/${assessment.id}/schedule`}>Schedule Assessment</Link>
             </Button>
@@ -436,7 +436,7 @@ export default function AssessmentDetailsPage({ params }: Props) {
             <Button asChild>
               <Link href={`/dashboard/insurer/assessments/${assessment.id}/submit`}>Complete Assessment</Link>
             </Button>
-          )}
+          )} */}
           <Button variant="outline" asChild>
             <Link href="/dashboard/insurer/assessments">Back to Assessments</Link>
           </Button>

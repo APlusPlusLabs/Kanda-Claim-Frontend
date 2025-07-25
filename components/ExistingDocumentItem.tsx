@@ -5,7 +5,7 @@ import { AssignmentReport } from '@/lib/types/claims'
 import { Button } from './ui/button';
 import { useLanguage } from '@/lib/language-context';
 
-const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
+const STORAGES_URL = process.env.NEXT_PUBLIC_STORAGES_URL
 const { t } = useLanguage();
 // Document item component for existing documents
 const ExistingDocumentItem = ({ document, onRemove }: { document: any, onRemove: (id: string) => void }) => {

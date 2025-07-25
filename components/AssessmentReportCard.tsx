@@ -3,7 +3,7 @@ import React from 'react';
 import { Calendar, DollarSign, Wrench, Camera, AlertTriangle, CheckCircle, Link, File } from 'lucide-react';
 import { AssignmentReport } from '@/lib/types/claims'
 
-const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
+const STORAGES_URL = process.env.NEXT_PUBLIC_STORAGES_URL
 
 const AssessmentReportCard = ({ reportData }) => {
     // const data = reportData || defaultReportData;

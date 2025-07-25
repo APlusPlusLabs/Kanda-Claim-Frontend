@@ -21,6 +21,7 @@ import {
   MessageCircle,
   History,
   Briefcase,
+  Send,
 } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { useAuth } from "@/lib/auth-provider"
@@ -35,6 +36,7 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import AssessmentReportCard from "@/components/AssessmentReportCard"
+import { randomUUID } from "crypto"
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL;
 
 const STORAGES_URL = process.env.NEXT_PUBLIC_STORAGES_URL
@@ -49,7 +51,7 @@ export default function AssessmentDetails({ params }: Props) {
   const { user, apiRequest } = useAuth()
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-
+  const [messageText, setMessageText] = useState("")
   const [assessment, setAssessment] = useState<any>(null);
   const [assignment, setAssignment] = useState<any>(null);
   const fetchAssignment = useCallback(async () => {
@@ -119,7 +121,34 @@ export default function AssessmentDetails({ params }: Props) {
       router.push("/login");
     }
   }, [user, fetchAssignment, router, toast]);
+  const handleSendMessage = async () => {
+    if (!messageText.trim()) return
 
+    const newMessage = {
+      thread_id: randomUUID,
+      content: messageText,
+      claim_id: assessment.claim.id,
+      user_id: user.id
+    }
+
+    try {
+      const response = await apiRequest(`${API_URL}messages/${user?.id}`, "POST", newMessage)
+      const updatedMessage = response.data
+      toast({
+        title: "Success",
+        description: "Message Sent!",
+      });
+      // const updatedConversations = assessment.claim.messages.map((conversation) => {
+      //   return [conversation, ...assessment.claim.messages]
+      // })
+
+      // setConversations([updatedMessage, ...assessment.claim.messages])
+      setMessageText("")
+      window.location.reload()
+    } catch (error) {
+      console.error("Error sending message:", error)
+    }
+  }
   if (loading) {
     return (
       <div className="space-y-4">
@@ -302,16 +331,16 @@ export default function AssessmentDetails({ params }: Props) {
             </CardContent>
           </Card>
           <Card>
-          <CardHeader>
-            <CardTitle>Damage Description</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{assessment.description}</p>
-          </CardContent>
-        </Card>
+            <CardHeader>
+              <CardTitle>Damage Description</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>{assessment.description}</p>
+            </CardContent>
+          </Card>
         </div>
 
-      
+
 
         <Tabs defaultValue="report">
           <TabsList>
@@ -385,7 +414,7 @@ export default function AssessmentDetails({ params }: Props) {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.size}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.created_at}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <Button variant="outline" size="sm" onClick={()=>window.open(STORAGES_URL + doc.file_path, '_blank')}>
+                        <Button variant="outline" size="sm" onClick={() => window.open(STORAGES_URL + doc.file_path, '_blank')}>
                           View
                         </Button>
                       </td>
@@ -402,7 +431,7 @@ export default function AssessmentDetails({ params }: Props) {
                 <div key={message.id} className="border rounded-lg p-4">
                   <div className="flex justify-between mb-2">
                     <div className="font-medium">
-                      {message.user.name} 
+                      {message.user.name}
                       {/* <span className="text-muted-foreground">({message.user.role.name})</span> */}
                     </div>
                     <div className="text-sm text-muted-foreground">{message.created_at}</div>
@@ -412,8 +441,16 @@ export default function AssessmentDetails({ params }: Props) {
               ))}
             </div>
             <div className="flex items-center space-x-2">
-              <input type="text" placeholder="Type your message..." className="flex-1 px-3 py-2 border rounded-md" />
-              <Button>Send</Button>
+              <input type="text" value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }} placeholder="Type your message..." className="flex-1 px-3 py-2 border rounded-md" />
+              <Button onClick={handleSendMessage} disabled={!messageText.trim()} ><Send className="h-5 w-5" /> Send</Button>
+
             </div>
           </TabsContent>
 

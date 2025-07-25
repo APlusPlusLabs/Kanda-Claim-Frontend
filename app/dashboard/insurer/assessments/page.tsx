@@ -301,7 +301,7 @@ function AssessmentCard({ assessment }) {
         </div>
 
         <div className="mt-4 flex justify-end space-x-2">
-          {assessment.status === "pending" && (
+          {/* {assessment.status === "pending" && (
             <Button size="sm" asChild>
               <Link href={`/dashboard/insurer/assessments/${assessment.id}/schedule`}>Schedule Assessment</Link>
             </Button>
@@ -310,7 +310,7 @@ function AssessmentCard({ assessment }) {
             <Button size="sm" asChild>
               <Link href={`/dashboard/insurer/assessments/${assessment.id}/submit`}>Complete Assessment</Link>
             </Button>
-          )}
+          )} */}
           <Button variant="outline" size="sm" asChild>
             <Link href={`/dashboard/insurer/assessments/${assessment.id}`}>View Details</Link>
           </Button>
