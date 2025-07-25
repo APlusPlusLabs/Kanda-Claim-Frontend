@@ -380,12 +380,12 @@ export default function GarageDashboard() {
                       </div>
                       <div className="text-sm">
                         <span className="text-muted-foreground">Estimated Amount:</span>{" "}
-                        {repair.estimated_amount.toLocaleString()} RWF
+                        {repair.final_amount.toLocaleString()} RWF
                       </div>
                     </div>
 
                     <div className="mt-4 flex justify-end space-x-2">
-                      {repair.status !== "approved" ? (
+                      {(repair.status.toLowerCase() !== "approved" || repair.status.toLowerCase() !== "repair approved") ? (
                         <Button
                           variant="outline"
                           size="sm"
