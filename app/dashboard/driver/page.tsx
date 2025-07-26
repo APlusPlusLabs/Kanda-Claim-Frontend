@@ -133,29 +133,6 @@ const statusConfig = [
     },
   },
 ];
-
-
-
-// const [notifications, setNotifications] = useState([
-//   {
-//     id: 1,
-//     message: "Your claim CL-2025-001 has been approved for assessment.",
-//     time: "2 hours ago",
-//     read: false,
-//   },
-//   {
-//     id: 2,
-//     message: "Garage 'Kigali Auto Services' has submitted a repair quote for your vehicle.",
-//     time: "1 day ago",
-//     read: true,
-//   },
-//   {
-//     id: 3,
-//     message: "Your claim CL-2025-002 requires additional documentation.",
-//     time: "2 days ago",
-//     read: false,
-//   },
-// ])
 export default function DriverDashboard() {
   const router = useRouter();
   const { t } = useLanguage();
@@ -278,7 +255,7 @@ export default function DriverDashboard() {
     openClaimDetails: (claim: Claim) => void;
     getStatusBadge: (status: string) => JSX.Element;
   }) {
-    const isCompletedOrRejected = ["completed", "rejected", "Completed", "Rejected"].includes(status);
+    const isCompletedOrRejected = ["completed", "rejected", "done", "paid"].includes(status.toLowerCase());
 
     return (
       <TabsContent value={status} className="space-y-4">
@@ -299,7 +276,7 @@ export default function DriverDashboard() {
                   </div>
                   <div className="mt-2 md:mt-0">
                     {isCompletedOrRejected ? (
-                      status === "completed" ? (
+                      status.toLowerCase() === "completed" ? (
                         <>
                           <Badge className="w-fit bg-green-500">
                             <CheckCircle2 className="h-3 w-3 mr-1" /> Completed
@@ -333,12 +310,12 @@ export default function DriverDashboard() {
                   <div className="text-sm">
                     <span className="text-muted-foreground">Insurer:</span> {claim.insurer?.name ?? "N/A"}
                   </div>
-                  {!status.includes("rejected") && (
+                  {!status.toLowerCase().includes("rejected") && (
                     <div className="text-sm mt-2 md:mt-0">
                       <span className="text-muted-foreground">
-                        {status === "completed" ? "Final Amount:" : "Estimated Amount:"}
+                        {status.toLowerCase() === "completed" ? "Final Amount:" : "Estimated Amount:"}
                       </span>{" "}
-                      {(claim.amount ?? 0).toLocaleString()} {claim.currency ?? "N/A"}
+                      {(status.toLowerCase() === "completed" ? claim.approved_amount : claim.amount)} {claim.currency ?? "N/A"}
                     </div>
                   )}
                 </div>
