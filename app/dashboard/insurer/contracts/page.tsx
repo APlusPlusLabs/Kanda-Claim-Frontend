@@ -728,7 +728,10 @@ export default function FlexibleContractsPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDownloadPdf(contract.id)}
+                                  onClick={() =>
+                                    // handleDownloadPdf(contract.id)
+                                    window.open(`${API_URL}tenants/${user.tenant_id}/contracts/${contract.id}/pdf`, '_blank')
+                                  }
                                   title="Download PDF"
                                 >
                                   <Download className="h-4 w-4" />

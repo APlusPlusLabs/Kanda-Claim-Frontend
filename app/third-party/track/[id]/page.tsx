@@ -265,7 +265,10 @@ export default function ThirdPartyTrackPage() {
 
       <div className="flex flex-col md:flex-row gap-4 mb-8">
         {claim.contracts?.map((contract: any) => (
-          <Button key={contract.id} onClick={() => handleDownloadPdf(contract.id, claim.tenant_id)}
+          <Button key={contract.id} onClick={() => 
+            // handleDownloadPdf(contract.id, claim.tenant_id);
+            window.open(`${API_URL}tenants/${claim.tenant_id}/contracts/${contract.id}/pdf`, '_blank')
+          }
             title="Download PDF">
             <Download className="mr-2 h-4 w-4" /> Claim Certificate
           </Button>))}
