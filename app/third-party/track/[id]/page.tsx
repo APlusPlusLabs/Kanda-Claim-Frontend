@@ -35,12 +35,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/lib/auth-provider"
-import { format } from "date-fns"
+import { format, formatDate } from "date-fns"
 
 const API_URL = process.env.NEXT_PUBLIC_APP_API_URL || "";
-const STORAGES_URL = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/";
-const STORAGES_URL_PHOTOS = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/claims/photos/";
-const STORAGES_URL_DOCS = process.env.NEXT_PUBLIC_APP_WEB_URL + "storage/claims/documents/";
+const STORAGES_URL = process.env.NEXT_PUBLIC_STORAGES_URL;
+const STORAGES_URL_PHOTOS = process.env.NEXT_PUBLIC_STORAGES_URL + "claims/photos/";
+const STORAGES_URL_DOCS = process.env.NEXT_PUBLIC_STORAGES_URL + "claims/documents/";
 
 export default function ThirdPartyTrackPage() {
   const router = useRouter()
@@ -157,7 +157,24 @@ export default function ThirdPartyTrackPage() {
       });
     }
   }
+  const handleDownloadPdf = async (contractId: string, tenant_id: string) => {
+    try {
+      const response = await apiRequest(`${API_URL}tenants/${tenant_id}/contracts/${contractId}/pdf`)
 
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `contract-${contractId}.pdf`
+      a.click()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download PDF",
+        variant: "destructive",
+      })
+    }
+  }
   const handleMessageSubmit = async () => {
     if (!newMessage.trim()) return
     const reposnse = await apiRequest(`${API_URL}messages-3rd/${claim.user_id}`, "POST", { content: newMessage, claim_id: claim.id })
@@ -247,6 +264,11 @@ export default function ThirdPartyTrackPage() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-8">
+        {claim.contracts?.map((contract: any) => (
+          <Button key={contract.id} onClick={() => handleDownloadPdf(contract.id, claim.tenant_id)}
+            title="Download PDF">
+            <Download className="mr-2 h-4 w-4" /> Claim Certificate
+          </Button>))}
         <Button onClick={() => setIsUploadDialogOpen(true)}>
           <Upload className="mr-2 h-4 w-4" /> Upload Documents
         </Button>
@@ -289,15 +311,15 @@ export default function ThirdPartyTrackPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Name:</span>
-                      <span>{claim.claimant.name}</span>
+                      <span>{claim.claimant?.name}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Email:</span>
-                      <span>{claim.claimant.email}</span>
+                      <span>{claim.claimant?.email}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Phone:</span>
-                      <span>{claim.claimant.phone}</span>
+                      <span>{claim.claimant?.phone}</span>
                     </div>
                   </div>
                 </div>
@@ -308,16 +330,16 @@ export default function ThirdPartyTrackPage() {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Vehicle:</span>
                       <span>
-                        {claim.policyholder.vehicleMake} {claim.policyholder.vehicleModel}
+                        {claim.policyholder?.vehicleMake} {claim.policyholder?.vehicleModel}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Plate Number:</span>
-                      <span>{claim.policyholder.vehiclePlate}</span>
+                      <span>{claim.policyholder?.vehiclePlate}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Insurance Company:</span>
-                      <span>{claim.policyholder.insuranceCompany}</span>
+                      <span>{claim.policyholder?.insuranceCompany}</span>
                     </div>
                   </div>
                 </div>
@@ -332,17 +354,17 @@ export default function ThirdPartyTrackPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Date:</span>
-                    <span>{format(new Date(claim.incident.date), "yyyy-MM-dd")}</span>
+                    <span>{formatDate(new Date(claim.incident?.date), "yyyy-MM-dd")}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Location:</span>
-                    <span>{claim.incident.location}</span>
+                    <span>{claim.incident?.location}</span>
                   </div>
                 </div>
 
                 <div>
                   <h3 className="text-sm font-medium mb-2">Description</h3>
-                  <p className="text-sm">{claim.incident.description}</p>
+                  <p className="text-sm">{claim.incident?.description}</p>
                 </div>
 
                 <div>
@@ -350,13 +372,13 @@ export default function ThirdPartyTrackPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Type:</span>
-                      <span>{claim.damages.type}</span>
+                      <span>{claim.damages?.type}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Estimated Amount:</span>
-                      <span>{claim.damages.estimatedAmount} RWF</span>
+                      <span>{claim.damages?.estimatedAmount} RWF</span>
                     </div>
-                    <p>{claim.damages.description}</p>
+                    <p>{claim.damages?.description}</p>
                   </div>
                 </div>
               </CardContent>
@@ -415,7 +437,7 @@ export default function ThirdPartyTrackPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {claim.timeline.map((item: any, index: number) => (
+                {claim.timeline?.map((item: any, index: number) => (
                   <div key={index} className="flex">
                     <div className="mr-4">{getTimelineStatusIcon(item.status)}</div>
                     <div className="flex-1 pb-6 border-l pl-4 border-dashed">

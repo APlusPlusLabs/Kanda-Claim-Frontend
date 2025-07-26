@@ -492,7 +492,7 @@ export default function FlexibleContractsPage() {
           </Button>
         </div>
 
-
+       
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -955,6 +955,34 @@ function ContractDialog({
               />
             )}
 
+            {/* Contract Draft */}
+            {form.watch("contract_type") && contractDraftsByType[form.watch("contract_type")] && (
+              <FormField
+                control={form.control}
+                name="contract_draft_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contract Template</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select contract template" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {contractDraftsByType[form.watch("contract_type")].map((draft) => (
+                          <SelectItem key={draft.id} value={draft.id}>
+                            {draft.name} (v{draft.version})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             {/* Contract Value */}
             <FormField
               control={form.control}
@@ -975,47 +1003,7 @@ function ContractDialog({
                 </FormItem>
               )}
             />
-            {/* Contract Draft */}
-            {form.watch("contract_type") && contractDraftsByType[form.watch("contract_type")] && (
-              <FormField
-                control={form.control}
-                name="contract_draft_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contract Template</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        field.onChange(value);
 
-                        // Find the selected draft
-                        const selectedDraft = contractDraftsByType[form.watch("contract_type")]
-                          .find(draft => draft.id === value);
-
-                        // If draft found and terms is empty, fill it with the template
-                        if (selectedDraft && !form.getValues("terms")) {
-                          form.setValue("terms", selectedDraft.template);
-                        }
-                      }}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select contract template" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {contractDraftsByType[form.watch("contract_type")].map((draft) => (
-                          <SelectItem key={draft.id} value={draft.id}>
-                            {draft.name} (v{draft.version})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
             {/* Terms */}
             <FormField
               control={form.control}
